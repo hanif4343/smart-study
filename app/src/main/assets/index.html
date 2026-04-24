@@ -379,6 +379,20 @@
         .notice-btn { background: #6366f1; color: white; width: 80%; padding: 12px; border-radius: 15px; font-weight: 800; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3); transition: 0.3s; }
         .notice-btn:active { transform: scale(0.95); }
         
+
+        /* ===== SAFE AREA FIX (Status Bar) ===== */
+        #main-header {
+            padding-top: max(env(safe-area-inset-top, 28px), 28px) !important;
+        }
+        body {
+            padding-top: 0;
+        }
+        .sticky-ctrls {
+            top: max(calc(env(safe-area-inset-top, 0px) + 75px), 75px) !important;
+        }
+        #reading-progress-bar {
+            top: max(calc(env(safe-area-inset-top, 0px) + 75px), 75px) !important;
+        }
         mjx-container { max-width: 100%; overflow-x: auto; overflow-y: hidden; display: inline-block !important; vertical-align: middle; }
         
         .preview-img { 
@@ -1610,7 +1624,7 @@
     </div>
 
 
-    <header id="main-header" class="bg-indigo-600 text-white pt-8 pb-8 px-6 shadow-lg sticky top-0 z-50 flex justify-between items-center h-[75px]">
+    <header id="main-header" class="bg-indigo-600 text-white px-6 shadow-lg sticky top-0 z-50 flex justify-between items-center" style="padding-top: max(env(safe-area-inset-top, 28px), 28px); padding-bottom: 12px; min-height: 75px;">
     <div id="header-static">
         <h2 id="zone-title" class="text-xl font-black">স্টাডি জোন</h2>
         <p class="text-white/60 text-[9px] font-bold tracking-[3px] uppercase">Smart Study</p>
@@ -3284,7 +3298,11 @@ function renderQuestions() {
 
         const correctUI = (correctVal && (qType === 'written' || currentMode === 'study')) ? 
             `<div class="ans-box" style="border: 1.5px solid #10b981; background: #f0fdf4; border-radius: 8px; margin-top: -8px; padding: 0px 10px 5px 10px !important; line-height: 1 !important;">
-                <span class="font-black text-green-700" style="font-size: 14px; display: inline-block; margin-top: 5px;">উত্তর:</span>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px; margin-bottom:2px;">
+                    <span class="font-black text-green-700" style="font-size: 14px;">উত্তর:</span>
+                    <button onclick="openEditModal('${getVal(i, 'id')}', 'correct', '${(corRaw || '').replace(/'/g, "\'").replace(/"/g, "&quot;").replace(/\n/g, "\\n")}')" 
+                            style="width: 20px; height: 20px; background: #dcfce7; color: #166534; border: 1px solid #86efac; border-radius: 4px; font-size: 15px; cursor: pointer; display:flex; align-items:center; justify-content:center;">✎</button>
+                </div>
                 <div style="margin-top: 2px; line-height: 1.3;">${correctVal}</div>
             </div>` : '';
 
@@ -5380,14 +5398,16 @@ async function checkWrittenAnswer(btn) {
     // "উত্তর:" বা "Ans:" থাকলে তা বাদ দিয়ে শুধু মূল অংশটি নেওয়া
     var correctText = rawCorrectText.replace(/^(উত্তর|উ|ans|answer|Solution)\s*[:।-]\s*/i, '').trim();
 
-    try {
-        // Gemini API কল করা
-        var result = await smartMatchAnswer(userAnswer, correctText);
-        renderMatchResult(btn, result, qId, itemIdx);
-    } catch(e) {
-        var localResult = localMatchAnswer(userAnswer, correctText);
-        renderMatchResult(btn, localResult, qId, itemIdx);
-    }
+    // সরাসরি local matching — instant result (no API delay)
+    var result = localMatchAnswer(userAnswer, correctText);
+    renderMatchResult(btn, result, qId, itemIdx);
+    
+    // Background এ Gemini দিয়ে আরও accurate result আনা (optional upgrade)
+    smartMatchAnswer(userAnswer, correctText).then(function(aiResult) {
+        if (aiResult && aiResult.pct !== undefined) {
+            // AI result পেলে silently update করা যাবে (future use)
+        }
+    }).catch(function() {});
 }
 
 // ---- Gemini API Smart Match ----
