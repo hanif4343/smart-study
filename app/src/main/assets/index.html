@@ -64,6 +64,63 @@
         box-shadow: 0 4px 12px rgba(245,158,11,0.4);
         pointer-events: none;
     }
+    
+    /* ===== AUTH (LOGIN/SIGNUP) ===== */
+    #auth-overlay {
+        position: fixed; inset: 0; z-index: 99999;
+        background: linear-gradient(135deg, #4338ca 0%, #6366f1 50%, #7c3aed 100%);
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        padding: 24px; overflow-y: auto;
+    }
+    #auth-overlay.hidden { display: none !important; }
+    .auth-card {
+        background: white; border-radius: 28px; padding: 28px 24px;
+        width: 100%; max-width: 380px;
+        box-shadow: 0 24px 60px rgba(0,0,0,0.3);
+        animation: authPop 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
+    }
+    @keyframes authPop {
+        from { transform: scale(0.85) translateY(20px); opacity: 0; }
+        to { transform: scale(1) translateY(0); opacity: 1; }
+    }
+    .auth-logo { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin: 0 auto 12px; display: block; border: 3px solid #6366f1; }
+    .auth-input {
+        width: 100%; padding: 13px 16px; border: 2px solid #e2e8f0; border-radius: 14px;
+        font-family: 'Noto Sans Bengali', sans-serif; font-size: 15px; font-weight: 600;
+        outline: none; transition: border-color 0.2s; margin-bottom: 10px; color: #1e293b;
+        background: #f8fafc;
+    }
+    .auth-input:focus { border-color: #6366f1; background: white; }
+    .auth-btn {
+        width: 100%; padding: 14px; background: linear-gradient(135deg, #6366f1, #4338ca);
+        border: none; border-radius: 14px; color: white; font-size: 16px; font-weight: 900;
+        font-family: 'Noto Sans Bengali', sans-serif; cursor: pointer; transition: 0.2s;
+        margin-top: 6px;
+    }
+    .auth-btn:active { transform: scale(0.97); opacity: 0.9; }
+    .auth-link { color: #6366f1; font-weight: 800; cursor: pointer; text-decoration: underline; }
+    .auth-error { background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 10px 14px; color: #dc2626; font-size: 13px; font-weight: 700; margin-bottom: 10px; display: none; }
+    .auth-success { background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px; padding: 10px 14px; color: #16a34a; font-size: 13px; font-weight: 700; margin-bottom: 10px; display: none; }
+
+    /* ===== LEADERBOARD ===== */
+    .lb-card {
+        background: var(--card-bg); border-radius: 18px; padding: 12px 14px;
+        margin-bottom: 8px; border: 1px solid rgba(0,0,0,0.05);
+        display: flex; align-items: center; gap: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+    .lb-rank { width: 34px; height: 34px; border-radius: 50%; font-size: 14px; font-weight: 900;
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .lb-rank-1 { background: linear-gradient(135deg,#fbbf24,#d97706); color: white; }
+    .lb-rank-2 { background: linear-gradient(135deg,#94a3b8,#64748b); color: white; }
+    .lb-rank-3 { background: linear-gradient(135deg,#f97316,#ea580c); color: white; }
+    .lb-rank-n { background: #f1f5f9; color: #475569; }
+    .lb-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0; flex-shrink: 0; background: linear-gradient(135deg,#a5b4fc,#818cf8); display: flex; align-items:center; justify-content:center; font-size:18px; overflow:hidden; }
+    .lb-avatar img { width:100%;height:100%;object-fit:cover;border-radius:50%; }
+    .lb-me { border: 2px solid #6366f1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
+    .lb-role-badge { font-size: 9px; font-weight: 900; padding: 2px 8px; border-radius: 20px; }
+    .lb-role-admin { background: #fef3c7; color: #92400e; }
+    .lb-role-user { background: #eff6ff; color: #1d4ed8; }
     </style>
     
     <script>
@@ -1612,6 +1669,40 @@
             <iframe id="pdf-frame" src="" class="w-full h-full border-none"></iframe>
         </div>
     </div>
+    <!-- ===== AUTH OVERLAY ===== -->
+    <div id="auth-overlay" class="hidden">
+        <div id="auth-login-card" class="auth-card">
+            <img src="https://i.postimg.cc/zf7hGQry/icon.png" class="auth-logo" alt="Logo">
+            <h2 style="text-align:center;font-weight:900;font-size:22px;color:#1e293b;margin-bottom:4px;">Smart Study</h2>
+            <p style="text-align:center;color:#94a3b8;font-size:13px;font-weight:700;margin-bottom:20px;">লগইন করুন</p>
+            <div id="auth-login-error" class="auth-error"></div>
+            <input type="tel" id="auth-phone" class="auth-input" placeholder="মোবাইল নম্বর (01XXXXXXXXX)" maxlength="11">
+            <input type="password" id="auth-password" class="auth-input" placeholder="পাসওয়ার্ড">
+            <button class="auth-btn" onclick="doLogin()">🔐 লগইন করুন</button>
+            <p style="text-align:center;font-size:13px;font-weight:700;color:#94a3b8;margin-top:16px;">
+                অ্যাকাউন্ট নেই? 
+                <span class="auth-link" onclick="showSignup()">নতুন রেজিস্ট্রেশন</span>
+            </p>
+        </div>
+        <div id="auth-signup-card" class="auth-card hidden">
+            <img src="https://i.postimg.cc/zf7hGQry/icon.png" class="auth-logo" alt="Logo">
+            <h2 style="text-align:center;font-weight:900;font-size:20px;color:#1e293b;margin-bottom:4px;">নতুন রেজিস্ট্রেশন</h2>
+            <p style="text-align:center;color:#94a3b8;font-size:12px;font-weight:700;margin-bottom:16px;">তোমার তথ্য দিয়ে অ্যাকাউন্ট তৈরি করো</p>
+            <div id="auth-signup-error" class="auth-error"></div>
+            <div id="auth-signup-success" class="auth-success"></div>
+            <input type="text" id="su-name" class="auth-input" placeholder="পুরো নাম *">
+            <input type="tel" id="su-phone" class="auth-input" placeholder="মোবাইল নম্বর * (01XXXXXXXXX)" maxlength="11">
+            <input type="email" id="su-email" class="auth-input" placeholder="ইমেইল (ঐচ্ছিক)">
+            <input type="password" id="su-password" class="auth-input" placeholder="পাসওয়ার্ড * (কমপক্ষে ৬ সংখ্যা)">
+            <input type="text" id="su-type" class="auth-input" placeholder="ধরন (যেমন: Student, Teacher)">
+            <button class="auth-btn" onclick="doSignup()">✅ রেজিস্ট্রেশন করুন</button>
+            <p style="text-align:center;font-size:13px;font-weight:700;color:#94a3b8;margin-top:12px;">
+                অ্যাকাউন্ট আছে? 
+                <span class="auth-link" onclick="showLogin()">লগইন করুন</span>
+            </p>
+        </div>
+    </div>
+
     <div id="splash-screen">
         <img src="https://i.postimg.cc/zf7hGQry/icon.png" class="splash-logo" alt="Logo">
         <h2 class="text-white text-2xl font-black">পড়া ও প্রস্তুতির জন্য সেরা এপ</h2>
@@ -1716,6 +1807,7 @@
         <button onclick="changeMode('quiz')" id="nav-quiz" class="nav-item"><span>🎯</span><span>Quiz</span></button>
         <button onclick="changeMode('qbank')" id="nav-qbank" class="nav-item"><span>📚</span><span>QBank</span></button>
         <button onclick="changeMode('study')" id="nav-study" class="nav-item"><span>📖</span><span>Study</span></button>
+        <button onclick="openLeaderboard()" id="nav-lb" class="nav-item"><span>🏆</span><span>লিডার</span></button>
         <button onclick="openMenu()" id="nav-menu" class="nav-item"><span>👤</span><span>Menu</span></button>
     </nav>
 
@@ -2255,13 +2347,15 @@ function loadFirebaseData() {
             fullData['Quiz']   = fixData('Quiz');
             fullData['QBank']  = fixData('QBank');
             fullData['Notice'] = fixData('Notice');
+            fullData['Users']  = fixData('Users');
 
             // Cache এ save
             saveDataOffline({
                 Study: fullData['Study'],
                 Quiz:  fullData['Quiz'],
                 QBank: fullData['QBank'],
-                Notice: fullData['Notice']
+                Notice: fullData['Notice'],
+                Users: fullData['Users']
             });
 
             if (dbDot) dbDot.style.display = 'none';
@@ -2969,7 +3063,8 @@ function renderView() {
             <span class="font-bold">🔊 সাউন্ড ইফেক্ট</span>
             <button onclick="toggleSound()" class="goal-btn ${localStorage.getItem('sound_off') ? '' : 'selected'}" style="width:52px; font-size:18px;">${localStorage.getItem('sound_off') ? '🔇' : '🔊'}</button>
         </div><div onclick="toggleDarkMode()" class="card mb-2">🌙 ডার্ক মোড</div>
-        <div onclick="clearCache()" class="card text-red-500 mb-20">🔄 ডাটা রিসেট</div>`;
+        <div onclick="clearCache()" class="card text-red-500 mb-2">🔄 ডাটা রিসেট</div>
+        <div onclick="doLogout()" class="card mb-20" style="display:flex;align-items:center;gap:10px;cursor:pointer;background:#fef2f2;border-color:#fecaca;"><span style="font-size:18px;">🚪</span><span style="font-weight:900;color:#dc2626;">লগ আউট</span></div>\`;
         return;
     }
 
@@ -5592,6 +5687,462 @@ function retryWrittenAnswer(btn) {
         + '<button onclick="checkWrittenAnswer(this)" class="written-submit-btn">🔍 উত্তর মিলিয়ে দেখো</button>';
     var ansBox = document.getElementById('wans-' + qId);
     if (ansBox) ansBox.classList.add('hidden');
+}
+
+
+
+// ====================================================
+// 🔐 AUTH SYSTEM — Login / Signup / Session
+// ====================================================
+var currentUser = null; // { name, phone, email, role, picture, type, status, expiryDate }
+
+function authGetUsersFromFirebase(callback) {
+    // Try live Firebase first, fall back to fullData cache
+    if(fullData['Users'] && fullData['Users'].length > 0 && !navigator.onLine) {
+        callback(fullData['Users'].filter(Boolean));
+        return;
+    }
+    fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+            if(!data) {
+                // Try cache
+                if(fullData['Users']) return callback(fullData['Users'].filter(Boolean));
+                return callback([]);
+            }
+            var arr = Array.isArray(data) ? data : Object.values(data);
+            fullData['Users'] = arr;
+            callback(arr.filter(Boolean));
+        })
+        .catch(function(){
+            if(fullData['Users']) callback(fullData['Users'].filter(Boolean));
+            else callback([]);
+        });
+}
+
+function showAuthOverlay() {
+    var ol = document.getElementById('auth-overlay');
+    if(ol) ol.classList.remove('hidden');
+}
+function hideAuthOverlay() {
+    var ol = document.getElementById('auth-overlay');
+    if(ol) ol.classList.add('hidden');
+}
+function showLogin() {
+    document.getElementById('auth-login-card').classList.remove('hidden');
+    document.getElementById('auth-signup-card').classList.add('hidden');
+}
+function showSignup() {
+    document.getElementById('auth-login-card').classList.add('hidden');
+    document.getElementById('auth-signup-card').classList.remove('hidden');
+}
+function showAuthError(id, msg) {
+    var el = document.getElementById(id);
+    el.innerText = msg;
+    el.style.display = 'block';
+}
+function hideAuthMsg(id) {
+    var el = document.getElementById(id);
+    if(el){ el.style.display = 'none'; }
+}
+
+function doLogin() {
+    var phone = (document.getElementById('auth-phone').value||'').trim();
+    var pass  = (document.getElementById('auth-password').value||'').trim();
+    hideAuthMsg('auth-login-error');
+
+    if(!phone || !pass) {
+        showAuthError('auth-login-error', '⚠️ ফোন নম্বর ও পাসওয়ার্ড দিন');
+        return;
+    }
+
+    authGetUsersFromFirebase(function(users){
+        var user = users.find(function(u){
+            return (u.Phone||'').toString().trim() === phone &&
+                   (u.Password||'').toString().trim() === pass;
+        });
+
+        if(!user) {
+            showAuthError('auth-login-error', '❌ ফোন নম্বর বা পাসওয়ার্ড ভুল!');
+            return;
+        }
+        if((user.Status||'').toLowerCase() !== 'active') {
+            showAuthError('auth-login-error', '⛔ আপনার অ্যাকাউন্ট এখনো সক্রিয় হয়নি। অ্যাডমিনের সাথে যোগাযোগ করুন।');
+            return;
+        }
+
+        // Save session
+        currentUser = {
+            name:       user.Name || '',
+            phone:      user.Phone || '',
+            email:      user.Email || '',
+            role:       (user.Role||'User').toLowerCase(),
+            picture:    user.Picture || '',
+            type:       user.Type || 'Student',
+            status:     user.Status || 'Active',
+            expiryDate: user.ExpiryDate || ''
+        };
+        localStorage.setItem('ss_session', JSON.stringify(currentUser));
+        // Sync name/pic to home display
+        if(currentUser.name) localStorage.setItem('home_user_name', currentUser.name);
+        if(currentUser.picture) localStorage.setItem('home_user_pic', currentUser.picture);
+
+        hideAuthOverlay();
+        showToast('✅ স্বাগতম, ' + currentUser.name + '!');
+        // Refresh home
+        var mv = document.getElementById('main-view');
+        if(mv && typeof renderHome === 'function') renderHome(mv);
+    });
+}
+
+function doSignup() {
+    var name  = (document.getElementById('su-name').value||'').trim();
+    var phone = (document.getElementById('su-phone').value||'').trim();
+    var email = (document.getElementById('su-email').value||'').trim();
+    var pass  = (document.getElementById('su-password').value||'').trim();
+    var type  = (document.getElementById('su-type').value||'Student').trim();
+    hideAuthMsg('auth-signup-error');
+    hideAuthMsg('auth-signup-success');
+
+    if(!name)  { showAuthError('auth-signup-error','⚠️ নাম দিন'); return; }
+    if(!phone || phone.length < 11) { showAuthError('auth-signup-error','⚠️ সঠিক ফোন নম্বর দিন'); return; }
+    if(!pass || pass.length < 6)   { showAuthError('auth-signup-error','⚠️ কমপক্ষে ৬ সংখ্যার পাসওয়ার্ড দিন'); return; }
+
+    // Check if phone already registered
+    authGetUsersFromFirebase(function(users){
+        var exists = users.find(function(u){ return (u.Phone||'').toString().trim() === phone; });
+        if(exists) {
+            showAuthError('auth-signup-error','❌ এই নম্বর দিয়ে আগেই রেজিস্ট্রেশন হয়েছে');
+            return;
+        }
+
+        var ts = new Date().toLocaleString('bn-BD');
+        var newUser = {
+            Name: name, Phone: phone, Email: email,
+            Password: pass, Type: type || 'Student',
+            Status: 'Inactive', Role: 'User',
+            ExpiryDate: '', Timestamp: ts, Picture: ''
+        };
+
+        // Save to Google Sheet via GAS
+        var rowData = {
+            targetTab: 'Users',
+            name: name, phone: phone, email: email,
+            password: pass, type: type || 'Student',
+            status: 'Inactive', role: 'User',
+            expiryDate: '', timestamp: ts, picture: ''
+        };
+
+        fetch(GAS_URL, {
+            method: 'POST', mode: 'no-cors', cache: 'no-cache',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(rowData)
+        }).catch(function(){});
+
+        // Also save to Firebase
+        fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
+            .then(function(r){ return r.json(); })
+            .then(function(data){
+                var arr = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
+                arr.push(newUser);
+                return fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY, {
+                    method: 'PUT', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify(arr)
+                });
+            }).catch(function(){});
+
+        var suc = document.getElementById('auth-signup-success');
+        suc.innerText = '✅ রেজিস্ট্রেশন সফল! অ্যাডমিন অনুমোদনের পরে লগইন করতে পারবেন।';
+        suc.style.display = 'block';
+        // Clear fields
+        ['su-name','su-phone','su-email','su-password','su-type'].forEach(function(id){
+            document.getElementById(id).value = '';
+        });
+    });
+}
+
+function doLogout() {
+    currentUser = null;
+    localStorage.removeItem('ss_session');
+    showAuthOverlay();
+    showLogin();
+    showToast('👋 লগ আউট হয়েছে');
+}
+
+function isAdmin() {
+    return currentUser && currentUser.role === 'admin';
+}
+
+function checkSession() {
+    try {
+        var s = localStorage.getItem('ss_session');
+        if(s) {
+            currentUser = JSON.parse(s);
+            return true;
+        }
+    } catch(e){}
+    return false;
+}
+
+// ====================================================
+// 🏆 LEADERBOARD SYSTEM
+// ====================================================
+function openLeaderboard() {
+    changeMode('leaderboard', true);
+}
+
+function renderLeaderboard(container) {
+    document.getElementById('zone-title').innerText = '🏆 লিডারবোর্ড';
+    document.getElementById('main-header').style.backgroundColor = '#7c3aed';
+    
+    // Highlight nav
+    document.querySelectorAll('.nav-item').forEach(function(b){
+        b.classList.remove('active-home','active-study','active-quiz','active-qbank','active-menu','active-lb');
+    });
+    var navLb = document.getElementById('nav-lb');
+    if(navLb) navLb.classList.add('active-lb');
+
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#94a3b8;font-weight:700;">⏳ লোড হচ্ছে...</div>';
+
+    authGetUsersFromFirebase(function(users){
+        // Get XP data for all users from local storage (only current user's XP is local)
+        // We'll use Firebase to get leaderboard scores if available
+        // For now, build from Firebase Users data merged with any stored XP
+        var myPhone = currentUser ? currentUser.phone : '';
+        
+        // Sort users: admins & active users only, sort by Name alphabetically (since we don't store per-user XP globally yet)
+        // We'll show rank based on XP stored in Firebase (if field exists) or show N/A
+        var activeUsers = users.filter(function(u){ return (u.Status||'').toLowerCase() === 'active'; });
+        
+        // Sort by XP desc (field 'XP' or 'xp'), fallback to name
+        activeUsers.sort(function(a,b){
+            var ax = parseInt(a.XP||a.xp||0);
+            var bx = parseInt(b.XP||b.xp||0);
+            return bx - ax;
+        });
+
+        var html = '<div style="padding:0 0 100px;">';
+        
+        // Hero section
+        html += '<div style="background:linear-gradient(135deg,#7c3aed,#6d28d9,#4c1d95);padding:20px 16px 24px;margin-bottom:12px;">';
+        html += '<h2 style="color:white;font-weight:900;font-size:20px;text-align:center;margin-bottom:4px;">🏆 লিডারবোর্ড</h2>';
+        html += '<p style="color:rgba(255,255,255,0.6);font-size:12px;font-weight:700;text-align:center;">সকল শিক্ষার্থীর র‌্যাংকিং</p>';
+        html += '</div>';
+        
+        html += '<div style="padding:0 14px;">';
+
+        if(activeUsers.length === 0) {
+            html += '<div style="text-align:center;padding:40px 20px;color:#94a3b8;font-weight:700;">কোনো ব্যবহারকারী নেই</div>';
+        } else {
+            activeUsers.forEach(function(u, idx){
+                var rank = idx + 1;
+                var isMe = u.Phone && u.Phone.toString().trim() === myPhone;
+                var xp = parseInt(u.XP||u.xp||0);
+                var phone = (u.Phone||'').toString();
+                var name = u.Name || phone;
+                var role = (u.Role||'User').toLowerCase();
+                var pic = u.Picture||'';
+
+                var rankBg = rank===1?'linear-gradient(135deg,#fbbf24,#d97706)':rank===2?'linear-gradient(135deg,#94a3b8,#64748b)':rank===3?'linear-gradient(135deg,#f97316,#ea580c)':'#f1f5f9';
+                var rankColor = rank<=3?'white':'#475569';
+                var rankIcon = rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':rank;
+
+                var cardStyle = isMe ? 'background:var(--card-bg);border-radius:18px;padding:12px 14px;margin-bottom:8px;border:2px solid #6366f1;box-shadow:0 0 0 3px rgba(99,102,241,0.15);display:flex;align-items:center;gap:12px;' 
+                                     : 'background:var(--card-bg);border-radius:18px;padding:12px 14px;margin-bottom:8px;border:1px solid rgba(0,0,0,0.05);display:flex;align-items:center;gap:12px;';
+
+                html += '<div style="'+cardStyle+'">';
+                // Rank badge
+                html += '<div style="width:36px;height:36px;border-radius:50%;background:'+rankBg+';display:flex;align-items:center;justify-content:center;font-size:'+(rank<=3?'18':'14')+'px;font-weight:900;color:'+rankColor+';flex-shrink:0;">'+rankIcon+'</div>';
+                // Avatar
+                if(pic) {
+                    html += '<div style="width:46px;height:46px;border-radius:50%;overflow:hidden;flex-shrink:0;border:2px solid #e2e8f0;"><img src="'+pic+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.parentElement.innerHTML='👤'"></div>';
+                } else {
+                    html += '<div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#a5b4fc,#818cf8);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:2px solid #e2e8f0;">👤</div>';
+                }
+                // Info
+                html += '<div style="flex:1;min-width:0;">';
+                html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">';
+                html += '<span style="font-size:14px;font-weight:900;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+name+'</span>';
+                if(isMe) html += '<span style="font-size:9px;background:#eff6ff;color:#3b82f6;padding:1px 6px;border-radius:10px;font-weight:900;flex-shrink:0;">আমি</span>';
+                html += '</div>';
+                html += '<div style="display:flex;align-items:center;gap:6px;">';
+                if(role==='admin') {
+                    html += '<span style="font-size:9px;font-weight:900;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:20px;">👑 Admin</span>';
+                } else {
+                    html += '<span style="font-size:9px;font-weight:900;background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:20px;">📚 User</span>';
+                }
+                html += '<span style="font-size:11px;color:#94a3b8;font-weight:700;">'+phone.replace(/(\d{5})(\d+)/,'$1****')+'</span>';
+                html += '</div>';
+                html += '</div>';
+                // XP Score
+                html += '<div style="text-align:right;flex-shrink:0;">';
+                html += '<div style="font-size:16px;font-weight:900;color:#6366f1;">'+xp+'</div>';
+                html += '<div style="font-size:9px;color:#94a3b8;font-weight:700;">XP</div>';
+                html += '</div>';
+                html += '</div>';
+            });
+        }
+
+        html += '</div></div>';
+        container.innerHTML = html;
+    });
+}
+
+// ====================================================
+// 👤 HOME HERO — pull from logged-in user
+// ====================================================
+var _origRenderHome = null;
+
+function patchRenderHomeForAuth() {
+    var origFn = renderHome;
+    renderHome = function(container) {
+        origFn(container);
+        // After render, update name/avatar from currentUser
+        if(currentUser) {
+            var ni = container.querySelector('.home-name-input, #home-name-input');
+            if(ni && currentUser.name) ni.value = currentUser.name;
+            var av = container.querySelector('.home-avatar');
+            if(av && currentUser.picture) {
+                av.innerHTML = '<img src="'+currentUser.picture+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
+            }
+            // Add role badge
+            var roleBadge = container.querySelector('.home-level-badge');
+            if(roleBadge) {
+                var roleTxt = currentUser.role === 'admin' ? '👑 Admin' : '📚 Student';
+                var roleEl = document.createElement('div');
+                roleEl.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:800;color:white;margin-top:4px;';
+                roleEl.innerText = roleTxt;
+                if(roleBadge.parentElement) {
+                    roleBadge.parentElement.appendChild(roleEl);
+                }
+            }
+        }
+    };
+}
+
+// ====================================================
+// 🔒 ROLE-BASED EDIT PERMISSION
+// ====================================================
+function canEditContent() {
+    // Admin: full edit; User: only explanation & technique
+    return currentUser !== null; // logged in at minimum
+}
+function canEditMainAnswer() {
+    return isAdmin();
+}
+
+// Override openEditModal to enforce role
+var _origOpenEditModal = null;
+function patchEditModalForRoles() {
+    var orig = openEditModal;
+    openEditModal = function(id, field, text) {
+        var f = (field||'').toLowerCase();
+        // Non-admins can only edit explanation/technique
+        if(!isAdmin() && f !== 'explanation' && f !== 'technique') {
+            showToast('⛔ শুধুমাত্র Admin এই ফিল্ড এডিট করতে পারবেন');
+            return;
+        }
+        orig(id, field, text);
+    };
+}
+
+// ====================================================
+// 🔄 Update changeMode to support leaderboard
+// ====================================================
+var _origChangeMode = changeMode;
+changeMode = function(m, shouldPush) {
+    if(m === 'leaderboard') {
+        currentMode = 'leaderboard';
+        updateUIMode('leaderboard');
+        document.getElementById('back-and-ctrls').classList.add('hidden');
+        document.getElementById('sticky-result').classList.add('hidden');
+        document.getElementById('reading-progress-bar').classList.add('hidden');
+        document.getElementById('q-counter-badge').style.display = 'none';
+        stopTimer();
+        path = [];
+        var container = document.getElementById('main-view');
+        renderLeaderboard(container);
+        if(shouldPush !== false) {
+            window.history.pushState({mode:'leaderboard'}, '');
+        }
+        return;
+    }
+    _origChangeMode(m, shouldPush);
+};
+
+// Patch updateUIMode to handle leaderboard
+var _origUpdateUIMode = updateUIMode;
+updateUIMode = function(m) {
+    _origUpdateUIMode(m);
+    if(m === 'leaderboard') {
+        document.getElementById('main-header').style.backgroundColor = '#7c3aed';
+        document.getElementById('zone-title').innerText = '🏆 লিডারবোর্ড';
+        document.querySelectorAll('.nav-item').forEach(function(b){
+            b.classList.remove('active-home','active-study','active-quiz','active-qbank','active-menu','active-lb');
+        });
+        var lb = document.getElementById('nav-lb');
+        if(lb) { lb.style.background='#ede9fe'; lb.style.color='#7c3aed'; }
+    } else {
+        var lb2 = document.getElementById('nav-lb');
+        if(lb2) { lb2.style.background=''; lb2.style.color=''; }
+    }
+};
+
+// ====================================================
+// 🔄 XP sync to Firebase for Leaderboard
+// ====================================================
+function syncXPToFirebase() {
+    if(!currentUser || !currentUser.phone) return;
+    var xp = parseInt(localStorage.getItem('user_xp')||'0');
+    // Update XP field in Users Firebase
+    fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+            if(!data) return;
+            var arr = Array.isArray(data) ? data : Object.values(data);
+            var updated = false;
+            arr = arr.map(function(u){
+                if(u && (u.Phone||'').toString().trim() === currentUser.phone) {
+                    u.XP = xp;
+                    updated = true;
+                }
+                return u;
+            });
+            if(updated) {
+                fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY, {
+                    method:'PUT', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify(arr)
+                }).catch(function(){});
+            }
+        }).catch(function(){});
+}
+
+// Sync XP every 2 minutes when logged in
+setInterval(function(){
+    if(currentUser) syncXPToFirebase();
+}, 120000);
+
+// ====================================================
+// 🚀 BOOT PATCH — check auth on startup
+// ====================================================
+document.addEventListener('DOMContentLoaded', function(){
+    // Patch functions after DOM ready
+    setTimeout(function(){
+        patchEditModalForRoles();
+        patchRenderHomeForAuth();
+        
+        // Check session
+        if(!checkSession()) {
+            // Show login overlay
+            showAuthOverlay();
+            showLogin();
+        }
+    }, 600);
+});
+
+// Menu logout button helper
+function renderLogoutBtn() {
+    return '<div onclick="doLogout()" class="card text-red-500 mb-2" style="display:flex;align-items:center;gap:10px;cursor:pointer;"><span style="font-size:18px;">🚪</span><span style="font-weight:900;">লগ আউট</span></div>';
 }
 
     </script>
