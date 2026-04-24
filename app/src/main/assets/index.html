@@ -64,63 +64,6 @@
         box-shadow: 0 4px 12px rgba(245,158,11,0.4);
         pointer-events: none;
     }
-    
-    /* ===== AUTH (LOGIN/SIGNUP) ===== */
-    #auth-overlay {
-        position: fixed; inset: 0; z-index: 99999;
-        background: linear-gradient(135deg, #4338ca 0%, #6366f1 50%, #7c3aed 100%);
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        padding: 24px; overflow-y: auto;
-    }
-    #auth-overlay.hidden { display: none !important; }
-    .auth-card {
-        background: white; border-radius: 28px; padding: 28px 24px;
-        width: 100%; max-width: 380px;
-        box-shadow: 0 24px 60px rgba(0,0,0,0.3);
-        animation: authPop 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
-    }
-    @keyframes authPop {
-        from { transform: scale(0.85) translateY(20px); opacity: 0; }
-        to { transform: scale(1) translateY(0); opacity: 1; }
-    }
-    .auth-logo { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin: 0 auto 12px; display: block; border: 3px solid #6366f1; }
-    .auth-input {
-        width: 100%; padding: 13px 16px; border: 2px solid #e2e8f0; border-radius: 14px;
-        font-family: 'Noto Sans Bengali', sans-serif; font-size: 15px; font-weight: 600;
-        outline: none; transition: border-color 0.2s; margin-bottom: 10px; color: #1e293b;
-        background: #f8fafc;
-    }
-    .auth-input:focus { border-color: #6366f1; background: white; }
-    .auth-btn {
-        width: 100%; padding: 14px; background: linear-gradient(135deg, #6366f1, #4338ca);
-        border: none; border-radius: 14px; color: white; font-size: 16px; font-weight: 900;
-        font-family: 'Noto Sans Bengali', sans-serif; cursor: pointer; transition: 0.2s;
-        margin-top: 6px;
-    }
-    .auth-btn:active { transform: scale(0.97); opacity: 0.9; }
-    .auth-link { color: #6366f1; font-weight: 800; cursor: pointer; text-decoration: underline; }
-    .auth-error { background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 10px 14px; color: #dc2626; font-size: 13px; font-weight: 700; margin-bottom: 10px; display: none; }
-    .auth-success { background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px; padding: 10px 14px; color: #16a34a; font-size: 13px; font-weight: 700; margin-bottom: 10px; display: none; }
-
-    /* ===== LEADERBOARD ===== */
-    .lb-card {
-        background: var(--card-bg); border-radius: 18px; padding: 12px 14px;
-        margin-bottom: 8px; border: 1px solid rgba(0,0,0,0.05);
-        display: flex; align-items: center; gap: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-    }
-    .lb-rank { width: 34px; height: 34px; border-radius: 50%; font-size: 14px; font-weight: 900;
-        display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .lb-rank-1 { background: linear-gradient(135deg,#fbbf24,#d97706); color: white; }
-    .lb-rank-2 { background: linear-gradient(135deg,#94a3b8,#64748b); color: white; }
-    .lb-rank-3 { background: linear-gradient(135deg,#f97316,#ea580c); color: white; }
-    .lb-rank-n { background: #f1f5f9; color: #475569; }
-    .lb-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0; flex-shrink: 0; background: linear-gradient(135deg,#a5b4fc,#818cf8); display: flex; align-items:center; justify-content:center; font-size:18px; overflow:hidden; }
-    .lb-avatar img { width:100%;height:100%;object-fit:cover;border-radius:50%; }
-    .lb-me { border: 2px solid #6366f1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.2); }
-    .lb-role-badge { font-size: 9px; font-weight: 900; padding: 2px 8px; border-radius: 20px; }
-    .lb-role-admin { background: #fef3c7; color: #92400e; }
-    .lb-role-user { background: #eff6ff; color: #1d4ed8; }
     </style>
     
     <script>
@@ -437,18 +380,9 @@
         .notice-btn:active { transform: scale(0.95); }
         
 
-        /* ===== SAFE AREA FIX (Status Bar) ===== */
+        /* ===== SAFE AREA FIX ===== */
         #main-header {
             padding-top: max(env(safe-area-inset-top, 28px), 28px) !important;
-        }
-        body {
-            padding-top: 0;
-        }
-        .sticky-ctrls {
-            top: max(calc(env(safe-area-inset-top, 0px) + 75px), 75px) !important;
-        }
-        #reading-progress-bar {
-            top: max(calc(env(safe-area-inset-top, 0px) + 75px), 75px) !important;
         }
         mjx-container { max-width: 100%; overflow-x: auto; overflow-y: hidden; display: inline-block !important; vertical-align: middle; }
         
@@ -1669,40 +1603,6 @@
             <iframe id="pdf-frame" src="" class="w-full h-full border-none"></iframe>
         </div>
     </div>
-    <!-- ===== AUTH OVERLAY ===== -->
-    <div id="auth-overlay" class="hidden">
-        <div id="auth-login-card" class="auth-card">
-            <img src="https://i.postimg.cc/zf7hGQry/icon.png" class="auth-logo" alt="Logo">
-            <h2 style="text-align:center;font-weight:900;font-size:22px;color:#1e293b;margin-bottom:4px;">Smart Study</h2>
-            <p style="text-align:center;color:#94a3b8;font-size:13px;font-weight:700;margin-bottom:20px;">লগইন করুন</p>
-            <div id="auth-login-error" class="auth-error"></div>
-            <input type="tel" id="auth-phone" class="auth-input" placeholder="মোবাইল নম্বর (01XXXXXXXXX)" maxlength="11">
-            <input type="password" id="auth-password" class="auth-input" placeholder="পাসওয়ার্ড">
-            <button class="auth-btn" onclick="doLogin()">🔐 লগইন করুন</button>
-            <p style="text-align:center;font-size:13px;font-weight:700;color:#94a3b8;margin-top:16px;">
-                অ্যাকাউন্ট নেই? 
-                <span class="auth-link" onclick="showSignup()">নতুন রেজিস্ট্রেশন</span>
-            </p>
-        </div>
-        <div id="auth-signup-card" class="auth-card hidden">
-            <img src="https://i.postimg.cc/zf7hGQry/icon.png" class="auth-logo" alt="Logo">
-            <h2 style="text-align:center;font-weight:900;font-size:20px;color:#1e293b;margin-bottom:4px;">নতুন রেজিস্ট্রেশন</h2>
-            <p style="text-align:center;color:#94a3b8;font-size:12px;font-weight:700;margin-bottom:16px;">তোমার তথ্য দিয়ে অ্যাকাউন্ট তৈরি করো</p>
-            <div id="auth-signup-error" class="auth-error"></div>
-            <div id="auth-signup-success" class="auth-success"></div>
-            <input type="text" id="su-name" class="auth-input" placeholder="পুরো নাম *">
-            <input type="tel" id="su-phone" class="auth-input" placeholder="মোবাইল নম্বর * (01XXXXXXXXX)" maxlength="11">
-            <input type="email" id="su-email" class="auth-input" placeholder="ইমেইল (ঐচ্ছিক)">
-            <input type="password" id="su-password" class="auth-input" placeholder="পাসওয়ার্ড * (কমপক্ষে ৬ সংখ্যা)">
-            <input type="text" id="su-type" class="auth-input" placeholder="ধরন (যেমন: Student, Teacher)">
-            <button class="auth-btn" onclick="doSignup()">✅ রেজিস্ট্রেশন করুন</button>
-            <p style="text-align:center;font-size:13px;font-weight:700;color:#94a3b8;margin-top:12px;">
-                অ্যাকাউন্ট আছে? 
-                <span class="auth-link" onclick="showLogin()">লগইন করুন</span>
-            </p>
-        </div>
-    </div>
-
     <div id="splash-screen">
         <img src="https://i.postimg.cc/zf7hGQry/icon.png" class="splash-logo" alt="Logo">
         <h2 class="text-white text-2xl font-black">পড়া ও প্রস্তুতির জন্য সেরা এপ</h2>
@@ -1715,7 +1615,7 @@
     </div>
 
 
-    <header id="main-header" class="bg-indigo-600 text-white px-6 shadow-lg sticky top-0 z-50 flex justify-between items-center" style="padding-top: max(env(safe-area-inset-top, 28px), 28px); padding-bottom: 12px; min-height: 75px;">
+    <header id="main-header" class="bg-indigo-600 text-white px-6 shadow-lg sticky top-0 z-50 flex justify-between items-center" style="padding-top:max(env(safe-area-inset-top,28px),28px);padding-bottom:12px;min-height:75px;">
     <div id="header-static">
         <h2 id="zone-title" class="text-xl font-black">স্টাডি জোন</h2>
         <p class="text-white/60 text-[9px] font-bold tracking-[3px] uppercase">Smart Study</p>
@@ -1807,7 +1707,6 @@
         <button onclick="changeMode('quiz')" id="nav-quiz" class="nav-item"><span>🎯</span><span>Quiz</span></button>
         <button onclick="changeMode('qbank')" id="nav-qbank" class="nav-item"><span>📚</span><span>QBank</span></button>
         <button onclick="changeMode('study')" id="nav-study" class="nav-item"><span>📖</span><span>Study</span></button>
-        <button onclick="openLeaderboard()" id="nav-lb" class="nav-item"><span>🏆</span><span>লিডার</span></button>
         <button onclick="openMenu()" id="nav-menu" class="nav-item"><span>👤</span><span>Menu</span></button>
     </nav>
 
@@ -1817,6 +1716,25 @@
         const GAS_URL = "https://script.google.com/macros/s/AKfycbyjF7iFX0H_rFuJgMJYo70DC7KRX1lBXU7m7NoZCwf6VTJfRm6Iyw6hOcN2q_UKbxxgQg/exec"; 
         const USER_PHONE = "01788196143"; 
         let fullData = {}, currentMode = 'study', path = [], quizItems = [], displayLimit = 20, savedQs = JSON.parse(localStorage.getItem('hs_saved') || '[]');
+        // ── Auth State ──
+        var currentUser = null;
+        function loadCurrentUser() { try { currentUser = JSON.parse(localStorage.getItem('ss_user') || 'null'); } catch(e) { currentUser = null; } }
+        function saveCurrentUser(u) { currentUser = u; localStorage.setItem('ss_user', JSON.stringify(u)); }
+        function clearCurrentUser() { currentUser = null; localStorage.removeItem('ss_user'); }
+        function isAdmin() { return !!(currentUser && currentUser.role && currentUser.role.toLowerCase() === 'admin'); }
+        function isLoggedIn() { return !!currentUser; }
+        // ── Safe helper: encode value for edit modal ──
+        function encodeEditVal(v) { return (v||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/\n/g,'\\n'); }
+        // ── Safe pic helper ──
+        function buildUserPicHtml(picUrl, size) {
+            var sz = size || 64;
+            var css = 'width:'+sz+'px;height:'+sz+'px;border-radius:50%;flex-shrink:0;';
+            if (picUrl) {
+                return '<img src="'+picUrl+'" style="'+css+'object-fit:cover;border:3px solid rgba(255,255,255,0.4);" onerror="this.style.display=\'none\'">';
+            }
+            return '<div style="'+css+'background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:'+(sz/2.5|0)+'px;">👤</div>';
+        }
+        loadCurrentUser();
         let mTimer, quizTime = 0, answeredCount = 0, selectedSubTopics = [];
         let selectedQId = null, editingField = '';
         let userExamData = [];
@@ -2095,6 +2013,7 @@ function generateTableHtml(rows) {
         }
 
         function openEditModal(id, field, text) {
+            if (!isAdmin() && field === 'correct') { showToast('⛔ Admin only — সঠিক উত্তর edit করা যাবে না!'); return; }
             selectedQId = id; editingField = field;
             document.getElementById('field-label').innerText = field.toUpperCase();
             document.getElementById('edit-q-id').innerText = `ID: ${id}`;
@@ -2348,14 +2267,27 @@ function loadFirebaseData() {
             fullData['QBank']  = fixData('QBank');
             fullData['Notice'] = fixData('Notice');
             fullData['Users']  = fixData('Users');
+            if (currentUser && currentUser.phone) {
+                var fbPhone = currentUser.phone.toString().trim();
+                var freshU = (fullData['Users']||[]).find(function(u){ return (u.Phone||u.phone||'').toString().trim()===fbPhone; });
+                if (freshU) {
+                    currentUser.name    = freshU.Name    || freshU.name    || currentUser.name;
+                    currentUser.role    = freshU.Role    || freshU.role    || currentUser.role;
+                    currentUser.status  = freshU.Status  || freshU.status  || currentUser.status;
+                    currentUser.picture = freshU.Picture || freshU.picture || currentUser.picture;
+                    currentUser.xp      = parseInt(freshU.XP || freshU.xp || 0) || 0;
+                    saveCurrentUser(currentUser);
+                    localStorage.setItem('home_user_name', currentUser.name || '');
+                    if (currentUser.picture) localStorage.setItem('home_user_pic', currentUser.picture);
+                }
+            }
 
             // Cache এ save
             saveDataOffline({
                 Study: fullData['Study'],
                 Quiz:  fullData['Quiz'],
                 QBank: fullData['QBank'],
-                Notice: fullData['Notice'],
-                Users: fullData['Users']
+                Notice: fullData['Notice']
             });
 
             if (dbDot) dbDot.style.display = 'none';
@@ -2574,9 +2506,15 @@ function renderHome(container) {
         ? Math.min(100,Math.round((xpInfo.xp-xpInfo.currentLevel.minXP)/(xpInfo.nextLevel.minXP-xpInfo.currentLevel.minXP)*100))
         : 100;
 
-    // Avatar
-    const avatarInner = userPic
-        ? `<img src="${userPic}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+    // Avatar — prefer currentUser.picture over localStorage
+    var _picSrc = (currentUser && currentUser.picture) ? currentUser.picture : userPic;
+    var _dispName = (currentUser && currentUser.name) ? currentUser.name : userName;
+    var _dispRole = (currentUser && currentUser.role) ? currentUser.role : '';
+    var _isAdminRole  = _dispRole.toLowerCase() === 'admin';
+    var _rbSt         = _isAdminRole ? 'background:#fef3c7;color:#92400e;' : 'background:rgba(255,255,255,0.2);color:rgba(255,255,255,0.9);';
+    var _roleBadgeHTML = _dispRole ? ('<span style="font-size:9px;font-weight:900;padding:2px 7px;border-radius:10px;' + _rbSt + '">' + _dispRole + '</span>') : '';
+    const avatarInner = _picSrc
+        ? `<img src="${_picSrc}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display='none'">`
         : `<span style="font-size:28px;">👤</span>`;
 
     // ── Weekly streak dots — উন্নত ডিজাইন ──
@@ -2738,10 +2676,10 @@ function renderHome(container) {
             </div>
             <div style="flex:1;min-width:0;">
                 <div style="font-size:11px;color:rgba(255,255,255,0.6);font-weight:700;">স্বাগতম! 👋</div>
-                <input class="home-name-input" placeholder="তোমার নাম লিখো..."
-                    value="${userName}"
-                    onchange="localStorage.setItem('home_user_name',this.value)"
-                    onblur="localStorage.setItem('home_user_name',this.value)">
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:3px 0;">
+                    <div class="home-name-input" style="cursor:default;padding:4px 0;flex:1;">${_dispName||'নাম লিখো...'}</div>
+                    ${_roleBadgeHTML}
+                </div>
                 <div class="home-level-badge">${xpInfo.currentLevel.emoji} Lv.${xpInfo.currentLevel.level} · ${xpInfo.currentLevel.name}</div>
             </div>
             <div style="text-align:right;flex-shrink:0;">
@@ -2797,6 +2735,13 @@ function renderHome(container) {
     <!-- REVIEW -->
     ${reviewHTML}
 
+    <div onclick="openLeaderboard()" style="background:linear-gradient(135deg,#5b21b6,#7c3aed);border-radius:14px;padding:13px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border:1px solid rgba(167,139,250,0.3);">
+        <div>
+            <div style="color:white;font-weight:900;font-size:14px;">🏆 Leaderboard</div>
+            <div style="color:rgba(255,255,255,0.6);font-size:11px;margin-top:1px;">সেরা শিক্ষার্থীদের র‍্যাংকিং</div>
+        </div>
+        <div style="color:rgba(255,255,255,0.8);font-size:20px;font-weight:900;">❯</div>
+    </div>
     <!-- DAILY CHALLENGE -->
     <div style="background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:14px;padding:13px 14px;border:1px solid rgba(99,102,241,0.2);">
         <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -2940,14 +2885,24 @@ function renderView() {
             return `<div class="streak-day-dot ${cls}">${d}</div>`;
         }).join('');
 
-        const xpInfo = getXPInfo();
+        var xpInfo = getXPInfo();
+        var _uName  = currentUser && currentUser.name  ? currentUser.name  : (getUserName()||'ব্যবহারকারী');
+        var _uPhone = currentUser && currentUser.phone ? currentUser.phone : USER_PHONE;
+        var _uRole  = currentUser && currentUser.role  ? currentUser.role  : 'User';
+        var _uPic   = currentUser && currentUser.picture ? currentUser.picture : getUserPic();
+        var _picHTML = buildUserPicHtml(_uPic, 64);
+        var _roleAdm = _uRole.toLowerCase()==='admin';
+        var _roleStyle = _roleAdm ? 'background:#fef3c7;color:#92400e;' : 'background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.9);';
         container.innerHTML = `
         <div class="streak-card p-5 mb-2">
             <div class="flex items-center gap-4 mb-4">
-                <img src="https://i.postimg.cc/VkXzQGkv/IMG-20251127-203634.jpg" class="w-16 h-16 rounded-full object-cover border-3 border-white/40 flex-shrink-0">
+                ${_picHTML}
                 <div class="flex-1">
-                    <h3 class="font-black text-white text-lg leading-tight">মোঃ হানিফ সরদার</h3>
-                    <p class="text-white/60 text-xs font-bold">${USER_PHONE}</p>
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                        <h3 class="font-black text-white text-lg leading-tight">${_uName}</h3>
+                        <span style="font-size:9px;font-weight:900;padding:2px 8px;border-radius:10px;${_roleStyle}">${_uRole}</span>
+                    </div>
+                    <p class="text-white/60 text-xs font-bold">${_uPhone}</p>
                     <div class="level-badge mt-2">
                         <span class="text-base">${xpInfo.levelEmoji}</span>
                         <span class="text-white font-black text-xs">${xpInfo.levelName}</span>
@@ -2986,6 +2941,14 @@ function renderView() {
         <div onclick="showSavedQWithFilter()" class="card flex justify-between items-center mb-2">
             <span class="font-bold">⭐ সেভ করা প্রশ্ন</span>
             <span class="bg-indigo-100 text-indigo-700 font-black px-3 py-1 rounded-full text-sm">${savedQs.length}</span>
+        </div>
+        <div onclick="openLeaderboard()" class="card flex justify-between items-center mb-2" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-color:#c4b5fd;">
+            <div><span class="font-black text-purple-700">🏆 Leaderboard</span><p class="text-xs text-gray-400 font-bold mt-0.5">সেরা শিক্ষার্থীদের র‍্যাংকিং</p></div>
+            <span class="text-purple-400 font-black text-lg">❯</span>
+        </div>
+        <div onclick="doLogout()" class="card flex justify-between items-center mb-2" style="background:#fff5f5;border-color:#fecaca;">
+            <span class="font-black text-red-600">🚪 লগআউট</span>
+            <span class="text-red-400 font-black text-lg">❯</span>
         </div>
 
         <!-- Daily Goal Setter -->
@@ -3063,8 +3026,7 @@ function renderView() {
             <span class="font-bold">🔊 সাউন্ড ইফেক্ট</span>
             <button onclick="toggleSound()" class="goal-btn ${localStorage.getItem('sound_off') ? '' : 'selected'}" style="width:52px; font-size:18px;">${localStorage.getItem('sound_off') ? '🔇' : '🔊'}</button>
         </div><div onclick="toggleDarkMode()" class="card mb-2">🌙 ডার্ক মোড</div>
-        <div onclick="clearCache()" class="card text-red-500 mb-2">🔄 ডাটা রিসেট</div>
-        <div onclick="doLogout()" class="card mb-20" style="display:flex;align-items:center;gap:10px;cursor:pointer;background:#fef2f2;border-color:#fecaca;"><span style="font-size:18px;">🚪</span><span style="font-weight:900;color:#dc2626;">লগ আউট</span></div>\`;
+        <div onclick="clearCache()" class="card text-red-500 mb-20">🔄 ডাটা রিসেট</div>`;
         return;
     }
 
@@ -3317,11 +3279,15 @@ function toggleAllInSubject(sub, masterCheckbox) {
     const data = fullData[currentMode==='study'?'Study':(currentMode==='quiz'?'Quiz':'QBank')];
     quizItems = data.filter(i => getVal(i, 'subject') === path[0] && getVal(i, 'sub_topic') === st); 
     
-    let correctHistory = JSON.parse(localStorage.getItem('correct_history') || '[]');
-    quizItems.sort((a, b) => {
-        let aDone = correctHistory.includes(getVal(a, 'id')) ? 1 : 0;
-        let bDone = correctHistory.includes(getVal(b, 'id')) ? 1 : 0;
-        return aDone - bDone;
+    var correctHistory = JSON.parse(localStorage.getItem('correct_history') || '[]');
+    var wrongHistory2  = JSON.parse(localStorage.getItem('wrong_history')   || '{}');
+    quizItems.sort(function(a,b){
+        var aCorrect = correctHistory.includes(getVal(a,'id')) ? 1 : 0;
+        var bCorrect = correctHistory.includes(getVal(b,'id')) ? 1 : 0;
+        if (aCorrect !== bCorrect) return aCorrect - bCorrect;
+        var aTopic = getVal(a,'sub_topic')||getVal(a,'subject')||'';
+        var bTopic = getVal(b,'sub_topic')||getVal(b,'subject')||'';
+        return (wrongHistory2[bTopic]||0) - (wrongHistory2[aTopic]||0);
     });
 
     // কোনো লিমিট ছাড়া সব প্রশ্ন দেখানোর জন্য:
@@ -3391,15 +3357,21 @@ function renderQuestions() {
             <div style="color: #78350f; font-size: 14px; margin-top: 2px;">${tech || '  '}</div>
         </div>`;
 
+        var _editCorBtn = '';
+        if (isAdmin() && correctVal) {
+            var _qid = getVal(i,'id');
+            var _cor = encodeEditVal(corRaw);
+            _editCorBtn = '<button onclick="openEditModal('' + _qid + '','correct','' + _cor + '')" style="width:20px;height:20px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:4px;font-size:13px;cursor:pointer;line-height:1;">✎</button>';
+        }
         const correctUI = (correctVal && (qType === 'written' || currentMode === 'study')) ? 
-            `<div class="ans-box" style="border: 1.5px solid #10b981; background: #f0fdf4; border-radius: 8px; margin-top: -8px; padding: 0px 10px 5px 10px !important; line-height: 1 !important;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px; margin-bottom:2px;">
-                    <span class="font-black text-green-700" style="font-size: 14px;">উত্তর:</span>
-                    <button onclick="openEditModal('${getVal(i, 'id')}', 'correct', '${(corRaw || '').replace(/'/g, "\'").replace(/"/g, "&quot;").replace(/\n/g, "\\n")}')" 
-                            style="width: 20px; height: 20px; background: #dcfce7; color: #166534; border: 1px solid #86efac; border-radius: 4px; font-size: 15px; cursor: pointer; display:flex; align-items:center; justify-content:center;">✎</button>
-                </div>
-                <div style="margin-top: 2px; line-height: 1.3;">${correctVal}</div>
-            </div>` : '';
+            '<div class="ans-box" style="border:1.5px solid #10b981;background:#f0fdf4;border-radius:8px;margin-top:-8px;padding:0 10px 5px 10px;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px;margin-bottom:2px;">' +
+            '<span style="font-weight:900;color:#15803d;font-size:14px;">উত্তর:</span>' +
+            _editCorBtn +
+            '</div>' +
+            '<div style="margin-top:2px;line-height:1.3;">' + correctVal + '</div>' +
+            '</div>'
+            : '';
 
         // কন্ডিশনাল রেন্ডারিং
         if(currentMode === 'study') {
@@ -4382,7 +4354,7 @@ function showStatsPage() {
 
             // Background এ DB load
             setTimeout(function() {
-                try { initApp(); } catch(e) { console.error('initApp error:', e); }
+                try { if(!isLoggedIn()){hideSplash();showAuthScreen('login');}else{initApp();} } catch(e){ console.error('initApp error:',e); }
             }, 500);
         });
 
@@ -4461,19 +4433,23 @@ function getXPInfo() {
 }
 
 function awardXP(amount) {
-    const prevInfo = getXPInfo();
-    const prevLevel = prevInfo.level;
-    const current = parseInt(localStorage.getItem('user_xp') || '0');
-    const newXP = current + amount;
+    var prevInfo = getXPInfo();
+    var prevLevel = prevInfo.level;
+    var curXP = parseInt(localStorage.getItem('user_xp') || '0');
+    var newXP = curXP + amount;
     localStorage.setItem('user_xp', newXP);
-    const newInfo = getXPInfo();
-    // Level up check
+    var newInfo = getXPInfo();
     if (newInfo.level > prevLevel) {
         showAchievement(newInfo.levelEmoji, 'Level Up! ' + newInfo.levelName, 'তুমি Level ' + newInfo.level + '-এ পৌঁছেছ!');
-        if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
+        if (navigator.vibrate) navigator.vibrate([100,50,100,50,200]);
     }
-    // Achievement checks
     checkAchievements(newXP);
+    // Sync XP to Users sheet every 5 awards
+    window._xpSyncCnt = (window._xpSyncCnt||0)+1;
+    if (window._xpSyncCnt % 5 === 0 && currentUser && currentUser.phone) {
+        fetch(GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({type:'update_xp',phone:currentUser.phone,xp:newXP})}).catch(function(){});
+    }
 }
 
 // ====================================================
@@ -5493,16 +5469,9 @@ async function checkWrittenAnswer(btn) {
     // "উত্তর:" বা "Ans:" থাকলে তা বাদ দিয়ে শুধু মূল অংশটি নেওয়া
     var correctText = rawCorrectText.replace(/^(উত্তর|উ|ans|answer|Solution)\s*[:।-]\s*/i, '').trim();
 
-    // সরাসরি local matching — instant result (no API delay)
     var result = localMatchAnswer(userAnswer, correctText);
     renderMatchResult(btn, result, qId, itemIdx);
-    
-    // Background এ Gemini দিয়ে আরও accurate result আনা (optional upgrade)
-    smartMatchAnswer(userAnswer, correctText).then(function(aiResult) {
-        if (aiResult && aiResult.pct !== undefined) {
-            // AI result পেলে silently update করা যাবে (future use)
-        }
-    }).catch(function() {});
+    smartMatchAnswer(userAnswer, correctText).then(function(){}).catch(function(){});
 }
 
 // ---- Gemini API Smart Match ----
@@ -5689,462 +5658,355 @@ function retryWrittenAnswer(btn) {
     if (ansBox) ansBox.classList.add('hidden');
 }
 
+    
+// =====================================================
+// AUTH FUNCTIONS
+// =====================================================
 
+function showAuthScreen(tab) {
+    var s = document.getElementById('auth-screen');
+    if (s) { s.style.display = 'flex'; s.classList.remove('hidden'); }
+    switchAuthTab(tab || 'login');
+}
 
-// ====================================================
-// 🔐 AUTH SYSTEM — Login / Signup / Session
-// ====================================================
-var currentUser = null; // { name, phone, email, role, picture, type, status, expiryDate }
+function hideAuthScreen() {
+    var s = document.getElementById('auth-screen');
+    if (s) { s.style.display = 'none'; s.classList.add('hidden'); }
+}
 
-function authGetUsersFromFirebase(callback) {
-    // Try live Firebase first, fall back to fullData cache
-    if(fullData['Users'] && fullData['Users'].length > 0 && !navigator.onLine) {
-        callback(fullData['Users'].filter(Boolean));
-        return;
+function switchAuthTab(tab) {
+    var lf  = document.getElementById('auth-login-form');
+    var sf  = document.getElementById('auth-signup-form');
+    var tl  = document.getElementById('tab-login');
+    var ts  = document.getElementById('tab-signup');
+    if (!lf || !sf) return;
+    if (tab === 'login') {
+        lf.style.display = 'block'; sf.style.display = 'none';
+        if (tl) { tl.style.background = 'white'; tl.style.color = '#4f46e5'; tl.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)'; }
+        if (ts) { ts.style.background = 'transparent'; ts.style.color = 'rgba(255,255,255,0.75)'; ts.style.boxShadow = 'none'; }
+    } else {
+        lf.style.display = 'none'; sf.style.display = 'block';
+        if (ts) { ts.style.background = 'white'; ts.style.color = '#4f46e5'; ts.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)'; }
+        if (tl) { tl.style.background = 'transparent'; tl.style.color = 'rgba(255,255,255,0.75)'; tl.style.boxShadow = 'none'; }
     }
-    fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
-        .then(function(r){ return r.json(); })
-        .then(function(data){
-            if(!data) {
-                // Try cache
-                if(fullData['Users']) return callback(fullData['Users'].filter(Boolean));
-                return callback([]);
-            }
-            var arr = Array.isArray(data) ? data : Object.values(data);
-            fullData['Users'] = arr;
-            callback(arr.filter(Boolean));
-        })
-        .catch(function(){
-            if(fullData['Users']) callback(fullData['Users'].filter(Boolean));
-            else callback([]);
-        });
 }
 
-function showAuthOverlay() {
-    var ol = document.getElementById('auth-overlay');
-    if(ol) ol.classList.remove('hidden');
+function togglePassView(id) {
+    var inp = document.getElementById(id);
+    if (inp) inp.type = inp.type === 'password' ? 'text' : 'password';
 }
-function hideAuthOverlay() {
-    var ol = document.getElementById('auth-overlay');
-    if(ol) ol.classList.add('hidden');
+
+function showAuthLoading(show) {
+    var el = document.getElementById('auth-loading');
+    if (!el) return;
+    el.style.display = show ? 'flex' : 'none';
 }
-function showLogin() {
-    document.getElementById('auth-login-card').classList.remove('hidden');
-    document.getElementById('auth-signup-card').classList.add('hidden');
-}
-function showSignup() {
-    document.getElementById('auth-login-card').classList.add('hidden');
-    document.getElementById('auth-signup-card').classList.remove('hidden');
-}
-function showAuthError(id, msg) {
-    var el = document.getElementById(id);
-    el.innerText = msg;
+
+function showAuthMsg(formType, msg) {
+    var el = document.getElementById(formType + '-error');
+    if (!el) return;
+    el.textContent = msg;
     el.style.display = 'block';
-}
-function hideAuthMsg(id) {
-    var el = document.getElementById(id);
-    if(el){ el.style.display = 'none'; }
+    clearTimeout(el._t);
+    el._t = setTimeout(function() { el.style.display = 'none'; }, 5000);
 }
 
 function doLogin() {
-    var phone = (document.getElementById('auth-phone').value||'').trim();
-    var pass  = (document.getElementById('auth-password').value||'').trim();
-    hideAuthMsg('auth-login-error');
+    var phone = (document.getElementById('login-phone') || {value:''}).value.trim().replace(/\s/g, '');
+    var pass  = (document.getElementById('login-pass')  || {value:''}).value.trim();
+    if (!phone || !pass) { showAuthMsg('login', '📱 ফোন ও পাসওয়ার্ড দিন'); return; }
 
-    if(!phone || !pass) {
-        showAuthError('auth-login-error', '⚠️ ফোন নম্বর ও পাসওয়ার্ড দিন');
-        return;
-    }
-
-    authGetUsersFromFirebase(function(users){
-        var user = users.find(function(u){
-            return (u.Phone||'').toString().trim() === phone &&
-                   (u.Password||'').toString().trim() === pass;
+    showAuthLoading(true);
+    fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            showAuthLoading(false);
+            if (!data) { showAuthMsg('login', '❌ সার্ভার সংযোগ ব্যর্থ'); return; }
+            var users = Array.isArray(data) ? data : Object.values(data);
+            var matched = null;
+            for (var i = 0; i < users.length; i++) {
+                var u = users[i];
+                if (!u) continue;
+                var uPhone = (u.Phone || u.phone || '').toString().trim().replace(/\s/g, '');
+                var uPass  = (u.Password || u.password || '').toString().trim();
+                if (uPhone === phone && uPass === pass) { matched = u; break; }
+            }
+            if (!matched) { showAuthMsg('login', '❌ ফোন বা পাসওয়ার্ড ভুল!'); return; }
+            var status = (matched.Status || matched.status || 'active').toLowerCase();
+            if (status === 'inactive') {
+                showAuthMsg('login', '⏳ অ্যাকাউন্ট এখনো Activate হয়নি। Admin-এর সাথে যোগাযোগ করুন।');
+                return;
+            }
+            var user = {
+                name:    matched.Name     || matched.name     || '',
+                phone:   matched.Phone    || matched.phone    || phone,
+                email:   matched.Email    || matched.email    || '',
+                role:    matched.Role     || matched.role     || 'User',
+                status:  matched.Status   || matched.status   || 'Active',
+                picture: matched.Picture  || matched.picture  || ''
+            };
+            saveCurrentUser(user);
+            localStorage.setItem('home_user_name', user.name || '');
+            if (user.picture) localStorage.setItem('home_user_pic', user.picture);
+            hideAuthScreen();
+            try { initApp(); } catch(e) { console.error('initApp after login:', e); }
+        })
+        .catch(function() {
+            showAuthLoading(false);
+            showAuthMsg('login', '❌ সংযোগ সমস্যা। ইন্টারনেট চেক করুন।');
         });
-
-        if(!user) {
-            showAuthError('auth-login-error', '❌ ফোন নম্বর বা পাসওয়ার্ড ভুল!');
-            return;
-        }
-        if((user.Status||'').toLowerCase() !== 'active') {
-            showAuthError('auth-login-error', '⛔ আপনার অ্যাকাউন্ট এখনো সক্রিয় হয়নি। অ্যাডমিনের সাথে যোগাযোগ করুন।');
-            return;
-        }
-
-        // Save session
-        currentUser = {
-            name:       user.Name || '',
-            phone:      user.Phone || '',
-            email:      user.Email || '',
-            role:       (user.Role||'User').toLowerCase(),
-            picture:    user.Picture || '',
-            type:       user.Type || 'Student',
-            status:     user.Status || 'Active',
-            expiryDate: user.ExpiryDate || ''
-        };
-        localStorage.setItem('ss_session', JSON.stringify(currentUser));
-        // Sync name/pic to home display
-        if(currentUser.name) localStorage.setItem('home_user_name', currentUser.name);
-        if(currentUser.picture) localStorage.setItem('home_user_pic', currentUser.picture);
-
-        hideAuthOverlay();
-        showToast('✅ স্বাগতম, ' + currentUser.name + '!');
-        // Refresh home
-        var mv = document.getElementById('main-view');
-        if(mv && typeof renderHome === 'function') renderHome(mv);
-    });
 }
 
 function doSignup() {
-    var name  = (document.getElementById('su-name').value||'').trim();
-    var phone = (document.getElementById('su-phone').value||'').trim();
-    var email = (document.getElementById('su-email').value||'').trim();
-    var pass  = (document.getElementById('su-password').value||'').trim();
-    var type  = (document.getElementById('su-type').value||'Student').trim();
-    hideAuthMsg('auth-signup-error');
-    hideAuthMsg('auth-signup-success');
+    var name  = (document.getElementById('signup-name')  || {value:''}).value.trim();
+    var phone = (document.getElementById('signup-phone') || {value:''}).value.trim().replace(/\s/g, '');
+    var email = (document.getElementById('signup-email') || {value:''}).value.trim();
+    var pass  = (document.getElementById('signup-pass')  || {value:''}).value.trim();
 
-    if(!name)  { showAuthError('auth-signup-error','⚠️ নাম দিন'); return; }
-    if(!phone || phone.length < 11) { showAuthError('auth-signup-error','⚠️ সঠিক ফোন নম্বর দিন'); return; }
-    if(!pass || pass.length < 6)   { showAuthError('auth-signup-error','⚠️ কমপক্ষে ৬ সংখ্যার পাসওয়ার্ড দিন'); return; }
+    if (!name)              { showAuthMsg('signup', '👤 নাম লিখুন'); return; }
+    if (phone.length < 10)  { showAuthMsg('signup', '📱 সঠিক ফোন নম্বর দিন'); return; }
+    if (pass.length < 4)    { showAuthMsg('signup', '🔒 কমপক্ষে ৪ অক্ষরের পাসওয়ার্ড দিন'); return; }
 
-    // Check if phone already registered
-    authGetUsersFromFirebase(function(users){
-        var exists = users.find(function(u){ return (u.Phone||'').toString().trim() === phone; });
-        if(exists) {
-            showAuthError('auth-signup-error','❌ এই নম্বর দিয়ে আগেই রেজিস্ট্রেশন হয়েছে');
-            return;
-        }
-
-        var ts = new Date().toLocaleString('bn-BD');
-        var newUser = {
-            Name: name, Phone: phone, Email: email,
-            Password: pass, Type: type || 'Student',
-            Status: 'Inactive', Role: 'User',
-            ExpiryDate: '', Timestamp: ts, Picture: ''
-        };
-
-        // Save to Google Sheet via GAS
-        var rowData = {
+    showAuthLoading(true);
+    fetch(GAS_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
             targetTab: 'Users',
-            name: name, phone: phone, email: email,
-            password: pass, type: type || 'Student',
-            status: 'Inactive', role: 'User',
-            expiryDate: '', timestamp: ts, picture: ''
-        };
-
-        fetch(GAS_URL, {
-            method: 'POST', mode: 'no-cors', cache: 'no-cache',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(rowData)
-        }).catch(function(){});
-
-        // Also save to Firebase
-        fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
-            .then(function(r){ return r.json(); })
-            .then(function(data){
-                var arr = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
-                arr.push(newUser);
-                return fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY, {
-                    method: 'PUT', headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify(arr)
-                });
-            }).catch(function(){});
-
-        var suc = document.getElementById('auth-signup-success');
-        suc.innerText = '✅ রেজিস্ট্রেশন সফল! অ্যাডমিন অনুমোদনের পরে লগইন করতে পারবেন।';
-        suc.style.display = 'block';
-        // Clear fields
-        ['su-name','su-phone','su-email','su-password','su-type'].forEach(function(id){
-            document.getElementById(id).value = '';
-        });
+            name: name, phone: phone, email: email, password: pass,
+            type: 'Student',
+            timestamp: new Date().toLocaleString('en-BD')
+        })
+    }).then(function() {
+        showAuthLoading(false);
+        document.getElementById('signup-name').value  = '';
+        document.getElementById('signup-phone').value = '';
+        document.getElementById('signup-email').value = '';
+        document.getElementById('signup-pass').value  = '';
+        switchAuthTab('login');
+        showAuthMsg('login', '✅ রেজিস্ট্রেশন সফল! Admin Activate করলে লগইন করুন।');
+    }).catch(function() {
+        showAuthLoading(false);
+        showAuthMsg('signup', '❌ সংযোগ সমস্যা। আবার চেষ্টা করুন।');
     });
 }
 
 function doLogout() {
-    currentUser = null;
-    localStorage.removeItem('ss_session');
-    showAuthOverlay();
-    showLogin();
-    showToast('👋 লগ আউট হয়েছে');
-}
-
-function isAdmin() {
-    return currentUser && currentUser.role === 'admin';
-}
-
-function checkSession() {
+    if (!confirm('লগআউট করবেন?')) return;
+    clearCurrentUser();
+    localStorage.removeItem('home_user_name');
+    localStorage.removeItem('home_user_pic');
     try {
-        var s = localStorage.getItem('ss_session');
-        if(s) {
-            currentUser = JSON.parse(s);
-            return true;
-        }
-    } catch(e){}
-    return false;
+        var s = document.getElementById('auth-screen');
+        if (s) { s.style.display = 'flex'; s.classList.remove('hidden'); }
+        switchAuthTab('login');
+    } catch(e) { location.reload(); }
 }
 
-// ====================================================
-// 🏆 LEADERBOARD SYSTEM
-// ====================================================
+// =====================================================
+// LEADERBOARD FUNCTIONS
+// =====================================================
+
 function openLeaderboard() {
-    changeMode('leaderboard', true);
+    var modal = document.getElementById('leaderboard-modal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    renderLeaderboard();
 }
 
-function renderLeaderboard(container) {
-    document.getElementById('zone-title').innerText = '🏆 লিডারবোর্ড';
-    document.getElementById('main-header').style.backgroundColor = '#7c3aed';
-    
-    // Highlight nav
-    document.querySelectorAll('.nav-item').forEach(function(b){
-        b.classList.remove('active-home','active-study','active-quiz','active-qbank','active-menu','active-lb');
-    });
-    var navLb = document.getElementById('nav-lb');
-    if(navLb) navLb.classList.add('active-lb');
-
-    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#94a3b8;font-weight:700;">⏳ লোড হচ্ছে...</div>';
-
-    authGetUsersFromFirebase(function(users){
-        // Get XP data for all users from local storage (only current user's XP is local)
-        // We'll use Firebase to get leaderboard scores if available
-        // For now, build from Firebase Users data merged with any stored XP
-        var myPhone = currentUser ? currentUser.phone : '';
-        
-        // Sort users: admins & active users only, sort by Name alphabetically (since we don't store per-user XP globally yet)
-        // We'll show rank based on XP stored in Firebase (if field exists) or show N/A
-        var activeUsers = users.filter(function(u){ return (u.Status||'').toLowerCase() === 'active'; });
-        
-        // Sort by XP desc (field 'XP' or 'xp'), fallback to name
-        activeUsers.sort(function(a,b){
-            var ax = parseInt(a.XP||a.xp||0);
-            var bx = parseInt(b.XP||b.xp||0);
-            return bx - ax;
-        });
-
-        var html = '<div style="padding:0 0 100px;">';
-        
-        // Hero section
-        html += '<div style="background:linear-gradient(135deg,#7c3aed,#6d28d9,#4c1d95);padding:20px 16px 24px;margin-bottom:12px;">';
-        html += '<h2 style="color:white;font-weight:900;font-size:20px;text-align:center;margin-bottom:4px;">🏆 লিডারবোর্ড</h2>';
-        html += '<p style="color:rgba(255,255,255,0.6);font-size:12px;font-weight:700;text-align:center;">সকল শিক্ষার্থীর র‌্যাংকিং</p>';
-        html += '</div>';
-        
-        html += '<div style="padding:0 14px;">';
-
-        if(activeUsers.length === 0) {
-            html += '<div style="text-align:center;padding:40px 20px;color:#94a3b8;font-weight:700;">কোনো ব্যবহারকারী নেই</div>';
-        } else {
-            activeUsers.forEach(function(u, idx){
-                var rank = idx + 1;
-                var isMe = u.Phone && u.Phone.toString().trim() === myPhone;
-                var xp = parseInt(u.XP||u.xp||0);
-                var phone = (u.Phone||'').toString();
-                var name = u.Name || phone;
-                var role = (u.Role||'User').toLowerCase();
-                var pic = u.Picture||'';
-
-                var rankBg = rank===1?'linear-gradient(135deg,#fbbf24,#d97706)':rank===2?'linear-gradient(135deg,#94a3b8,#64748b)':rank===3?'linear-gradient(135deg,#f97316,#ea580c)':'#f1f5f9';
-                var rankColor = rank<=3?'white':'#475569';
-                var rankIcon = rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':rank;
-
-                var cardStyle = isMe ? 'background:var(--card-bg);border-radius:18px;padding:12px 14px;margin-bottom:8px;border:2px solid #6366f1;box-shadow:0 0 0 3px rgba(99,102,241,0.15);display:flex;align-items:center;gap:12px;' 
-                                     : 'background:var(--card-bg);border-radius:18px;padding:12px 14px;margin-bottom:8px;border:1px solid rgba(0,0,0,0.05);display:flex;align-items:center;gap:12px;';
-
-                html += '<div style="'+cardStyle+'">';
-                // Rank badge
-                html += '<div style="width:36px;height:36px;border-radius:50%;background:'+rankBg+';display:flex;align-items:center;justify-content:center;font-size:'+(rank<=3?'18':'14')+'px;font-weight:900;color:'+rankColor+';flex-shrink:0;">'+rankIcon+'</div>';
-                // Avatar
-                if(pic) {
-                    html += '<div style="width:46px;height:46px;border-radius:50%;overflow:hidden;flex-shrink:0;border:2px solid #e2e8f0;"><img src="'+pic+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.parentElement.innerHTML='👤'"></div>';
-                } else {
-                    html += '<div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#a5b4fc,#818cf8);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:2px solid #e2e8f0;">👤</div>';
-                }
-                // Info
-                html += '<div style="flex:1;min-width:0;">';
-                html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">';
-                html += '<span style="font-size:14px;font-weight:900;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+name+'</span>';
-                if(isMe) html += '<span style="font-size:9px;background:#eff6ff;color:#3b82f6;padding:1px 6px;border-radius:10px;font-weight:900;flex-shrink:0;">আমি</span>';
-                html += '</div>';
-                html += '<div style="display:flex;align-items:center;gap:6px;">';
-                if(role==='admin') {
-                    html += '<span style="font-size:9px;font-weight:900;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:20px;">👑 Admin</span>';
-                } else {
-                    html += '<span style="font-size:9px;font-weight:900;background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:20px;">📚 User</span>';
-                }
-                html += '<span style="font-size:11px;color:#94a3b8;font-weight:700;">'+phone.replace(/(\d{5})(\d+)/,'$1****')+'</span>';
-                html += '</div>';
-                html += '</div>';
-                // XP Score
-                html += '<div style="text-align:right;flex-shrink:0;">';
-                html += '<div style="font-size:16px;font-weight:900;color:#6366f1;">'+xp+'</div>';
-                html += '<div style="font-size:9px;color:#94a3b8;font-weight:700;">XP</div>';
-                html += '</div>';
-                html += '</div>';
-            });
-        }
-
-        html += '</div></div>';
-        container.innerHTML = html;
-    });
+function closeLeaderboard() {
+    var modal = document.getElementById('leaderboard-modal');
+    if (modal) modal.style.display = 'none';
 }
 
-// ====================================================
-// 👤 HOME HERO — pull from logged-in user
-// ====================================================
-var _origRenderHome = null;
+function renderLeaderboard() {
+    var body = document.getElementById('leaderboard-body');
+    if (!body) return;
+    body.innerHTML = '<div style="text-align:center;padding:40px 0;"><div style="width:36px;height:36px;border:4px solid #e0e7ff;border-top-color:#6366f1;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px;"></div><div style="color:#94a3b8;font-weight:700;font-size:13px;">লোড হচ্ছে...</div></div>';
 
-function patchRenderHomeForAuth() {
-    var origFn = renderHome;
-    renderHome = function(container) {
-        origFn(container);
-        // After render, update name/avatar from currentUser
-        if(currentUser) {
-            var ni = container.querySelector('.home-name-input, #home-name-input');
-            if(ni && currentUser.name) ni.value = currentUser.name;
-            var av = container.querySelector('.home-avatar');
-            if(av && currentUser.picture) {
-                av.innerHTML = '<img src="'+currentUser.picture+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
-            }
-            // Add role badge
-            var roleBadge = container.querySelector('.home-level-badge');
-            if(roleBadge) {
-                var roleTxt = currentUser.role === 'admin' ? '👑 Admin' : '📚 Student';
-                var roleEl = document.createElement('div');
-                roleEl.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:800;color:white;margin-top:4px;';
-                roleEl.innerText = roleTxt;
-                if(roleBadge.parentElement) {
-                    roleBadge.parentElement.appendChild(roleEl);
-                }
-            }
-        }
-    };
-}
-
-// ====================================================
-// 🔒 ROLE-BASED EDIT PERMISSION
-// ====================================================
-function canEditContent() {
-    // Admin: full edit; User: only explanation & technique
-    return currentUser !== null; // logged in at minimum
-}
-function canEditMainAnswer() {
-    return isAdmin();
-}
-
-// Override openEditModal to enforce role
-var _origOpenEditModal = null;
-function patchEditModalForRoles() {
-    var orig = openEditModal;
-    openEditModal = function(id, field, text) {
-        var f = (field||'').toLowerCase();
-        // Non-admins can only edit explanation/technique
-        if(!isAdmin() && f !== 'explanation' && f !== 'technique') {
-            showToast('⛔ শুধুমাত্র Admin এই ফিল্ড এডিট করতে পারবেন');
-            return;
-        }
-        orig(id, field, text);
-    };
-}
-
-// ====================================================
-// 🔄 Update changeMode to support leaderboard
-// ====================================================
-var _origChangeMode = changeMode;
-changeMode = function(m, shouldPush) {
-    if(m === 'leaderboard') {
-        currentMode = 'leaderboard';
-        updateUIMode('leaderboard');
-        document.getElementById('back-and-ctrls').classList.add('hidden');
-        document.getElementById('sticky-result').classList.add('hidden');
-        document.getElementById('reading-progress-bar').classList.add('hidden');
-        document.getElementById('q-counter-badge').style.display = 'none';
-        stopTimer();
-        path = [];
-        var container = document.getElementById('main-view');
-        renderLeaderboard(container);
-        if(shouldPush !== false) {
-            window.history.pushState({mode:'leaderboard'}, '');
-        }
-        return;
-    }
-    _origChangeMode(m, shouldPush);
-};
-
-// Patch updateUIMode to handle leaderboard
-var _origUpdateUIMode = updateUIMode;
-updateUIMode = function(m) {
-    _origUpdateUIMode(m);
-    if(m === 'leaderboard') {
-        document.getElementById('main-header').style.backgroundColor = '#7c3aed';
-        document.getElementById('zone-title').innerText = '🏆 লিডারবোর্ড';
-        document.querySelectorAll('.nav-item').forEach(function(b){
-            b.classList.remove('active-home','active-study','active-quiz','active-qbank','active-menu','active-lb');
-        });
-        var lb = document.getElementById('nav-lb');
-        if(lb) { lb.style.background='#ede9fe'; lb.style.color='#7c3aed'; }
-    } else {
-        var lb2 = document.getElementById('nav-lb');
-        if(lb2) { lb2.style.background=''; lb2.style.color=''; }
-    }
-};
-
-// ====================================================
-// 🔄 XP sync to Firebase for Leaderboard
-// ====================================================
-function syncXPToFirebase() {
-    if(!currentUser || !currentUser.phone) return;
-    var xp = parseInt(localStorage.getItem('user_xp')||'0');
-    // Update XP field in Users Firebase
     fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
-        .then(function(r){ return r.json(); })
-        .then(function(data){
-            if(!data) return;
-            var arr = Array.isArray(data) ? data : Object.values(data);
-            var updated = false;
-            arr = arr.map(function(u){
-                if(u && (u.Phone||'').toString().trim() === currentUser.phone) {
-                    u.XP = xp;
-                    updated = true;
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data) { body.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-weight:700;">ডেটা পাওয়া যায়নি</div>'; return; }
+            var users = Array.isArray(data) ? data : Object.values(data);
+
+            var ranked = [];
+            for (var i = 0; i < users.length; i++) {
+                var u = users[i];
+                if (!u || !(u.Name || u.name)) continue;
+                var uPhone = (u.Phone || u.phone || '').toString().trim();
+                var xpVal  = parseInt(u.XP || u.xp || 0) || 0;
+                if (currentUser && currentUser.phone === uPhone) {
+                    var localXP = parseInt(localStorage.getItem('user_xp') || '0');
+                    if (localXP > xpVal) xpVal = localXP;
                 }
-                return u;
-            });
-            if(updated) {
-                fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY, {
-                    method:'PUT', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify(arr)
-                }).catch(function(){});
+                ranked.push({
+                    name:    u.Name    || u.name    || '—',
+                    phone:   uPhone,
+                    role:    u.Role    || u.role    || 'User',
+                    status:  u.Status  || u.status  || 'Active',
+                    picture: u.Picture || u.picture || '',
+                    xp:      xpVal
+                });
             }
-        }).catch(function(){});
+            ranked.sort(function(a, b) { return b.xp - a.xp; });
+
+            if (ranked.length === 0) {
+                body.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-weight:700;">কোনো ব্যবহারকারী নেই</div>';
+                return;
+            }
+
+            var medals = ['🥇', '🥈', '🥉'];
+            var podiumBg = [
+                'background:linear-gradient(135deg,#fef9c3,#fde68a);border:2px solid #fbbf24;',
+                'background:linear-gradient(135deg,#f1f5f9,#e2e8f0);border:2px solid #94a3b8;',
+                'background:linear-gradient(135deg,#fff7ed,#fed7aa);border:2px solid #f97316;'
+            ];
+
+            var out = '<div style="display:flex;flex-direction:column;gap:10px;">';
+            for (var j = 0; j < ranked.length; j++) {
+                var ru      = ranked[j];
+                var isMe    = currentUser && currentUser.phone === ru.phone;
+                var isAdm   = ru.role.toLowerCase() === 'admin';
+                var xpI     = lbCalcXP(ru.xp);
+                var cardSt  = j < 3 ? podiumBg[j] : 'background:#f8fafc;border:1px solid #e2e8f0;';
+                var meSt    = isMe ? 'box-shadow:0 0 0 3px #6366f1;' : '';
+                var rankStr = j < 3 ? medals[j] : ('#' + (j + 1));
+
+                var picEl;
+                if (ru.picture) {
+                    picEl = '<img src="' + ru.picture + '" style="width:42px;height:42px;border-radius:50%;object-fit:cover;" onerror="this.outerHTML='<div style=width:42px;height:42px;border-radius:50%;background:#e0e7ff;display:flex;align-items:center;justify-content:center;font-size:18px;>👤</div>'">';
+                } else {
+                    picEl = '<div style="width:42px;height:42px;border-radius:50%;background:#e0e7ff;display:flex;align-items:center;justify-content:center;font-size:18px;">👤</div>';
+                }
+
+                out += '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;' + cardSt + meSt + '">';
+                out += '<div style="font-size:20px;width:26px;text-align:center;font-weight:900;">' + rankStr + '</div>';
+                out += picEl;
+                out += '<div style="flex:1;min-width:0;">';
+                out += '<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">';
+                out += '<span style="font-weight:900;font-size:13px;color:#1e293b;">' + ru.name + '</span>';
+                if (isMe)  out += '<span style="font-size:9px;background:#6366f1;color:white;padding:1px 6px;border-radius:8px;font-weight:900;">আপনি</span>';
+                if (isAdm) out += '<span style="font-size:9px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:8px;font-weight:900;">Admin</span>';
+                out += '</div>';
+                out += '<div style="font-size:10px;color:#64748b;font-weight:700;margin-top:2px;">' + xpI.emoji + ' Lv.' + xpI.level + ' · ' + xpI.name + '</div>';
+                out += '</div>';
+                out += '<div style="text-align:right;flex-shrink:0;">';
+                out += '<div style="font-size:16px;font-weight:900;color:#6366f1;">' + ru.xp + '</div>';
+                out += '<div style="font-size:9px;color:#94a3b8;font-weight:700;">XP</div>';
+                out += '</div></div>';
+            }
+            out += '</div>';
+            body.innerHTML = out;
+        })
+        .catch(function() {
+            body.innerHTML = '<div style="text-align:center;padding:40px;color:#f87171;font-weight:700;">❌ ডেটা লোড ব্যর্থ। ইন্টারনেট চেক করুন।</div>';
+        });
 }
 
-// Sync XP every 2 minutes when logged in
-setInterval(function(){
-    if(currentUser) syncXPToFirebase();
-}, 120000);
-
-// ====================================================
-// 🚀 BOOT PATCH — check auth on startup
-// ====================================================
-document.addEventListener('DOMContentLoaded', function(){
-    // Patch functions after DOM ready
-    setTimeout(function(){
-        patchEditModalForRoles();
-        patchRenderHomeForAuth();
-        
-        // Check session
-        if(!checkSession()) {
-            // Show login overlay
-            showAuthOverlay();
-            showLogin();
-        }
-    }, 600);
-});
-
-// Menu logout button helper
-function renderLogoutBtn() {
-    return '<div onclick="doLogout()" class="card text-red-500 mb-2" style="display:flex;align-items:center;gap:10px;cursor:pointer;"><span style="font-size:18px;">🚪</span><span style="font-weight:900;">লগ আউট</span></div>';
+function lbCalcXP(xp) {
+    xp = xp || 0;
+    var lvls = [
+        {min:0,    name:'নতুন শিক্ষার্থী', emoji:'🌱'},
+        {min:100,  name:'উৎসাহী',           emoji:'📗'},
+        {min:300,  name:'মনোযোগী',          emoji:'📘'},
+        {min:600,  name:'অধ্যয়নশীল',       emoji:'📕'},
+        {min:1000, name:'দক্ষ',              emoji:'⭐'},
+        {min:1500, name:'বিশেষজ্ঞ',         emoji:'🌟'},
+        {min:2500, name:'মাস্টার',           emoji:'💎'},
+        {min:5000, name:'লিজেন্ড',          emoji:'🏆'}
+    ];
+    var lv = 1, nm = lvls[0].name, em = lvls[0].emoji;
+    for (var i = lvls.length - 1; i >= 0; i--) {
+        if (xp >= lvls[i].min) { lv = i + 1; nm = lvls[i].name; em = lvls[i].emoji; break; }
+    }
+    return { level: lv, name: nm, emoji: em };
 }
 
-    </script>
+</script>
+
+<!-- ===== AUTH SCREEN ===== -->
+<div id="auth-screen" class="hidden fixed inset-0 z-[99999] flex flex-col" style="background:linear-gradient(160deg,#4f46e5 0%,#0ea5e9 100%);overflow-y:auto;">
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;min-height:100vh;">
+    <div style="margin-bottom:24px;text-align:center;">
+      <div style="width:80px;height:80px;border-radius:20px;overflow:hidden;margin:0 auto 12px;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+        <img src="https://i.postimg.cc/zf7hGQry/icon.png" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='📚'">
+      </div>
+      <div style="color:white;font-size:26px;font-weight:900;letter-spacing:-0.5px;">Smart Study</div>
+      <div style="color:rgba(255,255,255,0.65);font-size:12px;font-weight:700;margin-top:4px;">পড়াশোনার সেরা সঙ্গী ✨</div>
+    </div>
+
+    <div style="display:flex;background:rgba(255,255,255,0.18);border-radius:16px;padding:4px;margin-bottom:22px;width:100%;max-width:320px;">
+      <button id="tab-login" onclick="switchAuthTab('login')" style="flex:1;padding:10px;border-radius:12px;font-weight:900;font-size:13px;border:none;cursor:pointer;background:white;color:#4f46e5;box-shadow:0 2px 8px rgba(0,0,0,0.15);transition:all .2s;">লগইন</button>
+      <button id="tab-signup" onclick="switchAuthTab('signup')" style="flex:1;padding:10px;border-radius:12px;font-weight:900;font-size:13px;border:none;cursor:pointer;background:transparent;color:rgba(255,255,255,0.75);transition:all .2s;">নতুন অ্যাকাউন্ট</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <div id="auth-login-form" style="width:100%;max-width:320px;">
+      <div style="background:rgba(255,255,255,0.15);border-radius:14px;margin-bottom:10px;display:flex;align-items:center;padding:0 14px;">
+        <span style="color:rgba(255,255,255,0.7);font-size:16px;margin-right:8px;">📱</span>
+        <input id="login-phone" type="tel" placeholder="ফোন নম্বর" style="flex:1;background:transparent;border:none;outline:none;padding:14px 0;color:white;font-weight:700;font-size:14px;">
+      </div>
+      <div style="background:rgba(255,255,255,0.15);border-radius:14px;margin-bottom:10px;display:flex;align-items:center;padding:0 14px;">
+        <span style="color:rgba(255,255,255,0.7);font-size:16px;margin-right:8px;">🔒</span>
+        <input id="login-pass" type="password" placeholder="পাসওয়ার্ড" style="flex:1;background:transparent;border:none;outline:none;padding:14px 0;color:white;font-weight:700;font-size:14px;">
+        <button onclick="togglePassView('login-pass')" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:18px;cursor:pointer;padding:0;">👁</button>
+      </div>
+      <div id="login-error" style="display:none;background:rgba(239,68,68,0.2);color:#fecaca;font-size:12px;font-weight:700;text-align:center;padding:8px 14px;border-radius:10px;margin-bottom:10px;"></div>
+      <button onclick="doLogin()" style="width:100%;padding:15px;background:white;color:#4f46e5;border:none;border-radius:14px;font-size:15px;font-weight:900;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.2);">লগইন করুন ✨</button>
+      <p style="color:rgba(255,255,255,0.5);font-size:11px;font-weight:700;text-align:center;margin-top:12px;">অ্যাকাউন্ট নেই? উপরে "নতুন অ্যাকাউন্ট" চাপুন</p>
+    </div>
+
+    <!-- SIGNUP FORM -->
+    <div id="auth-signup-form" style="display:none;width:100%;max-width:320px;">
+      <div style="background:rgba(255,255,255,0.15);border-radius:14px;margin-bottom:10px;display:flex;align-items:center;padding:0 14px;">
+        <span style="color:rgba(255,255,255,0.7);font-size:16px;margin-right:8px;">👤</span>
+        <input id="signup-name" type="text" placeholder="পূর্ণ নাম" style="flex:1;background:transparent;border:none;outline:none;padding:14px 0;color:white;font-weight:700;font-size:14px;">
+      </div>
+      <div style="background:rgba(255,255,255,0.15);border-radius:14px;margin-bottom:10px;display:flex;align-items:center;padding:0 14px;">
+        <span style="color:rgba(255,255,255,0.7);font-size:16px;margin-right:8px;">📱</span>
+        <input id="signup-phone" type="tel" placeholder="ফোন নম্বর" style="flex:1;background:transparent;border:none;outline:none;padding:14px 0;color:white;font-weight:700;font-size:14px;">
+      </div>
+      <div style="background:rgba(255,255,255,0.15);border-radius:14px;margin-bottom:10px;display:flex;align-items:center;padding:0 14px;">
+        <span style="color:rgba(255,255,255,0.7);font-size:16px;margin-right:8px;">📧</span>
+        <input id="signup-email" type="email" placeholder="ইমেইল (ঐচ্ছিক)" style="flex:1;background:transparent;border:none;outline:none;padding:14px 0;color:white;font-weight:700;font-size:14px;">
+      </div>
+      <div style="background:rgba(255,255,255,0.15);border-radius:14px;margin-bottom:10px;display:flex;align-items:center;padding:0 14px;">
+        <span style="color:rgba(255,255,255,0.7);font-size:16px;margin-right:8px;">🔒</span>
+        <input id="signup-pass" type="password" placeholder="পাসওয়ার্ড (৪+ অক্ষর)" style="flex:1;background:transparent;border:none;outline:none;padding:14px 0;color:white;font-weight:700;font-size:14px;">
+        <button onclick="togglePassView('signup-pass')" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:18px;cursor:pointer;padding:0;">👁</button>
+      </div>
+      <div id="signup-error" style="display:none;background:rgba(239,68,68,0.2);color:#fecaca;font-size:12px;font-weight:700;text-align:center;padding:8px 14px;border-radius:10px;margin-bottom:10px;"></div>
+      <button onclick="doSignup()" style="width:100%;padding:15px;background:white;color:#4f46e5;border:none;border-radius:14px;font-size:15px;font-weight:900;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.2);">অ্যাকাউন্ট তৈরি করুন 🚀</button>
+      <p style="color:rgba(255,255,255,0.45);font-size:11px;font-weight:700;text-align:center;margin-top:12px;">✅ Admin Activate করলে লগইন করতে পারবেন</p>
+    </div>
+
+    <!-- Loading -->
+    <div id="auth-loading" style="display:none;margin-top:18px;flex-direction:column;align-items:center;gap:8px;">
+      <div style="width:32px;height:32px;border:4px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin .8s linear infinite;"></div>
+      <p style="color:rgba(255,255,255,0.8);font-size:13px;font-weight:700;">অপেক্ষা করুন...</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== LEADERBOARD MODAL ===== -->
+<div id="leaderboard-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:8000;display:none;align-items:flex-end;justify-content:center;">
+  <div style="background:white;width:100%;max-width:480px;border-radius:24px 24px 0 0;max-height:88vh;overflow-y:auto;">
+    <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:20px;border-radius:24px 24px 0 0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="color:white;font-size:18px;font-weight:900;">🏆 Leaderboard</div>
+          <div style="color:rgba(255,255,255,0.65);font-size:11px;font-weight:700;margin-top:2px;">সেরা শিক্ষার্থীদের র‍্যাংকিং</div>
+        </div>
+        <button onclick="closeLeaderboard()" style="width:36px;height:36px;background:rgba(255,255,255,0.2);border:none;border-radius:50%;color:white;font-size:18px;font-weight:900;cursor:pointer;">✕</button>
+      </div>
+    </div>
+    <div id="leaderboard-body" style="padding:16px;">
+      <div style="text-align:center;padding:40px 0;color:#94a3b8;font-weight:700;">লোড হচ্ছে...</div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
