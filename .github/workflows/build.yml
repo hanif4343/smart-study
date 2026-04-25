@@ -33,6 +33,23 @@ jobs:
       - name: Install build tools
         run: sdkmanager "build-tools;34.0.0" "platforms;android-34" "platform-tools"
 
+      - name: Inject API keys into index.html
+        run: |
+          sed -i "s|%%FIREBASE_URL%%|${{ secrets.FIREBASE_URL }}|g" app/src/main/assets/index.html
+          sed -i "s|%%SECRET_KEY%%|${{ secrets.SECRET_KEY }}|g" app/src/main/assets/index.html
+          sed -i "s|%%GAS_URL%%|${{ secrets.GAS_URL }}|g" app/src/main/assets/index.html
+          sed -i "s|%%GEMINI_API_KEY%%|${{ secrets.GEMINI_API_KEY }}|g" app/src/main/assets/index.html
+          echo "API keys injected successfully"
+
+      - name: Verify keys injected
+        run: |
+          if grep -q "%%" app/src/main/assets/index.html; then
+            echo "ERROR: Some placeholders not replaced!"
+            exit 1
+          else
+            echo "All keys injected OK"
+          fi
+
       - name: Build Debug APK
         run: gradle assembleDebug
 
