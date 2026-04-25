@@ -1711,9 +1711,9 @@
     </nav>
 
     <script>
-        const FIREBASE_URL = "https://smartentrydb-default-rtdb.firebaseio.com/";
-        const SECRET_KEY = "CsFdxaWLLU2AT92kxYFPTOhP1ewDR0jzK3hKjqWO";
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbyjF7iFX0H_rFuJgMJYo70DC7KRX1lBXU7m7NoZCwf6VTJfRm6Iyw6hOcN2q_UKbxxgQg/exec"; 
+        const FIREBASE_URL = "%%FIREBASE_URL%%";
+        const SECRET_KEY = "%%SECRET_KEY%%";
+        const GAS_URL = "%%GAS_URL%%"; 
         const USER_PHONE = "01788196143"; 
         let fullData = {}, currentMode = 'study', path = [], quizItems = [], displayLimit = 20, savedQs = JSON.parse(localStorage.getItem('hs_saved') || '[]');
         // ── Auth State ──
@@ -3359,9 +3359,9 @@ function renderQuestions() {
 
         var _editCorBtn = '';
         if (isAdmin() && correctVal) {
-            var _qid = getVal(i,'id');
-            var _cor = encodeEditVal(corRaw);
-            _editCorBtn = '<button onclick="openEditModal('' + _qid + '','correct','' + _cor + '')" style="width:20px;height:20px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:4px;font-size:13px;cursor:pointer;line-height:1;">✎</button>';
+            var _qId2 = String(getVal(i,'id') || '');
+            var _corE = (corRaw || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+            _editCorBtn = '<button data-qid="' + _qId2 + '" data-field="correct" data-val="' + _corE + '" onclick="openEditModal(this.dataset.qid,this.dataset.field,this.dataset.val)" style="width:20px;height:20px;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:4px;font-size:13px;cursor:pointer;line-height:1;">✎</button>';
         }
         const correctUI = (correctVal && (qType === 'written' || currentMode === 'study')) ? 
             '<div class="ans-box" style="border:1.5px solid #10b981;background:#f0fdf4;border-radius:8px;margin-top:-8px;padding:0 10px 5px 10px;">' +
@@ -5476,7 +5476,7 @@ async function checkWrittenAnswer(btn) {
 
 // ---- Gemini API Smart Match ----
 async function smartMatchAnswer(userAns, correctAns) {
-    const GEMINI_API_KEY = "AIzaSyAMjqlNtqjLnrKzl61XEoi3_cJFYAAjwgc"; 
+    const GEMINI_API_KEY = "%%GEMINI_API_KEY%%"; 
     const model = "gemini-1.5-flash";
 
     if (!correctAns || correctAns.length < 2) {
@@ -5876,7 +5876,7 @@ function renderLeaderboard() {
 
                 var picEl;
                 if (ru.picture) {
-                    picEl = '<img src="' + ru.picture + '" style="width:42px;height:42px;border-radius:50%;object-fit:cover;" onerror="this.outerHTML='<div style=width:42px;height:42px;border-radius:50%;background:#e0e7ff;display:flex;align-items:center;justify-content:center;font-size:18px;>👤</div>'">';
+                    picEl = '<img src="' + ru.picture + '" style="width:42px;height:42px;border-radius:50%;object-fit:cover;">';
                 } else {
                     picEl = '<div style="width:42px;height:42px;border-radius:50%;background:#e0e7ff;display:flex;align-items:center;justify-content:center;font-size:18px;">👤</div>';
                 }
