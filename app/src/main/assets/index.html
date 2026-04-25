@@ -14,8 +14,6 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#4f46e5">
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="manifest" href="manifest.json">
 
@@ -386,13 +384,6 @@
         /* ===== SAFE AREA FIX ===== */
         #main-header {
             padding-top: max(env(safe-area-inset-top, 28px), 28px) !important;
-        }
-
-        /* ── System navigation bar background ── */
-        html, body { background: #ffffff; }
-        body.dark-mode { background: #0f172a; }
-        @media (prefers-color-scheme: dark) {
-            :root:not(.force-light) { background: #0f172a; }
         }
         mjx-container { max-width: 100%; overflow-x: auto; overflow-y: hidden; display: inline-block !important; vertical-align: middle; }
         
@@ -1746,16 +1737,13 @@
         }
         loadCurrentUser();
 
-        // ── Override native alert/confirm with toast ──
-        window._nativeAlert   = window.alert;
-        window._nativeConfirm = window.confirm;
+        // Override alert() only — no native black dialog
+        window._nativeAlert = window.alert;
         window.alert = function(msg) {
-            showToast(String(msg).substring(0, 120));
+            if (typeof showToast === 'function') showToast(String(msg).substring(0,120));
+            else console.log('Alert:', msg);
         };
-        window.confirm = function(msg) {
-            // For simple confirms use native (no black bar issue on modern Android)
-            return window._nativeConfirm(msg);
-        };
+
 
         let mTimer, quizTime = 0, answeredCount = 0, selectedSubTopics = [];
         let selectedQId = null, editingField = '';
@@ -3862,14 +3850,13 @@ function fallbackShare(text) {
         function openMenu() { changeMode('menu'); }
         function toggleDarkMode() { document.body.classList.toggle('dark-theme'); }
         function clearCache() { 
-            if (window._confirmReset || window.confirm('সব ডেটা রিসেট হবে। নিশ্চিত?')) {
+            showConfirm('সব ডেটা রিসেট হবে। অফলাইন ক্যাশও মুছে যাবে। নিশ্চিত?', function() {
                 localStorage.clear(); 
-                // SW cache clear
                 if ('caches' in window) {
                     caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
                 }
                 location.reload(); 
-            }
+            });
         }
         function showSavedQuestions() { showSavedQWithFilter(); }
       
@@ -5874,15 +5861,16 @@ function doSignup() {
 }
 
 function doLogout() {
-    if (!window.confirm('লগআউট করবেন?')) return;
-    clearCurrentUser();
-    localStorage.removeItem('home_user_name');
-    localStorage.removeItem('home_user_pic');
-    try {
-        var s = document.getElementById('auth-screen');
-        if (s) { s.style.display = 'flex'; s.classList.remove('hidden'); }
-        switchAuthTab('login');
-    } catch(e) { location.reload(); }
+    showConfirm('লগআউট করবেন?', function() {
+        clearCurrentUser();
+        localStorage.removeItem('home_user_name');
+        localStorage.removeItem('home_user_pic');
+        try {
+            var s = document.getElementById('auth-screen');
+            if (s) { s.style.display = 'flex'; s.classList.remove('hidden'); }
+            switchAuthTab('login');
+        } catch(e) { location.reload(); }
+    });
 }
 
 // =====================================================
@@ -6107,6 +6095,21 @@ function pushHistoryState() {
     try { history.pushState({path: path.slice()}, ''); } catch(e) {}
 }
 
+
+// ── Custom Confirm Dialog (no native browser dialog) ──
+function showConfirm(msg, onOk, onCancel) {
+    var modal = document.getElementById('custom-confirm-modal');
+    var msgEl = document.getElementById('custom-confirm-msg');
+    var okBtn = document.getElementById('custom-confirm-ok');
+    var cancelBtn = document.getElementById('custom-confirm-cancel');
+    if (!modal) { if (onOk) onOk(); return; }
+    msgEl.textContent = msg;
+    modal.style.display = 'flex';
+    var cleanup = function() { modal.style.display = 'none'; okBtn.onclick = null; cancelBtn.onclick = null; };
+    okBtn.onclick = function() { cleanup(); if (onOk) onOk(); };
+    cancelBtn.onclick = function() { cleanup(); if (onCancel) onCancel(); };
+}
+
 </script>
 
 <!-- ===== AUTH SCREEN ===== -->
@@ -6189,6 +6192,18 @@ function pushHistoryState() {
       <div style="text-align:center;padding:40px 0;color:#94a3b8;font-weight:700;">লোড হচ্ছে...</div>
     </div>
   </div>
+</div>
+
+
+<!-- ── Custom Confirm Dialog ── -->
+<div id="custom-confirm-modal" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;">
+    <div style="background:white;border-radius:20px;padding:24px 20px;width:80%;max-width:300px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+        <div id="custom-confirm-msg" style="font-size:15px;font-weight:700;color:#1e293b;margin-bottom:20px;line-height:1.5;"></div>
+        <div style="display:flex;gap:10px;">
+            <button id="custom-confirm-cancel" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid #e2e8f0;background:white;font-weight:800;font-size:14px;color:#64748b;cursor:pointer;">বাতিল</button>
+            <button id="custom-confirm-ok" style="flex:1;padding:12px;border-radius:12px;border:none;background:#ef4444;font-weight:900;font-size:14px;color:white;cursor:pointer;">নিশ্চিত</button>
+        </div>
+    </div>
 </div>
 
 </body>
