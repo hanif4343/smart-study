@@ -2477,10 +2477,36 @@ function homePickPhoto() {
         if (!file) return;
         const reader = new FileReader();
         reader.onload = function(e) {
-            localStorage.setItem('home_user_pic', e.target.result);
-            // avatar refresh
-            const av = document.getElementById('home-avatar-img');
-            if (av) { av.src = e.target.result; av.style.display='block'; document.getElementById('home-avatar-emoji').style.display='none'; }
+            var b64pic = e.target.result;
+            // Resize to max 200KB before saving
+            var img2 = new Image();
+            img2.onload = function() {
+                var canvas = document.createElement('canvas');
+                var maxSz = 300;
+                var w = img2.width, h = img2.height;
+                if (w > maxSz || h > maxSz) {
+                    if (w > h) { h = Math.round(h * maxSz / w); w = maxSz; }
+                    else { w = Math.round(w * maxSz / h); h = maxSz; }
+                }
+                canvas.width = w; canvas.height = h;
+                canvas.getContext('2d').drawImage(img2, 0, 0, w, h);
+                var compressed = canvas.toDataURL('image/jpeg', 0.7);
+                
+                // Save locally
+                localStorage.setItem('home_user_pic', compressed);
+                if (currentUser) {
+                    currentUser.picture = compressed;
+                    saveCurrentUser(currentUser);
+                }
+                
+                // Save to Firebase Users node
+                savePicToFirebase(compressed);
+                
+                // Refresh avatar
+                var av = document.getElementById('home-avatar-img');
+                if (av) { av.src = compressed; av.style.display='block'; var ae = document.getElementById('home-avatar-emoji'); if(ae) ae.style.display='none'; }
+            };
+            img2.src = b64pic;
         };
         reader.readAsDataURL(file);
     };
@@ -5729,7 +5755,12 @@ function doLogin() {
                 if (!u) continue;
                 var uPhone = (u.Phone || u.phone || '').toString().trim().replace(/\s/g, '');
                 var uPass  = (u.Password || u.password || '').toString().trim();
-                if (uPhone === phone && uPass === pass) { matched = u; break; }
+                // Normalize: handle Google Sheet dropping leading zero (017 -> 17)
+                // Strip apostrophe prefix (from Sheet text-force trick) and leading zeros
+                var normU = uPhone.replace(/^'+/,'').replace(/^0+/, '');
+                var normP = phone.replace(/^'+/,'').replace(/^0+/, '');
+                var cleanU = uPhone.replace(/^'+/,'');
+                if ((uPhone === phone || cleanU === phone || normU === normP) && uPass === pass) { matched = u; break; }
             }
             if (!matched) { showAuthMsg('login', '❌ ফোন বা পাসওয়ার্ড ভুল!'); return; }
             var status = (matched.Status || matched.status || 'active').toLowerCase();
@@ -5774,7 +5805,10 @@ function doSignup() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             targetTab: 'Users',
-            name: name, phone: phone, email: email, password: pass,
+            name: name,
+            phone: "'" + phone,
+            email: email,
+            password: pass,
             type: 'Student',
             timestamp: new Date().toLocaleString('en-BD')
         })
@@ -5922,6 +5956,65 @@ function lbCalcXP(xp) {
         if (xp >= lvls[i].min) { lv = i + 1; nm = lvls[i].name; em = lvls[i].emoji; break; }
     }
     return { level: lv, name: nm, emoji: em };
+}
+
+
+// ── Save profile picture to Firebase Users ──
+function savePicToFirebase(b64pic) {
+    if (!currentUser || !currentUser.phone) return;
+    var phone = currentUser.phone.toString().trim();
+
+    // Find user index in Firebase Users array and update picture field
+    fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data) return;
+            var users = Array.isArray(data) ? data : Object.values(data);
+            var idx = -1;
+            for (var i = 0; i < users.length; i++) {
+                var u = users[i];
+                if (!u) continue;
+                var uPhone = (u.Phone || u.phone || '').toString().trim().replace(/\s/g,'');
+                var normU  = uPhone.replace(/^0+/,'');
+                var normP  = phone.replace(/^0+/,'');
+                if (uPhone === phone || normU === normP) { idx = i; break; }
+            }
+            if (idx === -1) return;
+            // Update picture field
+            users[idx].Picture = b64pic;
+            // PUT back to Firebase
+            return fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(users)
+            });
+        })
+        .then(function() {
+            // Also sync to Google Sheet via GAS
+            if (currentUser && currentUser.phone) {
+                fetch(GAS_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'update_explanation',
+                        sheet: 'Users',
+                        id: currentUser.phone,
+                        field: 'Picture',
+                        content: b64pic
+                    })
+                }).catch(function(){});
+            }
+            showToast('✅ ছবি সংরক্ষিত হয়েছে!');
+        })
+        .catch(function(e) {
+            console.log('Pic save error:', e);
+        });
+}
+
+// ── Phone number: strip leading zero for display normalization ──
+function normalizePhone(ph) {
+    return (ph || '').toString().trim().replace(/\s/g,'');
 }
 
 </script>
