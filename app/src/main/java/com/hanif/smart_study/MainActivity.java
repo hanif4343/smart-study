@@ -129,6 +129,26 @@ public class MainActivity extends AppCompatActivity {
             public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
                 return true;
             }
+
+            // Block ALL native JS dialogs (alert/confirm/prompt)
+            // These show "The page at file:// says:" — we handle them in JS instead
+            @Override
+            public boolean onJsAlert(WebView view, String url, String message, android.webkit.JsResult result) {
+                result.cancel();
+                return true;
+            }
+
+            @Override
+            public boolean onJsConfirm(WebView view, String url, String message, android.webkit.JsResult result) {
+                result.cancel();
+                return true;
+            }
+
+            @Override
+            public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, android.webkit.JsPromptResult result) {
+                result.cancel();
+                return true;
+            }
         });
 
         // Load from assets
