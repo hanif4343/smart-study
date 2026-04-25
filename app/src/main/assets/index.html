@@ -1215,7 +1215,7 @@
 /* ===== HOME SCREEN v3 ===== */
         .home-hero {
             background: linear-gradient(135deg, #6366f1 0%, #4338ca 60%, #312e81 100%);
-            padding: 18px 16px 22px;
+            padding: 32px 16px 22px;
             position: relative; overflow: hidden;
             border-radius: 0 0 28px 28px;
         }
@@ -1413,6 +1413,21 @@
         <div class="flex gap-3 mt-6 w-full px-6">
             <button id="ob-skip" onclick="finishOnboarding()" class="flex-1 py-3 rounded-2xl font-bold text-white/70 bg-white/10">এড়িয়ে যাও</button>
             <button id="ob-next" onclick="nextObSlide()" class="flex-1 py-3 rounded-2xl font-black text-indigo-700 bg-white shadow-lg">পরবর্তী →</button>
+        </div>
+    </div>
+
+    <!-- ===== CUSTOM ALERT/CONFIRM MODAL ===== -->
+    <div id="custom-alert-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:999999;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(4px);">
+        <div style="background:white;width:100%;max-width:320px;border-radius:22px;overflow:hidden;animation:popUp 0.25s ease-out;box-shadow:0 20px 50px rgba(0,0,0,0.3);">
+            <div style="padding:22px 22px 6px 22px;text-align:center;">
+                <div id="cam-icon" style="font-size:36px;margin-bottom:10px;">ℹ️</div>
+                <div id="cam-title" style="font-weight:900;font-size:16px;color:#1e293b;margin-bottom:6px;"></div>
+                <div id="cam-body" style="font-size:13px;color:#64748b;font-weight:600;line-height:1.6;"></div>
+            </div>
+            <div id="cam-btns" style="display:flex;gap:0;border-top:1px solid #f1f5f9;margin-top:16px;">
+                <button id="cam-cancel" onclick="customAlertCancel()" style="flex:1;padding:14px;background:none;border:none;font-weight:700;font-size:14px;color:#64748b;cursor:pointer;border-right:1px solid #f1f5f9;">বাদ দাও</button>
+                <button id="cam-ok" onclick="customAlertOk()" style="flex:1;padding:14px;background:none;border:none;font-weight:900;font-size:14px;color:#6366f1;cursor:pointer;">ঠিক আছে</button>
+            </div>
         </div>
     </div>
 
@@ -3306,7 +3321,7 @@ function toggleAllInSubject(sub, masterCheckbox) {
             });
             
             quizItems = filtered.slice(0, limit); 
-            if(quizItems.length === 0) return alert("টপিক সিলেক্ট করো!");
+            if(quizItems.length === 0) { showAlert("টপিক সিলেক্ট করো!", "⚠️"); return; }
             window._correctStreak = 0; // reset streak counter
             displayLimit = quizItems.length;
             startTimer(quizItems.length); pushPath('MockResult'); renderQuestions();
@@ -3806,20 +3821,24 @@ function fallbackShare(text) {
     }
 }
         async function reportQuestion(idx, event) {
-            const item = quizItems[idx], issue = prompt("এই প্রশ্নে কি সমস্যা?"); if (!issue) return;
-            const btn = event.target; btn.innerText = "⏳";
+            const item = quizItems[idx]; 
+            const btn = event.target; 
+            // Custom input via toast-style
+            const issue = window.prompt ? window.prompt("এই প্রশ্নে কি সমস্যা?") : "ভুল প্রশ্ন";
+            if (!issue) return;
+            btn.innerText = "⏳";
             const reportData = { type: "report", Phone: USER_PHONE, Subject: getVal(item, 'subject'), Topic: getVal(item, 'sub_topic'), Question: getVal(item, 'question'), Issue: issue, Timestamp: new Date().toLocaleString() };
             if (!navigator.onLine) {
                 addToPendingQueue(reportData);
-                alert("📦 অফলাইনে রিপোর্ট সেভ হয়েছে।\nইন্টারনেট আসলে স্বয়ংক্রিয়ভাবে এডমিনের কাছে পাঠানো হবে।");
+                showAlert("📦 অফলাইনে রিপোর্ট সেভ হয়েছে।\nইন্টারনেট আসলে স্বয়ংক্রিয়ভাবে এডমিনের কাছে পাঠানো হবে।", "📦");
                 btn.innerText = "🚩"; return;
             }
             try { 
                 await fetch(GAS_URL, { method: "POST", body: JSON.stringify(reportData) }); 
-                alert("রিপোর্টটি এডমিনের কাছে পাঠানো হয়েছে। ধন্যবাদ!"); 
+                showAlert("রিপোর্টটি এডমিনের কাছে পাঠানো হয়েছে। ধন্যবাদ!", "✅"); 
             } catch (e) { 
                 addToPendingQueue(reportData);
-                alert("📦 রিপোর্ট অফলাইনে সেভ হয়েছে।\nইন্টারনেট আসলে স্বয়ংক্রিয়ভাবে পাঠানো হবে।"); 
+                showAlert("📦 রিপোর্ট অফলাইনে সেভ হয়েছে।\nইন্টারনেট আসলে স্বয়ংক্রিয়ভাবে পাঠানো হবে।", "📦"); 
             } finally { btn.innerText = "🚩"; }
         }
 
@@ -3840,14 +3859,14 @@ function fallbackShare(text) {
         function openMenu() { changeMode('menu'); }
         function toggleDarkMode() { document.body.classList.toggle('dark-theme'); }
         function clearCache() { 
-            if (confirm("সব ডেটা রিসেট হবে। অফলাইন ক্যাশও মুছে যাবে। নিশ্চিত?")) {
+            showConfirm("সব ডেটা রিসেট হবে। অফলাইন ক্যাশও মুছে যাবে। নিশ্চিত?", "🗑️").then(function(ok) {
+                if (!ok) return;
                 localStorage.clear(); 
-                // SW cache clear
                 if ('caches' in window) {
                     caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
                 }
-                location.reload(); 
-            }
+                location.reload();
+            });
         }
         function showSavedQuestions() { showSavedQWithFilter(); }
       
@@ -4242,6 +4261,39 @@ function getDailyGoal() {
     return { done, goal };
 }
 
+// ====================================================
+// 🪟 CUSTOM ALERT / CONFIRM (native alert বন্ধ)
+// ====================================================
+var _camResolve = null;
+function _showCustomModal(icon, title, body, showCancel) {
+    return new Promise(function(resolve) {
+        _camResolve = resolve;
+        document.getElementById('cam-icon').innerText = icon || 'ℹ️';
+        document.getElementById('cam-title').innerText = title || '';
+        document.getElementById('cam-body').innerText = body || '';
+        var cancelBtn = document.getElementById('cam-cancel');
+        if (cancelBtn) cancelBtn.style.display = showCancel ? '' : 'none';
+        var okBtn = document.getElementById('cam-ok');
+        if (okBtn) okBtn.style.flex = showCancel ? '1' : '1';
+        var modal = document.getElementById('custom-alert-modal');
+        if (modal) modal.style.display = 'flex';
+    });
+}
+function customAlertOk() {
+    var modal = document.getElementById('custom-alert-modal');
+    if (modal) modal.style.display = 'none';
+    if (_camResolve) { _camResolve(true); _camResolve = null; }
+}
+function customAlertCancel() {
+    var modal = document.getElementById('custom-alert-modal');
+    if (modal) modal.style.display = 'none';
+    if (_camResolve) { _camResolve(false); _camResolve = null; }
+}
+function showConfirm(msg, icon) { return _showCustomModal(icon||'❓', '', msg, true); }
+function showAlert(msg, icon) { return _showCustomModal(icon||'ℹ️', '', msg, false); }
+// Override native alert/confirm
+window.alert = function(msg) { _showCustomModal('ℹ️', '', String(msg), false); };
+
 // ===================================================
 // 📊 STATS PAGE
 // ===================================================
@@ -4483,18 +4535,15 @@ function awardXP(amount) {
         if (navigator.vibrate) navigator.vibrate([100,50,100,50,200]);
     }
     checkAchievements(newXP);
-    // Sync XP to Firebase + Sheet
+    // Sync XP to Sheet (GAS) + Firebase on every award
     if (currentUser && currentUser.phone) {
-        window._xpSyncCnt = (window._xpSyncCnt||0)+1;
-        // Every 3 awards: sync to GAS (Sheet)
-        if (window._xpSyncCnt % 3 === 0) {
-            fetch(GAS_URL, {
-                method: 'POST', mode: 'no-cors',
-                headers: {'Content-Type':'application/json'},
-                body: JSON.stringify({type:'update_xp', phone: currentUser.phone, xp: newXP})
-            }).catch(function(){});
-        }
-        // Every award: update Firebase Users XP directly
+        // Sheet update via GAS — every award
+        fetch(GAS_URL, {
+            method: 'POST', mode: 'no-cors',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({type:'update_xp', phone: currentUser.phone, xp: newXP})
+        }).catch(function(){});
+        // Firebase direct update
         syncXPToFirebase(currentUser.phone, newXP);
     }
 }
@@ -4830,14 +4879,25 @@ function calSelectDay(dateStr, el) {
 
 function confirmExamDate() {
     if (!_calSelectedDate) return;
-    const name = prompt('পরীক্ষার নাম লিখো (যেমন: BCS, HSC):') || 'পরীক্ষা';
-    localStorage.setItem('exam_name', name);
-    localStorage.setItem('exam_date', _calSelectedDate);
-    closeCalendar();
-    showToast(`✅ ${name} Countdown সেট হয়েছে!`);
-    if (window._countdownInterval) clearInterval(window._countdownInterval);
-    startCountdownTick();
-    if (currentMode === 'menu') renderView();
+    // Ask for exam name via custom input
+    var currentName = localStorage.getItem('exam_name') || '';
+    var nameInput = document.createElement('input');
+    nameInput.type = 'text'; nameInput.value = currentName;
+    nameInput.placeholder = 'যেমন: BCS, HSC, SSC';
+    nameInput.style.cssText = 'width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:10px;font-size:14px;font-weight:700;outline:none;margin-top:8px;';
+    document.getElementById('cam-body').innerHTML = '';
+    document.getElementById('cam-body').appendChild(nameInput);
+    _showCustomModal('📅', 'পরীক্ষার নাম লিখো', '', true).then(function(ok) {
+        var name = nameInput.value.trim() || 'পরীক্ষা';
+        if (!ok) { closeCalendar(); return; }
+        localStorage.setItem('exam_name', name);
+        localStorage.setItem('exam_date', _calSelectedDate);
+        closeCalendar();
+        showToast('✅ ' + name + ' Countdown সেট হয়েছে!');
+        if (window._countdownInterval) clearInterval(window._countdownInterval);
+        startCountdownTick();
+        if (currentMode === 'menu') renderView();
+    });
 }
 
 // ====================================================
@@ -5855,15 +5915,17 @@ function doSignup() {
 }
 
 function doLogout() {
-    if (!confirm('লগআউট করবেন?')) return;
-    clearCurrentUser();
-    localStorage.removeItem('home_user_name');
-    localStorage.removeItem('home_user_pic');
-    try {
-        var s = document.getElementById('auth-screen');
-        if (s) { s.style.display = 'flex'; s.classList.remove('hidden'); }
-        switchAuthTab('login');
-    } catch(e) { location.reload(); }
+    showConfirm('লগআউট করবেন?', '🚪').then(function(ok) {
+        if (!ok) return;
+        clearCurrentUser();
+        localStorage.removeItem('home_user_name');
+        localStorage.removeItem('home_user_pic');
+        try {
+            var s = document.getElementById('auth-screen');
+            if (s) { s.style.display = 'flex'; s.classList.remove('hidden'); }
+            switchAuthTab('login');
+        } catch(e) { location.reload(); }
+    });
 }
 
 // =====================================================
@@ -5988,14 +6050,57 @@ function lbCalcXP(xp) {
 
 
 // ── Sync XP to Firebase Users node directly ──
+// ── XP sync debounce timer ──
+var _xpSyncTimer = null;
+var _xpSyncPending = {};
+
 function syncXPToFirebase(phone, xp) {
     if (!phone) return;
+    // Debounce — 3 সেকেন্ড পরে একবার sync করবে
+    _xpSyncPending[phone] = xp;
+    clearTimeout(_xpSyncTimer);
+    _xpSyncTimer = setTimeout(function() {
+        var ph = Object.keys(_xpSyncPending)[0];
+        var xpVal = _xpSyncPending[ph];
+        _xpSyncPending = {};
+        _doSyncXP(ph, xpVal);
+    }, 3000);
+}
+
+function _doSyncXP(phone, xp) {
+    if (!phone) return;
+    // প্রথমে cached fullData থেকে user index খুঁজি
+    var users = fullData['Users'] || [];
+    var idx = -1;
+    for (var i = 0; i < users.length; i++) {
+        var u = users[i];
+        if (!u) continue;
+        var uPhone = (u.Phone || u.phone || '').toString().trim().replace(/^'+/,'').replace(/\s/g,'');
+        var normU  = uPhone.replace(/^0+/,'');
+        var normP  = phone.toString().trim().replace(/^0+/,'');
+        if (uPhone === phone || normU === normP) { idx = i; break; }
+    }
+    if (idx !== -1) {
+        // PATCH শুধু সেই ইউজারের XP field — অনেক দ্রুত
+        fetch(FIREBASE_URL + 'Users/' + idx + '/XP.json?auth=' + SECRET_KEY, {
+            method: 'PUT',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify(xp)
+        }).catch(function(){
+            // Fallback: full PUT
+            _syncXPFullPut(phone, xp);
+        });
+    } else {
+        _syncXPFullPut(phone, xp);
+    }
+}
+
+function _syncXPFullPut(phone, xp) {
     fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!data) return;
             var users = Array.isArray(data) ? data : Object.values(data);
-            var changed = false;
             for (var i = 0; i < users.length; i++) {
                 var u = users[i];
                 if (!u) continue;
@@ -6004,11 +6109,9 @@ function syncXPToFirebase(phone, xp) {
                 var normP  = phone.toString().trim().replace(/^0+/,'');
                 if (uPhone === phone || normU === normP) {
                     users[i].XP = xp;
-                    changed = true;
                     break;
                 }
             }
-            if (!changed) return;
             return fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY, {
                 method: 'PUT',
                 headers: {'Content-Type':'application/json'},
@@ -6018,12 +6121,56 @@ function syncXPToFirebase(phone, xp) {
         .catch(function(){});
 }
 
+
 // ── Save profile picture to Firebase Users ──
 function savePicToFirebase(b64pic) {
     if (!currentUser || !currentUser.phone) return;
     var phone = currentUser.phone.toString().trim();
 
-    // Find user index in Firebase Users array and update picture field
+    // প্রথমে cached fullData থেকে user index খুঁজি
+    var cachedUsers = fullData['Users'] || [];
+    var cachedIdx = -1;
+    for (var ci = 0; ci < cachedUsers.length; ci++) {
+        var cu = cachedUsers[ci];
+        if (!cu) continue;
+        var cuPhone = (cu.Phone || cu.phone || '').toString().trim().replace(/\s/g,'');
+        var normCU  = cuPhone.replace(/^0+/,'');
+        var normP   = phone.replace(/^0+/,'');
+        if (cuPhone === phone || normCU === normP) { cachedIdx = ci; break; }
+    }
+
+    var doGasSync = function() {
+        if (currentUser && currentUser.phone) {
+            fetch(GAS_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'update_user_pic',
+                    phone: currentUser.phone,
+                    picture: b64pic
+                })
+            }).catch(function(){});
+        }
+        showToast('✅ ছবি সংরক্ষিত হয়েছে!');
+    };
+
+    if (cachedIdx !== -1) {
+        // Fast PATCH — শুধু Picture field আপডেট
+        fetch(FIREBASE_URL + 'Users/' + cachedIdx + '/Picture.json?auth=' + SECRET_KEY, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(b64pic)
+        }).then(doGasSync).catch(function(e) {
+            console.log('Pic PATCH failed, trying full PUT:', e);
+            _savePicFullPut(phone, b64pic, doGasSync);
+        });
+    } else {
+        _savePicFullPut(phone, b64pic, doGasSync);
+    }
+}
+
+function _savePicFullPut(phone, b64pic, callback) {
     fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
         .then(function(r) { return r.json(); })
         .then(function(data) {
@@ -6039,33 +6186,14 @@ function savePicToFirebase(b64pic) {
                 if (uPhone === phone || normU === normP) { idx = i; break; }
             }
             if (idx === -1) return;
-            // Update picture field
             users[idx].Picture = b64pic;
-            // PUT back to Firebase
             return fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(users)
             });
         })
-        .then(function() {
-            // Also sync to Google Sheet via GAS
-            if (currentUser && currentUser.phone) {
-                fetch(GAS_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        type: 'update_explanation',
-                        sheet: 'Users',
-                        id: currentUser.phone,
-                        field: 'Picture',
-                        content: b64pic
-                    })
-                }).catch(function(){});
-            }
-            showToast('✅ ছবি সংরক্ষিত হয়েছে!');
-        })
+        .then(function() { if (callback) callback(); })
         .catch(function(e) {
             console.log('Pic save error:', e);
         });
@@ -6153,7 +6281,7 @@ function pushHistoryState() {
 </div>
 
 <!-- ===== LEADERBOARD MODAL ===== -->
-<div id="leaderboard-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:8000;display:none;align-items:flex-end;justify-content:center;">
+<div id="leaderboard-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:8000;align-items:flex-end;justify-content:center;">
   <div style="background:white;width:100%;max-width:480px;border-radius:24px 24px 0 0;max-height:88vh;overflow-y:auto;">
     <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:20px;border-radius:24px 24px 0 0;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
