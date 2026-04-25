@@ -2499,11 +2499,11 @@ function homePickPhoto() {
         const reader = new FileReader();
         reader.onload = function(e) {
             var b64pic = e.target.result;
-            // Resize to max 200KB before saving
             var img2 = new Image();
             img2.onload = function() {
+                // Resize canvas
                 var canvas = document.createElement('canvas');
-                var maxSz = 300;
+                var maxSz = 400;
                 var w = img2.width, h = img2.height;
                 if (w > maxSz || h > maxSz) {
                     if (w > h) { h = Math.round(h * maxSz / w); w = maxSz; }
@@ -2511,21 +2511,44 @@ function homePickPhoto() {
                 }
                 canvas.width = w; canvas.height = h;
                 canvas.getContext('2d').drawImage(img2, 0, 0, w, h);
-                var compressed = canvas.toDataURL('image/jpeg', 0.7);
-                
-                // Save locally
-                localStorage.setItem('home_user_pic', compressed);
-                if (currentUser) {
-                    currentUser.picture = compressed;
-                    saveCurrentUser(currentUser);
-                }
-                
-                // Save to Firebase Users node
-                savePicToFirebase(compressed);
-                
-                // Refresh avatar
+                var compressed = canvas.toDataURL('image/jpeg', 0.75);
+                var b64only = compressed.split(',')[1];
+
+                // Show preview immediately
                 var av = document.getElementById('home-avatar-img');
                 if (av) { av.src = compressed; av.style.display='block'; var ae = document.getElementById('home-avatar-emoji'); if(ae) ae.style.display='none'; }
+                localStorage.setItem('home_user_pic', compressed);
+                if (currentUser) { currentUser.picture = compressed; saveCurrentUser(currentUser); }
+
+                showToast('⏳ ছবি upload হচ্ছে...');
+
+                // Upload to ImgBB
+                var fd = new FormData();
+                fd.append('image', b64only);
+                fd.append('key', IMGBB_API_KEY);
+                fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: fd })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data && data.success && data.data && data.data.url) {
+                            var imgUrl = data.data.display_url || data.data.url;
+                            // Save URL to Firebase (much smaller than Base64)
+                            savePicToFirebase(imgUrl);
+                            // Update local cache with URL
+                            localStorage.setItem('home_user_pic', imgUrl);
+                            if (currentUser) { currentUser.picture = imgUrl; saveCurrentUser(currentUser); }
+                            if (av) av.src = imgUrl;
+                            showToast('✅ ছবি সংরক্ষিত!');
+                        } else {
+                            // ImgBB failed — save Base64 as fallback
+                            savePicToFirebase(compressed);
+                            showToast('⚠️ ImgBB ব্যর্থ, local save হয়েছে');
+                        }
+                    })
+                    .catch(function() {
+                        // No internet — save Base64 to Firebase
+                        savePicToFirebase(compressed);
+                        showToast('📶 অফলাইন — ছবি local save হয়েছে');
+                    });
             };
             img2.src = b64pic;
         };
@@ -2600,8 +2623,24 @@ function renderHome(container) {
 
     // ── Recent wrong questions ──
     const wrongHistory = JSON.parse(localStorage.getItem('wrong_history')||'{}');
-    const weakTopics   = Object.entries(wrongHistory)
-        .filter(([,c])=>c>=1).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    const wrongQIds    = JSON.parse(localStorage.getItem('wrong_q_ids')||'[]');
+    const allQForReview = [...(fullData['QBank']||[]),...(fullData['Quiz']||[]),...(fullData['Study']||[])];
+    // Recalculate weakTopics based on actual uncorrected wrong question IDs
+    const topicWrongCount = {};
+    wrongQIds.forEach(function(qid) {
+        var item = allQForReview.find(function(i){ return String(getVal(i,'id')) === String(qid); });
+        if (!item) return;
+        var topic = getVal(item,'sub_topic') || getVal(item,'subject') || '';
+        if (topic) topicWrongCount[topic] = (topicWrongCount[topic] || 0) + 1;
+    });
+    // Merge with wrongHistory for topics without IDs
+    Object.entries(wrongHistory).forEach(function([topic, count]) {
+        if (!topicWrongCount[topic]) topicWrongCount[topic] = count;
+    });
+    const weakTopics = Object.entries(topicWrongCount)
+        .filter(function([,c]){ return c >= 1; })
+        .sort(function(a,b){ return b[1]-a[1]; })
+        .slice(0, 3);
 
     let reviewHTML = '';
     if(weakTopics.length > 0) {
@@ -2834,33 +2873,41 @@ function updateChallengeBar() {
 }
 
 function goReviewTopic(topic) {
-    // সব sheet থেকে topic match করে প্রশ্ন খোঁজো
+    var wrongIds = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
     var allData = [
         ...(fullData['QBank']  || []),
         ...(fullData['Quiz']   || []),
         ...(fullData['Study']  || [])
     ];
-    // Exact sub_topic match
-    var items = allData.filter(function(i) {
-        var st = (getVal(i,'sub_topic') || '').trim();
-        var sb = (getVal(i,'subject')   || '').trim();
-        return st === topic || sb === topic;
-    });
-    // If no exact match, try partial/case-insensitive
-    if (items.length === 0) {
-        var tLow = topic.toLowerCase();
+    var items = [];
+    // First: get all wrong question IDs for this topic
+    if (wrongIds.length > 0) {
         items = allData.filter(function(i) {
-            var st = (getVal(i,'sub_topic') || '').toLowerCase();
-            var sb = (getVal(i,'subject')   || '').toLowerCase();
-            return st.includes(tLow) || tLow.includes(st) || sb.includes(tLow);
+            var id  = String(getVal(i,'id') || '');
+            var st  = (getVal(i,'sub_topic') || '').trim();
+            var sb  = (getVal(i,'subject')   || '').trim();
+            var topicMatch = st === topic || sb === topic || st.toLowerCase().includes(topic.toLowerCase()) || topic.toLowerCase().includes(st.toLowerCase());
+            return topicMatch && wrongIds.includes(id);
+        });
+    }
+    // Fallback: if no ID matches, show all questions for this topic
+    if (items.length === 0) {
+        items = allData.filter(function(i) {
+            var st = (getVal(i,'sub_topic') || '').trim();
+            var sb = (getVal(i,'subject')   || '').trim();
+            return st === topic || sb === topic || st.toLowerCase().includes(topic.toLowerCase());
         });
     }
     if (items.length === 0) {
-        showToast('⚠️ "' + topic + '" এর প্রশ্ন পাওয়া যায়নি');
+        showToast('✅ "' + topic + '" সব প্রশ্ন সঠিক হয়েছে!');
+        // Clean up wrong_history for this topic
+        var wh = JSON.parse(localStorage.getItem('wrong_history') || '{}');
+        delete wh[topic];
+        localStorage.setItem('wrong_history', JSON.stringify(wh));
+        renderHome();
         return;
     }
-    // Determine best mode based on where items came from
-    var hasQBank = items.some(function(i){ return i._sheet==='QBank' || fullData['QBank'].includes(i); });
+    var hasQBank = (fullData['QBank']||[]).some(function(i){ return items.includes(i); });
     var mode = hasQBank ? 'qbank' : 'quiz';
     quizItems = items;
     displayLimit = items.length;
@@ -2875,7 +2922,7 @@ function goReviewTopic(topic) {
     var backCtrl = document.getElementById('back-and-ctrls');
     if (backCtrl) { backCtrl.classList.remove('hidden'); backCtrl.classList.add('flex'); }
     var zt = document.getElementById('zone-title');
-    if (zt) zt.innerText = topic;
+    if (zt) zt.innerText = '🔁 ' + topic;
     renderQuestions();
     pushAppState();
 }
@@ -3621,10 +3668,18 @@ function showCopyToast(id) {
 
 function markAsCorrect(id) {
     if (!id) return;
-    let correctHistory = JSON.parse(localStorage.getItem('correct_history') || '[]');
-    if (!correctHistory.includes(id)) {
-        correctHistory.push(id);
+    var sid = String(id);
+    var correctHistory = JSON.parse(localStorage.getItem('correct_history') || '[]');
+    if (!correctHistory.includes(sid)) {
+        correctHistory.push(sid);
         localStorage.setItem('correct_history', JSON.stringify(correctHistory));
+    }
+    // Remove from wrong_q_ids — answered correctly so no longer "wrong"
+    var wrongIds = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
+    var idx = wrongIds.indexOf(sid);
+    if (idx !== -1) {
+        wrongIds.splice(idx, 1);
+        localStorage.setItem('wrong_q_ids', JSON.stringify(wrongIds));
     }
 }
 
@@ -3661,7 +3716,7 @@ function check(btn, sel, corRaw, qId) {
         window._correctStreak = 0; // reset streak on wrong
         // Track wrong answer for weak topics
         const wrongTopic = quizItems.length > 0 ? (getVal(quizItems.find(q => getVal(q,'id') === qId) || {}, 'sub_topic') || getVal(quizItems.find(q => getVal(q,'id') === qId) || {}, 'subject') || 'অজানা') : 'অজানা';
-        if (wrongTopic) trackWrongAnswer(wrongTopic);
+        if (wrongTopic) trackWrongAnswer(wrongTopic, qId);
         const opts = p.querySelectorAll('.opt-btn');
         opts.forEach(opt => {
             if(opt.innerText.toString().trim().toLowerCase() === actualAns) {
@@ -4106,10 +4161,16 @@ function getWeakTopics() {
     return result.sort((a,b) => b.wrongCount - a.wrongCount);
 }
 
-function trackWrongAnswer(topic) {
-    const wrongHistory = JSON.parse(localStorage.getItem('wrong_history') || '{}');
+function trackWrongAnswer(topic, qId) {
+    var wrongHistory = JSON.parse(localStorage.getItem('wrong_history') || '{}');
     wrongHistory[topic] = (wrongHistory[topic] || 0) + 1;
     localStorage.setItem('wrong_history', JSON.stringify(wrongHistory));
+    // Also track by question ID
+    if (qId) {
+        var wrongIds = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
+        if (!wrongIds.includes(String(qId))) wrongIds.push(String(qId));
+        localStorage.setItem('wrong_q_ids', JSON.stringify(wrongIds));
+    }
 }
 
 // ===== DAILY STREAK =====
@@ -5560,7 +5621,8 @@ async function checkWrittenAnswer(btn) {
 
 // ---- Gemini API Smart Match ----
 async function smartMatchAnswer(userAns, correctAns) {
-    const GEMINI_API_KEY = "%%GEMINI_API_KEY%%"; 
+    const GEMINI_API_KEY = "%%GEMINI_API_KEY%%";
+        const IMGBB_API_KEY = "3f23d9fd6bdfdb694285773f40569906"; 
     const model = "gemini-1.5-flash";
 
     if (!correctAns || correctAns.length < 2) {
