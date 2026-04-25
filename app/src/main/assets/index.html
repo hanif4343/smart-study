@@ -2773,7 +2773,16 @@ function renderHome(container) {
         <div style="display:flex;gap:5px;">${weekDots}</div>
     </div>
 
-    <!-- EXAM -->
+    <!-- LEADERBOARD -->
+    <div onclick="openLeaderboard()" style="background:linear-gradient(135deg,#5b21b6,#7c3aed);border-radius:14px;padding:13px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border:1px solid rgba(167,139,250,0.3);">
+        <div>
+            <div style="color:white;font-weight:900;font-size:14px;">🏆 Leaderboard</div>
+            <div style="color:rgba(255,255,255,0.6);font-size:11px;margin-top:1px;">সেরা শিক্ষার্থীদের র‍্যাংকিং</div>
+        </div>
+        <div style="color:rgba(255,255,255,0.8);font-size:20px;font-weight:900;">❯</div>
+    </div>
+
+  <!-- EXAM -->
     ${examHTML}
 
     <!-- TODAY TOPIC -->
@@ -2782,14 +2791,7 @@ function renderHome(container) {
     <!-- REVIEW -->
     ${reviewHTML}
 
-    <div onclick="openLeaderboard()" style="background:linear-gradient(135deg,#5b21b6,#7c3aed);border-radius:14px;padding:13px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border:1px solid rgba(167,139,250,0.3);">
-        <div>
-            <div style="color:white;font-weight:900;font-size:14px;">🏆 Leaderboard</div>
-            <div style="color:rgba(255,255,255,0.6);font-size:11px;margin-top:1px;">সেরা শিক্ষার্থীদের র‍্যাংকিং</div>
-        </div>
-        <div style="color:rgba(255,255,255,0.8);font-size:20px;font-weight:900;">❯</div>
-    </div>
-    <!-- DAILY CHALLENGE -->
+        <!-- DAILY CHALLENGE -->
     <div style="background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:14px;padding:13px 14px;border:1px solid rgba(99,102,241,0.2);">
         <div style="display:flex;justify-content:space-between;align-items:center;">
             <div>
@@ -2832,19 +2834,48 @@ function updateChallengeBar() {
 }
 
 function goReviewTopic(topic) {
-    // দুর্বল টপিকের প্রশ্ন QBank এ দেখাও
-    const allData = fullData['QBank'] || fullData['Study'] || [];
-    const items = allData.filter(i => (getVal(i,'sub_topic')||getVal(i,'subject')||'') === topic);
-    if(items.length === 0) { showToast('⚠️ প্রশ্ন পাওয়া যায়নি'); return; }
+    // সব sheet থেকে topic match করে প্রশ্ন খোঁজো
+    var allData = [
+        ...(fullData['QBank']  || []),
+        ...(fullData['Quiz']   || []),
+        ...(fullData['Study']  || [])
+    ];
+    // Exact sub_topic match
+    var items = allData.filter(function(i) {
+        var st = (getVal(i,'sub_topic') || '').trim();
+        var sb = (getVal(i,'subject')   || '').trim();
+        return st === topic || sb === topic;
+    });
+    // If no exact match, try partial/case-insensitive
+    if (items.length === 0) {
+        var tLow = topic.toLowerCase();
+        items = allData.filter(function(i) {
+            var st = (getVal(i,'sub_topic') || '').toLowerCase();
+            var sb = (getVal(i,'subject')   || '').toLowerCase();
+            return st.includes(tLow) || tLow.includes(st) || sb.includes(tLow);
+        });
+    }
+    if (items.length === 0) {
+        showToast('⚠️ "' + topic + '" এর প্রশ্ন পাওয়া যায়নি');
+        return;
+    }
+    // Determine best mode based on where items came from
+    var hasQBank = items.some(function(i){ return i._sheet==='QBank' || fullData['QBank'].includes(i); });
+    var mode = hasQBank ? 'qbank' : 'quiz';
     quizItems = items;
     displayLimit = items.length;
-    currentMode = 'qbank';
-    updateUIMode('qbank');
-    document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active-home','active-study','active-quiz','active-qbank','active-menu'));
-    document.getElementById('nav-qbank').classList.add('active-qbank');
-    path = [getVal(items[0],'subject')||topic, topic];
-    const backCtrl = document.getElementById('back-and-ctrls');
-    if(backCtrl){ backCtrl.classList.remove('hidden'); backCtrl.classList.add('flex'); }
+    currentMode = mode;
+    updateUIMode(mode);
+    document.querySelectorAll('.nav-item').forEach(function(b){
+        b.classList.remove('active-home','active-study','active-quiz','active-qbank','active-menu');
+    });
+    var navEl = document.getElementById('nav-' + mode);
+    if (navEl) navEl.classList.add('active-' + mode);
+    path = [getVal(items[0],'subject') || topic, topic];
+    var backCtrl = document.getElementById('back-and-ctrls');
+    if (backCtrl) { backCtrl.classList.remove('hidden'); backCtrl.classList.add('flex'); }
+    var zt = document.getElementById('zone-title');
+    if (zt) zt.innerText = topic;
     renderQuestions();
     pushAppState();
 }
@@ -5910,12 +5941,15 @@ function renderLeaderboard() {
                     var localXP = parseInt(localStorage.getItem('user_xp') || '0');
                     if (localXP > xpVal) xpVal = localXP;
                 }
+                var picVal = u.Picture || u.picture || '';
+                // Firebase sometimes stores as nested object — flatten
+                if (typeof picVal === 'object') picVal = '';
                 ranked.push({
                     name:    u.Name    || u.name    || '—',
                     phone:   uPhone,
                     role:    u.Role    || u.role    || 'User',
                     status:  u.Status  || u.status  || 'Active',
-                    picture: u.Picture || u.picture || '',
+                    picture: picVal,
                     xp:      xpVal
                 });
             }
@@ -5945,10 +5979,11 @@ function renderLeaderboard() {
 
                 var picEl;
                 if (ru.picture && ru.picture.length > 10) {
-                    if (ru.picture && ru.picture.length > 10) {
-                    picEl = '<img src="' + ru.picture + '" style="width:42px;height:42px;border-radius:50%;object-fit:cover;background:#e0e7ff;flex-shrink:0;">';
+                    var _pic = (ru.picture && typeof ru.picture === 'string' && ru.picture.length > 20) ? ru.picture : '';
+                if (_pic) {
+                    picEl = '<img src="' + _pic + '" style="width:42px;height:42px;border-radius:50%;object-fit:cover;background:#e0e7ff;flex-shrink:0;" loading="lazy">';
                 } else {
-                    picEl = '<div style="width:42px;height:42px;border-radius:50%;background:#e0e7ff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👤</div>';
+                    picEl = '<div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#818cf8,#6366f1);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;color:white;font-weight:900;">' + (ru.name ? ru.name.charAt(0).toUpperCase() : '?') + '</div>';
                 }
                 } else {
                     picEl = '<div style="width:42px;height:42px;border-radius:50%;background:#e0e7ff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👤</div>';
@@ -6033,51 +6068,35 @@ function syncXPToFirebase(phone, xp) {
 function savePicToFirebase(b64pic) {
     if (!currentUser || !currentUser.phone) return;
     var phone = currentUser.phone.toString().trim();
-
-    // Find user index in Firebase Users array and update picture field
     fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!data) return;
-            var users = Array.isArray(data) ? data : Object.values(data);
-            var idx = -1;
-            for (var i = 0; i < users.length; i++) {
-                var u = users[i];
+            var keys = Object.keys(data);
+            var foundKey = null;
+            for (var i = 0; i < keys.length; i++) {
+                var u = data[keys[i]];
                 if (!u) continue;
-                var uPhone = (u.Phone || u.phone || '').toString().trim().replace(/\s/g,'');
-                var normU  = uPhone.replace(/^0+/,'');
-                var normP  = phone.replace(/^0+/,'');
-                if (uPhone === phone || normU === normP) { idx = i; break; }
+                var uPhone = (u.Phone || u.phone || '').toString().trim().replace(/[\s']/g,'');
+                var normU = uPhone.replace(/^0+/,'');
+                var normP = phone.replace(/^0+/,'');
+                if (uPhone === phone || normU === normP) { foundKey = keys[i]; break; }
             }
-            if (idx === -1) return;
-            // Update picture field
-            users[idx].Picture = b64pic;
-            // PUT back to Firebase
-            return fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY, {
+            if (foundKey === null) { showToast('⚠️ User not found'); return null; }
+            return fetch(FIREBASE_URL + 'Users/' + foundKey + '/Picture.json?auth=' + SECRET_KEY, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(users)
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(b64pic)
             });
         })
-        .then(function() {
-            // Sync to Sheet via GAS — update_user_pic type
-            if (currentUser && currentUser.phone) {
-                fetch(GAS_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        type: 'update_user_pic',
-                        phone: currentUser.phone,
-                        picture: b64pic
-                    })
-                }).catch(function(){});
-            }
+        .then(function(r) {
+            if (!r) return;
+            currentUser.picture = b64pic;
+            saveCurrentUser(currentUser);
+            localStorage.setItem('home_user_pic', b64pic);
             showToast('✅ ছবি সংরক্ষিত হয়েছে!');
         })
-        .catch(function(e) {
-            console.log('Pic save error:', e);
-        });
+        .catch(function(e) { console.log('Pic err:', e); showToast('❌ ছবি save ব্যর্থ'); });
 }
 
 // ── Phone number: strip leading zero for display normalization ──
