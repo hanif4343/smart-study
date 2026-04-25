@@ -2275,10 +2275,15 @@ function loadFirebaseData() {
                     currentUser.role    = freshU.Role    || freshU.role    || currentUser.role;
                     currentUser.status  = freshU.Status  || freshU.status  || currentUser.status;
                     currentUser.picture = freshU.Picture || freshU.picture || currentUser.picture;
-                    currentUser.xp      = parseInt(freshU.XP || freshU.xp || 0) || 0;
+                    var fireXP2 = parseInt(freshU.XP || freshU.xp || 0) || 0;
+                    currentUser.xp = fireXP2;
                     saveCurrentUser(currentUser);
                     localStorage.setItem('home_user_name', currentUser.name || '');
                     if (currentUser.picture) localStorage.setItem('home_user_pic', currentUser.picture);
+                    // Sync Firebase XP to per-user localStorage (use max)
+                    var _xpKey2 = 'user_xp_' + currentUser.phone;
+                    var localXP2 = parseInt(localStorage.getItem(_xpKey2) || '0');
+                    if (fireXP2 > localXP2) localStorage.setItem(_xpKey2, fireXP2);
                 }
             }
 
@@ -3302,6 +3307,7 @@ function toggleAllInSubject(sub, masterCheckbox) {
         }
 
        function showQuestions(st) {
+    try { history.pushState({}, ''); } catch(e) {}
     const data = fullData[currentMode==='study'?'Study':(currentMode==='quiz'?'Quiz':'QBank')];
     quizItems = data.filter(i => getVal(i, 'subject') === path[0] && getVal(i, 'sub_topic') === st); 
     
@@ -4442,7 +4448,8 @@ const XP_LEVELS = [
 ];
 
 function getXPInfo() {
-    const xp = parseInt(localStorage.getItem('user_xp') || '0');
+    var _xpKey = currentUser && currentUser.phone ? 'user_xp_' + currentUser.phone : 'user_xp';
+    const xp = parseInt(localStorage.getItem(_xpKey) || '0');
     let currentLevel = XP_LEVELS[0];
     let nextLevel = XP_LEVELS[1];
     for (let i = XP_LEVELS.length - 1; i >= 0; i--) {
@@ -4461,20 +4468,29 @@ function getXPInfo() {
 function awardXP(amount) {
     var prevInfo = getXPInfo();
     var prevLevel = prevInfo.level;
-    var curXP = parseInt(localStorage.getItem('user_xp') || '0');
+    var _xpKey = currentUser && currentUser.phone ? 'user_xp_' + currentUser.phone : 'user_xp';
+    var curXP = parseInt(localStorage.getItem(_xpKey) || '0');
     var newXP = curXP + amount;
-    localStorage.setItem('user_xp', newXP);
+    localStorage.setItem(_xpKey, newXP);
     var newInfo = getXPInfo();
     if (newInfo.level > prevLevel) {
         showAchievement(newInfo.levelEmoji, 'Level Up! ' + newInfo.levelName, 'তুমি Level ' + newInfo.level + '-এ পৌঁছেছ!');
         if (navigator.vibrate) navigator.vibrate([100,50,100,50,200]);
     }
     checkAchievements(newXP);
-    // Sync XP to Users sheet every 5 awards
-    window._xpSyncCnt = (window._xpSyncCnt||0)+1;
-    if (window._xpSyncCnt % 5 === 0 && currentUser && currentUser.phone) {
-        fetch(GAS_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({type:'update_xp',phone:currentUser.phone,xp:newXP})}).catch(function(){});
+    // Sync XP to Firebase + Sheet
+    if (currentUser && currentUser.phone) {
+        window._xpSyncCnt = (window._xpSyncCnt||0)+1;
+        // Every 3 awards: sync to GAS (Sheet)
+        if (window._xpSyncCnt % 3 === 0) {
+            fetch(GAS_URL, {
+                method: 'POST', mode: 'no-cors',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({type:'update_xp', phone: currentUser.phone, xp: newXP})
+            }).catch(function(){});
+        }
+        // Every award: update Firebase Users XP directly
+        syncXPToFirebase(currentUser.phone, newXP);
     }
 }
 
@@ -5774,11 +5790,18 @@ function doLogin() {
                 email:   matched.Email    || matched.email    || '',
                 role:    matched.Role     || matched.role     || 'User',
                 status:  matched.Status   || matched.status   || 'Active',
-                picture: matched.Picture  || matched.picture  || ''
+                picture: matched.Picture  || matched.picture  || '',
+                xp:      parseInt(matched.XP || matched.xp || 0) || 0
             };
             saveCurrentUser(user);
             localStorage.setItem('home_user_name', user.name || '');
             if (user.picture) localStorage.setItem('home_user_pic', user.picture);
+            // Load per-user XP from Firebase into localStorage
+            var _xpKey = 'user_xp_' + user.phone;
+            var localXP = parseInt(localStorage.getItem(_xpKey) || '0');
+            var fireXP  = user.xp || 0;
+            // Use whichever is higher (offline XP might be ahead)
+            localStorage.setItem(_xpKey, Math.max(localXP, fireXP));
             hideAuthScreen();
             try { initApp(); } catch(e) { console.error('initApp after login:', e); }
         })
@@ -5959,6 +5982,37 @@ function lbCalcXP(xp) {
 }
 
 
+// ── Sync XP to Firebase Users node directly ──
+function syncXPToFirebase(phone, xp) {
+    if (!phone) return;
+    fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data) return;
+            var users = Array.isArray(data) ? data : Object.values(data);
+            var changed = false;
+            for (var i = 0; i < users.length; i++) {
+                var u = users[i];
+                if (!u) continue;
+                var uPhone = (u.Phone || u.phone || '').toString().trim().replace(/^'+/,'').replace(/\s/g,'');
+                var normU  = uPhone.replace(/^0+/,'');
+                var normP  = phone.toString().trim().replace(/^0+/,'');
+                if (uPhone === phone || normU === normP) {
+                    users[i].XP = xp;
+                    changed = true;
+                    break;
+                }
+            }
+            if (!changed) return;
+            return fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY, {
+                method: 'PUT',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(users)
+            });
+        })
+        .catch(function(){});
+}
+
 // ── Save profile picture to Firebase Users ──
 function savePicToFirebase(b64pic) {
     if (!currentUser || !currentUser.phone) return;
@@ -6015,6 +6069,32 @@ function savePicToFirebase(b64pic) {
 // ── Phone number: strip leading zero for display normalization ──
 function normalizePhone(ph) {
     return (ph || '').toString().trim().replace(/\s/g,'');
+}
+
+
+// ── Android back button: close result/modal screens ──
+window.addEventListener('popstate', function(e) {
+    // Close leaderboard modal
+    var lb = document.getElementById('leaderboard-modal');
+    if (lb && lb.style.display === 'flex') { closeLeaderboard(); history.pushState({},''); return; }
+    // Close edit modal
+    var em = document.getElementById('edit-modal');
+    if (em && em.style.display === 'flex') { em.style.display = 'none'; history.pushState({},''); return; }
+    // Close result screen
+    var rs = document.getElementById('result-screen');
+    if (rs && rs.style.display !== 'none' && rs.style.display !== '') {
+        var cb = document.getElementById('result-close-btn');
+        if (cb) cb.click(); else rs.style.display = 'none';
+        history.pushState({},''); return;
+    }
+    // Navigate back in path
+    if (path && path.length > 0) { path.pop(); renderView(); history.pushState({},''); return; }
+});
+
+// Push state on navigation so back button works
+var _origChangeMode = typeof changeMode === 'function' ? changeMode : null;
+function pushHistoryState() {
+    try { history.pushState({path: path.slice()}, ''); } catch(e) {}
 }
 
 </script>
