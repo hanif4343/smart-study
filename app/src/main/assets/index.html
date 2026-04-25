@@ -1816,6 +1816,12 @@
         closeImageZoom();
         return;
     }
+    // Close result modal if open (back button = same as ✕ cross)
+    var _rm = document.getElementById('result-modal-enhanced');
+    if (_rm && !_rm.classList.contains('hidden-modal')) {
+        closeResult();
+        return;
+    }
     document.getElementById('sticky-result').classList.add('hidden');
     if (event.state) {
         stopTimer(); 
@@ -3307,7 +3313,6 @@ function toggleAllInSubject(sub, masterCheckbox) {
         }
 
        function showQuestions(st) {
-    try { history.pushState({}, ''); } catch(e) {}
     const data = fullData[currentMode==='study'?'Study':(currentMode==='quiz'?'Quiz':'QBank')];
     quizItems = data.filter(i => getVal(i, 'subject') === path[0] && getVal(i, 'sub_topic') === st); 
     
@@ -6073,23 +6078,7 @@ function normalizePhone(ph) {
 
 
 // ── Android back button: close result/modal screens ──
-window.addEventListener('popstate', function(e) {
-    // Close leaderboard modal
-    var lb = document.getElementById('leaderboard-modal');
-    if (lb && lb.style.display === 'flex') { closeLeaderboard(); history.pushState({},''); return; }
-    // Close edit modal
-    var em = document.getElementById('edit-modal');
-    if (em && em.style.display === 'flex') { em.style.display = 'none'; history.pushState({},''); return; }
-    // Close result screen
-    var rs = document.getElementById('result-screen');
-    if (rs && rs.style.display !== 'none' && rs.style.display !== '') {
-        var cb = document.getElementById('result-close-btn');
-        if (cb) cb.click(); else rs.style.display = 'none';
-        history.pushState({},''); return;
-    }
-    // Navigate back in path
-    if (path && path.length > 0) { path.pop(); renderView(); history.pushState({},''); return; }
-});
+
 
 // Push state on navigation so back button works
 var _origChangeMode = typeof changeMode === 'function' ? changeMode : null;
