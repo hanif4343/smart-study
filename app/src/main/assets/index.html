@@ -1737,12 +1737,10 @@
         }
         loadCurrentUser();
 
-        // Override alert() only — no native black dialog
-        window._nativeAlert = window.alert;
-        window.alert = function(msg) {
-            if (typeof showToast === 'function') showToast(String(msg).substring(0,120));
-            else console.log('Alert:', msg);
-        };
+        // Override ALL native JS dialogs — no "The page at file://" ever
+        window.alert   = function(msg) { if(typeof showToast==='function') showToast(String(msg).substring(0,150)); };
+        window.confirm = function(msg, onOk, onCancel) { if(typeof showConfirm==='function'){ showConfirm(msg, onOk||function(){}, onCancel||function(){}); } return false; };
+        window.prompt  = function(msg, def) { return def||''; };
 
 
         let mTimer, quizTime = 0, answeredCount = 0, selectedSubTopics = [];
@@ -2637,30 +2635,39 @@ function renderHome(container) {
     Object.entries(wrongHistory).forEach(function([topic, count]) {
         if (!topicWrongCount[topic]) topicWrongCount[topic] = count;
     });
-    const weakTopics = Object.entries(topicWrongCount)
-        .filter(function([,c]){ return c >= 1; })
-        .sort(function(a,b){ return b[1]-a[1]; })
-        .slice(0, 3);
+    // weakTopics replaced by wrong_q_ids approach
 
-    let reviewHTML = '';
-    if(weakTopics.length > 0) {
-        const allQ = [...(fullData['QBank']||[]),...(fullData['Quiz']||[]),...(fullData['Study']||[])];
-        const items = weakTopics.map(([topic,count]) => {
-            const q = allQ.find(item=>(getVal(item,'sub_topic')||getVal(item,'subject')||'')===topic);
-            const qText = q?(getVal(q,'question')||'').replace(/<[^>]+>/g,'').slice(0,55):topic;
-            const safeTopic = topic.replace(/'/g,"\\'");
-            return `<div onclick="goReviewTopic('${safeTopic}')" style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 10px;cursor:pointer;margin-bottom:5px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
-                    <span style="font-size:11px;font-weight:900;color:#dc2626;">❌ ${count} বার ভুল</span>
-                    <span style="font-size:9px;color:#94a3b8;font-weight:700;">${topic}</span>
-                </div>
-                <div style="font-size:12px;font-weight:600;color:#7f1d1d;line-height:1.4;">${qText}${qText.length>=55?'…':''}</div>
-            </div>`;
+    // ── Review Section: All wrong question IDs ──
+    var _wrongQIds  = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
+    var _allQPool   = [...(fullData['QBank']||[]),...(fullData['Quiz']||[]),...(fullData['Study']||[])];
+    var _wrongItems = _allQPool.filter(function(i){ return _wrongQIds.includes(String(getVal(i,'id')||'')); });
+    var reviewHTML  = '';
+    if (_wrongItems.length > 0) {
+        var _previewItems = _wrongItems.slice(0, 2);
+        var _hasMore = _wrongItems.length > 2;
+        var _previewCards = _previewItems.map(function(item) {
+            var qText = (getVal(item,'question')||'').replace(/<[^>]+>/g,'').slice(0,60);
+            var topic = getVal(item,'sub_topic') || getVal(item,'subject') || '';
+            var src   = (fullData['QBank']||[]).includes(item) ? 'QBank' : 'Quiz';
+            return '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 10px;margin-bottom:5px;">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">' +
+                '<span style="font-size:10px;font-weight:900;color:#dc2626;">❌ ' + src + '</span>' +
+                '<span style="font-size:9px;color:#94a3b8;font-weight:700;">' + topic + '</span>' +
+                '</div>' +
+                '<div style="font-size:12px;font-weight:600;color:#7f1d1d;line-height:1.4;">' + qText + (qText.length>=60?'…':'') + '</div>' +
+                '</div>';
         }).join('');
-        reviewHTML = `<div style="background:var(--card-bg);border-radius:14px;padding:12px 14px;margin-bottom:8px;border:1px solid rgba(239,68,68,0.15);">
-            <div style="font-weight:900;font-size:13px;color:#dc2626;margin-bottom:8px;">🔁 Review করো <span style="font-size:10px;color:#94a3b8;font-weight:700;">(${weakTopics.length} দুর্বল)</span></div>
-            ${items}
-        </div>`;
+        var _moreBtn = _hasMore
+            ? '<div onclick="openReviewZone()" style="text-align:center;padding:8px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;cursor:pointer;font-weight:900;font-size:12px;color:#dc2626;">আরো ' + (_wrongItems.length - 2) + 'টি ভুল প্রশ্ন দেখুন ❯</div>'
+            : '<div onclick="openReviewZone()" style="text-align:center;padding:8px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;cursor:pointer;font-weight:900;font-size:12px;color:#dc2626;">সব ' + _wrongItems.length + 'টি প্রশ্নে অনুশীলন করুন ❯</div>';
+        reviewHTML = '<div style="background:var(--card-bg);border-radius:14px;padding:12px 14px;margin-bottom:8px;border:1px solid rgba(239,68,68,0.2);">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
+            '<div style="font-weight:900;font-size:13px;color:#dc2626;">🔁 ভুল প্রশ্ন Review</div>' +
+            '<div style="font-size:10px;color:#94a3b8;font-weight:700;">' + _wrongItems.length + 'টি বাকি</div>' +
+            '</div>' +
+            _previewCards +
+            _moreBtn +
+            '</div>';
     }
 
     // ── আজকের টপিক — Study থেকে subtopic বা QBank থেকে প্রশ্নপত্র ──
@@ -3406,10 +3413,19 @@ function toggleAllInSubject(sub, masterCheckbox) {
     
     var correctHistory = JSON.parse(localStorage.getItem('correct_history') || '[]');
     var wrongHistory2  = JSON.parse(localStorage.getItem('wrong_history')   || '{}');
+    var wrongQIds2     = JSON.parse(localStorage.getItem('wrong_q_ids')     || '[]');
     quizItems.sort(function(a,b){
-        var aCorrect = correctHistory.includes(getVal(a,'id')) ? 1 : 0;
-        var bCorrect = correctHistory.includes(getVal(b,'id')) ? 1 : 0;
+        var aId = String(getVal(a,'id')||'');
+        var bId = String(getVal(b,'id')||'');
+        // 1. Wrong questions first (in wrong_q_ids)
+        var aWrong = wrongQIds2.includes(aId) ? 0 : 1;
+        var bWrong = wrongQIds2.includes(bId) ? 0 : 1;
+        if (aWrong !== bWrong) return aWrong - bWrong;
+        // 2. Unanswered before correct
+        var aCorrect = correctHistory.includes(aId) ? 1 : 0;
+        var bCorrect = correctHistory.includes(bId) ? 1 : 0;
         if (aCorrect !== bCorrect) return aCorrect - bCorrect;
+        // 3. Higher wrong-count topic first
         var aTopic = getVal(a,'sub_topic')||getVal(a,'subject')||'';
         var bTopic = getVal(b,'sub_topic')||getVal(b,'subject')||'';
         return (wrongHistory2[bTopic]||0) - (wrongHistory2[aTopic]||0);
@@ -3674,12 +3690,14 @@ function markAsCorrect(id) {
         correctHistory.push(sid);
         localStorage.setItem('correct_history', JSON.stringify(correctHistory));
     }
-    // Remove from wrong_q_ids — answered correctly so no longer "wrong"
+    // Remove from wrong_q_ids — answered correctly
     var wrongIds = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
-    var idx = wrongIds.indexOf(sid);
-    if (idx !== -1) {
-        wrongIds.splice(idx, 1);
+    var widx = wrongIds.indexOf(sid);
+    if (widx !== -1) {
+        wrongIds.splice(widx, 1);
         localStorage.setItem('wrong_q_ids', JSON.stringify(wrongIds));
+        // If in review zone, refresh after short delay
+        setTimeout(function(){ refreshReviewZoneIfActive(); }, 800);
     }
 }
 
@@ -6189,6 +6207,70 @@ function showConfirm(msg, onOk, onCancel) {
     var cleanup = function() { modal.style.display = 'none'; okBtn.onclick = null; cancelBtn.onclick = null; };
     okBtn.onclick = function() { cleanup(); if (onOk) onOk(); };
     cancelBtn.onclick = function() { cleanup(); if (onCancel) onCancel(); };
+}
+
+
+// ═══════════════════════════════════════════
+// REVIEW ZONE — ভুল প্রশ্নের অনুশীলন
+// ═══════════════════════════════════════════
+function openReviewZone() {
+    var wrongQIds  = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
+    var allQPool   = [...(fullData['QBank']||[]),...(fullData['Quiz']||[]),...(fullData['Study']||[])];
+    var wrongItems = allQPool.filter(function(i){ return wrongQIds.includes(String(getVal(i,'id')||'')); });
+    
+    if (wrongItems.length === 0) {
+        showToast('✅ কোনো ভুল প্রশ্ন নেই! সব সঠিক হয়েছে।');
+        return;
+    }
+
+    // Load into quiz mode without changing nav bar
+    quizItems    = wrongItems;
+    displayLimit = wrongItems.length;
+    window._reviewMode = true; // flag so we know we're in review
+
+    // Use QBank mode visually
+    currentMode = 'qbank';
+    updateUIMode('qbank');
+
+    // Set path
+    path = ['📋 Review Zone', 'ভুল প্রশ্ন'];
+
+    // Show back controls
+    var backCtrl = document.getElementById('back-and-ctrls');
+    if (backCtrl) { backCtrl.classList.remove('hidden'); backCtrl.classList.add('flex'); }
+
+    // Update zone title
+    var zt = document.getElementById('zone-title');
+    if (zt) zt.innerText = '🔁 ভুল প্রশ্ন Review (' + wrongItems.length + 'টি)';
+
+    // Highlight nav
+    document.querySelectorAll('.nav-item').forEach(function(b){
+        b.classList.remove('active-home','active-study','active-quiz','active-qbank','active-menu');
+    });
+    var navQB = document.getElementById('nav-qbank');
+    if (navQB) navQB.classList.add('active-qbank');
+
+    renderQuestions();
+    pushAppState();
+}
+
+// Called after correct answer in review mode — refresh the list
+function refreshReviewZoneIfActive() {
+    if (!window._reviewMode) return;
+    var wrongQIds  = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
+    var allQPool   = [...(fullData['QBank']||[]),...(fullData['Quiz']||[]),...(fullData['Study']||[])];
+    var wrongItems = allQPool.filter(function(i){ return wrongQIds.includes(String(getVal(i,'id')||'')); });
+    
+    if (wrongItems.length === 0) {
+        showToast('🎉 সব ভুল প্রশ্ন সঠিক করা হয়েছে!');
+        window._reviewMode = false;
+        changeMode('home');
+        return;
+    }
+    // Update remaining count in zone title
+    var zt = document.getElementById('zone-title');
+    if (zt) zt.innerText = '🔁 ভুল প্রশ্ন Review (' + wrongItems.length + 'টি)';
+    quizItems = wrongItems;
 }
 
 </script>
