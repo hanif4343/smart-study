@@ -1831,7 +1831,11 @@
     var _lb = document.getElementById('leaderboard-modal');
     if (_lb && _lb.style.display === 'flex') { closeLeaderboard(); history.pushState({mode:currentMode,path:[...path]},''); return; }
 
-    // 4. Report dialog close
+    // 4. Review popup close
+    var _rp = document.getElementById('review-popup-sheet');
+    if (_rp && _rp.style.display === 'flex') { closeReviewPopup(); return; }
+
+    // 5. Report dialog close
     var _rd = document.getElementById('report-dialog-modal');
     if (_rd && _rd.style.display === 'flex') { _rd.style.display='none'; history.pushState({mode:currentMode,path:[...path]},''); return; }
 
@@ -2704,9 +2708,9 @@ function renderHome(container) {
                 '<div style="font-size:12px;font-weight:600;color:#7f1d1d;line-height:1.4;">' + qText + (qText.length>=60?'…':'') + '</div>' +
                 '</div>';
         }).join('');
-        var _moreBtn = _hasMore
-            ? '<div onclick="openReviewZone()" style="text-align:center;padding:8px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;cursor:pointer;font-weight:900;font-size:12px;color:#dc2626;">আরো ' + (_wrongItems.length - 2) + 'টি ভুল প্রশ্ন দেখুন ❯</div>'
-            : '<div onclick="openReviewZone()" style="text-align:center;padding:8px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;cursor:pointer;font-weight:900;font-size:12px;color:#dc2626;">সব ' + _wrongItems.length + 'টি প্রশ্নে অনুশীলন করুন ❯</div>';
+        var _moreBtn = '<div onclick="openReviewPopup()" style="text-align:center;padding:8px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;cursor:pointer;font-weight:900;font-size:12px;color:#dc2626;">' +
+            (_hasMore ? 'আরো ' + (_wrongItems.length - 2) + 'টি সহ ' : '') +
+            'সব ' + _wrongItems.length + 'টি ভুল প্রশ্ন অনুশীলন করুন ❯</div>';
         reviewHTML = '<div style="background:var(--card-bg);border-radius:14px;padding:12px 14px;margin-bottom:8px;border:1px solid rgba(239,68,68,0.2);">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
             '<div style="font-weight:900;font-size:13px;color:#dc2626;">🔁 ভুল প্রশ্ন Review</div>' +
@@ -2926,60 +2930,7 @@ function updateChallengeBar() {
     if (bar) bar.style.width = Math.min(100, (done/5)*100) + '%';
 }
 
-function goReviewTopic(topic) {
-    var wrongIds = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
-    var allData = [
-        ...(fullData['QBank']  || []),
-        ...(fullData['Quiz']   || []),
-        ...(fullData['Study']  || [])
-    ];
-    var items = [];
-    // First: get all wrong question IDs for this topic
-    if (wrongIds.length > 0) {
-        items = allData.filter(function(i) {
-            var id  = String(getVal(i,'id') || '');
-            var st  = (getVal(i,'sub_topic') || '').trim();
-            var sb  = (getVal(i,'subject')   || '').trim();
-            var topicMatch = st === topic || sb === topic || st.toLowerCase().includes(topic.toLowerCase()) || topic.toLowerCase().includes(st.toLowerCase());
-            return topicMatch && wrongIds.includes(id);
-        });
-    }
-    // Fallback: if no ID matches, show all questions for this topic
-    if (items.length === 0) {
-        items = allData.filter(function(i) {
-            var st = (getVal(i,'sub_topic') || '').trim();
-            var sb = (getVal(i,'subject')   || '').trim();
-            return st === topic || sb === topic || st.toLowerCase().includes(topic.toLowerCase());
-        });
-    }
-    if (items.length === 0) {
-        showToast('✅ "' + topic + '" সব প্রশ্ন সঠিক হয়েছে!');
-        // Clean up wrong_history for this topic
-        var wh = JSON.parse(localStorage.getItem('wrong_history') || '{}');
-        delete wh[topic];
-        localStorage.setItem('wrong_history', JSON.stringify(wh));
-        renderHome();
-        return;
-    }
-    var hasQBank = (fullData['QBank']||[]).some(function(i){ return items.includes(i); });
-    var mode = hasQBank ? 'qbank' : 'quiz';
-    quizItems = items;
-    displayLimit = items.length;
-    currentMode = mode;
-    updateUIMode(mode);
-    document.querySelectorAll('.nav-item').forEach(function(b){
-        b.classList.remove('active-home','active-study','active-quiz','active-qbank','active-menu');
-    });
-    var navEl = document.getElementById('nav-' + mode);
-    if (navEl) navEl.classList.add('active-' + mode);
-    path = [getVal(items[0],'subject') || topic, topic];
-    var backCtrl = document.getElementById('back-and-ctrls');
-    if (backCtrl) { backCtrl.classList.remove('hidden'); backCtrl.classList.add('flex'); }
-    var zt = document.getElementById('zone-title');
-    if (zt) zt.innerText = '🔁 ' + topic;
-    renderQuestions();
-    pushAppState();
-}
+
 
 function goTodayTopic(topic, mode) {
     mode = mode || 'study';
@@ -3743,8 +3694,8 @@ function markAsCorrect(id) {
     if (widx !== -1) {
         wrongIds.splice(widx, 1);
         localStorage.setItem('wrong_q_ids', JSON.stringify(wrongIds));
-        // If in review zone, refresh after short delay
-        setTimeout(function(){ refreshReviewZoneIfActive(); }, 800);
+        // Refresh review popup if open
+        setTimeout(function(){ if(typeof refreshReviewPopup==='function') refreshReviewPopup(); }, 600);
     }
 }
 
@@ -4240,11 +4191,16 @@ function trackWrongAnswer(topic, qId) {
     var wrongHistory = JSON.parse(localStorage.getItem('wrong_history') || '{}');
     wrongHistory[topic] = (wrongHistory[topic] || 0) + 1;
     localStorage.setItem('wrong_history', JSON.stringify(wrongHistory));
-    // Also track by question ID
     if (qId) {
+        var sid = String(qId);
+        // wrong_q_ids: unique list
         var wrongIds = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
-        if (!wrongIds.includes(String(qId))) wrongIds.push(String(qId));
+        if (!wrongIds.includes(sid)) wrongIds.push(sid);
         localStorage.setItem('wrong_q_ids', JSON.stringify(wrongIds));
+        // wrong_q_count: per-question count
+        var wrongCount = JSON.parse(localStorage.getItem('wrong_q_count') || '{}');
+        wrongCount[sid] = (wrongCount[sid] || 0) + 1;
+        localStorage.setItem('wrong_q_count', JSON.stringify(wrongCount));
     }
 }
 
@@ -6267,68 +6223,7 @@ function showConfirm(msg, onOk, onCancel) {
 }
 
 
-// ═══════════════════════════════════════════
-// REVIEW ZONE — ভুল প্রশ্নের অনুশীলন
-// ═══════════════════════════════════════════
-function openReviewZone() {
-    var wrongQIds  = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
-    var allQPool   = [...(fullData['QBank']||[]),...(fullData['Quiz']||[]),...(fullData['Study']||[])];
-    var wrongItems = allQPool.filter(function(i){ return wrongQIds.includes(String(getVal(i,'id')||'')); });
-    
-    if (wrongItems.length === 0) {
-        showToast('✅ কোনো ভুল প্রশ্ন নেই! সব সঠিক হয়েছে।');
-        return;
-    }
 
-    // Load into quiz mode without changing nav bar
-    quizItems    = wrongItems;
-    displayLimit = wrongItems.length;
-    window._reviewMode = true; // flag so we know we're in review
-
-    // Use QBank mode visually
-    currentMode = 'qbank';
-    updateUIMode('qbank');
-
-    // Set path
-    path = ['📋 Review Zone', 'ভুল প্রশ্ন'];
-
-    // Show back controls
-    var backCtrl = document.getElementById('back-and-ctrls');
-    if (backCtrl) { backCtrl.classList.remove('hidden'); backCtrl.classList.add('flex'); }
-
-    // Update zone title
-    var zt = document.getElementById('zone-title');
-    if (zt) zt.innerText = '🔁 ভুল প্রশ্ন Review (' + wrongItems.length + 'টি)';
-
-    // Highlight nav
-    document.querySelectorAll('.nav-item').forEach(function(b){
-        b.classList.remove('active-home','active-study','active-quiz','active-qbank','active-menu');
-    });
-    var navQB = document.getElementById('nav-qbank');
-    if (navQB) navQB.classList.add('active-qbank');
-
-    renderQuestions();
-    pushAppState();
-}
-
-// Called after correct answer in review mode — refresh the list
-function refreshReviewZoneIfActive() {
-    if (!window._reviewMode) return;
-    var wrongQIds  = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
-    var allQPool   = [...(fullData['QBank']||[]),...(fullData['Quiz']||[]),...(fullData['Study']||[])];
-    var wrongItems = allQPool.filter(function(i){ return wrongQIds.includes(String(getVal(i,'id')||'')); });
-    
-    if (wrongItems.length === 0) {
-        showToast('🎉 সব ভুল প্রশ্ন সঠিক করা হয়েছে!');
-        window._reviewMode = false;
-        changeMode('home');
-        return;
-    }
-    // Update remaining count in zone title
-    var zt = document.getElementById('zone-title');
-    if (zt) zt.innerText = '🔁 ভুল প্রশ্ন Review (' + wrongItems.length + 'টি)';
-    quizItems = wrongItems;
-}
 
 
 // ── Report Dialog functions ──
@@ -6350,6 +6245,226 @@ function submitReportDialog() {
     var modal = document.getElementById('report-dialog-modal');
     if (modal) modal.style.display = 'none';
     if (_reportCallback) { _reportCallback(val); _reportCallback = null; }
+}
+
+
+// ══════════════════════════════════════════════════════════
+// REVIEW POPUP — ভুল প্রশ্ন Bottom Sheet
+// ══════════════════════════════════════════════════════════
+
+function openReviewPopup() {
+    var overlay = document.getElementById('review-popup-overlay');
+    var sheet   = document.getElementById('review-popup-sheet');
+    if (!overlay || !sheet) return;
+    overlay.style.display = 'block';
+    sheet.style.display   = 'flex';
+    history.pushState({_reviewPopup: true}, '');
+    renderReviewPopupList();
+}
+
+function closeReviewPopup() {
+    var overlay = document.getElementById('review-popup-overlay');
+    var sheet   = document.getElementById('review-popup-sheet');
+    if (overlay) overlay.style.display = 'none';
+    if (sheet)   sheet.style.display   = 'none';
+}
+
+function refreshReviewPopup() {
+    var sheet = document.getElementById('review-popup-sheet');
+    if (!sheet || sheet.style.display === 'none') return;
+    renderReviewPopupList();
+    // Auto-close if all done
+    var wrongQIds = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
+    if (wrongQIds.length === 0) {
+        setTimeout(function() {
+            closeReviewPopup();
+            showToast('🎉 সব ভুল প্রশ্ন সঠিক করা হয়েছে!');
+            renderHome(document.getElementById('main-view'));
+        }, 700);
+    }
+}
+
+function renderReviewPopupList() {
+    var listEl    = document.getElementById('review-popup-list');
+    var countEl   = document.getElementById('review-popup-count');
+    if (!listEl) return;
+
+    var wrongQIds  = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
+    var wrongCount = JSON.parse(localStorage.getItem('wrong_q_count') || '{}'); // per-question wrong count
+    var allQPool   = [
+        ...(fullData['QBank']  || []),
+        ...(fullData['Quiz']   || []),
+        ...(fullData['Study']  || [])
+    ];
+    var wrongItems = allQPool.filter(function(i) {
+        return wrongQIds.includes(String(getVal(i,'id') || ''));
+    });
+
+    if (countEl) countEl.textContent = wrongItems.length + 'টি প্রশ্ন বাকি';
+
+    if (wrongItems.length === 0) {
+        listEl.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#64748b;">' +
+            '<div style="font-size:40px;margin-bottom:12px;">🎉</div>' +
+            '<div style="font-weight:900;font-size:16px;color:#16a34a;">সব ভুল প্রশ্ন সঠিক হয়েছে!</div>' +
+            '<div style="font-size:12px;margin-top:8px;">আরো পড়াশোনা চালিয়ে যাও</div></div>';
+        return;
+    }
+
+    var html2 = '';
+    wrongItems.forEach(function(item, idx) {
+        var qId      = String(getVal(item,'id') || '');
+        var qText    = (getVal(item,'question') || '').replace(/<[^>]+>/g,'');
+        var qType    = (getVal(item,'qType') || getVal(item,'type') || 'mcq').toLowerCase();
+        var subject  = getVal(item,'subject') || '';
+        var subTopic = getVal(item,'sub_topic') || '';
+        var wrongCnt = wrongCount[qId] || 1;
+        var opt1 = getVal(item,'opt1')||''; var opt2 = getVal(item,'opt2')||'';
+        var opt3 = getVal(item,'opt3')||''; var opt4 = getVal(item,'opt4')||'';
+        var correct  = getVal(item,'correct') || '';
+        var isWritten = qType === 'written' || (!opt1 && !opt2);
+
+        // Wrong badge color
+        var badgeColor = wrongCnt >= 3 ? '#dc2626' : wrongCnt === 2 ? '#f97316' : '#f59e0b';
+
+        html2 += '<div id="rp-card-' + qId + '" style="background:#f8fafc;border:1.5px solid #fecaca;border-radius:14px;padding:14px;margin-bottom:10px;">';
+
+        // Header: topic + wrong count
+        html2 += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
+        html2 += '<div style="font-size:10px;color:#64748b;font-weight:700;">' + (subTopic || subject) + '</div>';
+        html2 += '<div style="background:' + badgeColor + ';color:white;font-size:10px;font-weight:900;padding:2px 8px;border-radius:10px;">❌ ' + wrongCnt + 'বার ভুল</div>';
+        html2 += '</div>';
+
+        // Question text
+        html2 += '<div style="font-size:13px;font-weight:700;color:#1e293b;line-height:1.5;margin-bottom:10px;">' + qText + '</div>';
+
+        if (isWritten) {
+            // Written question
+            html2 += '<textarea id="rp-written-' + qId + '" placeholder="উত্তর লিখুন..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:8px;font-size:13px;min-height:60px;resize:none;outline:none;font-family:inherit;margin-bottom:8px;box-sizing:border-box;"></textarea>';
+            html2 += '<button onclick="checkReviewWritten(' + JSON.stringify(qId) + ')" style="width:100%;padding:10px;background:#4f46e5;color:white;border:none;border-radius:10px;font-weight:900;font-size:13px;cursor:pointer;">মিলিয়ে দেখো ✓</button>';
+            html2 += '<div id="rp-result-' + qId + '" style="margin-top:8px;display:none;"></div>';
+        } else {
+            // MCQ — options
+            var opts = [opt1, opt2, opt3, opt4].filter(function(o){ return o && o.toString().trim(); });
+            opts.forEach(function(opt, oi) {
+                var optTxt = opt.toString().trim();
+                html2 += '<button ' +
+                    'id="rp-opt-' + qId + '-' + oi + '" ' +
+                    'data-qid="' + qId + '" ' +
+                    'data-opt="' + optTxt.replace(/"/g,'&quot;') + '" ' +
+                    'data-correct="' + correct.toString().trim().replace(/"/g,'&quot;') + '" ' +
+                    'onclick="checkReviewMCQ(this.dataset.qid,this.dataset.opt,this.dataset.correct)" ' +
+                    'style="display:block;width:100%;text-align:left;padding:9px 12px;margin-bottom:6px;background:white;border:1.5px solid #e2e8f0;border-radius:10px;font-size:12px;font-weight:600;color:#334155;cursor:pointer;">' +
+                    optTxt + '</button>';
+            });
+            html2 += '<div id="rp-result-' + qId + '" style="margin-top:6px;display:none;"></div>';
+        }
+
+        html2 += '</div>';
+    });
+
+    listEl.innerHTML = html2;
+}
+
+function checkReviewMCQ(qId, chosen, correct) {
+    var isCorrect = chosen.trim() === correct.trim();
+    // Disable all option buttons for this question
+    var oi = 0;
+    while(true) {
+        var btn = document.getElementById('rp-opt-' + qId + '-' + oi);
+        if (!btn) break;
+        btn.style.pointerEvents = 'none';
+        if (btn.textContent.trim() === correct.trim()) {
+            btn.style.background   = '#dcfce7';
+            btn.style.borderColor  = '#16a34a';
+            btn.style.color        = '#15803d';
+            btn.style.fontWeight   = '900';
+        } else if (btn.textContent.trim() === chosen.trim() && !isCorrect) {
+            btn.style.background  = '#fee2e2';
+            btn.style.borderColor = '#dc2626';
+            btn.style.color       = '#dc2626';
+        }
+        oi++;
+    }
+    var resEl = document.getElementById('rp-result-' + qId);
+    if (isCorrect) {
+        if (resEl) {
+            resEl.style.display = 'block';
+            resEl.innerHTML = '<div style="color:#16a34a;font-weight:900;font-size:12px;padding:6px 0;">✅ সঠিক! চমৎকার!</div>';
+        }
+        markAsCorrect(qId);
+        awardXP(10);
+        // Hide card after short delay
+        setTimeout(function() {
+            var card = document.getElementById('rp-card-' + qId);
+            if (card) {
+                card.style.transition = 'opacity .4s,max-height .4s';
+                card.style.opacity = '0';
+                card.style.maxHeight = '0';
+                card.style.overflow = 'hidden';
+                card.style.marginBottom = '0';
+                card.style.padding = '0';
+                setTimeout(function() {
+                    if (card.parentNode) card.parentNode.removeChild(card);
+                    refreshReviewPopup();
+                }, 450);
+            }
+        }, 800);
+    } else {
+        if (resEl) {
+            resEl.style.display = 'block';
+            resEl.innerHTML = '<div style="background:#fef2f2;border-radius:8px;padding:8px;margin-top:2px;">' +
+                '<div style="color:#dc2626;font-weight:900;font-size:12px;">❌ ভুল হয়েছে</div>' +
+                '<div style="color:#15803d;font-size:12px;margin-top:2px;font-weight:700;">✅ সঠিক: ' + correct + '</div></div>';
+        }
+        // Track wrong again
+        var wc = JSON.parse(localStorage.getItem('wrong_q_count') || '{}');
+        wc[qId] = (wc[qId] || 1) + 1;
+        localStorage.setItem('wrong_q_count', JSON.stringify(wc));
+        // Update badge
+        var badgeEl = document.querySelector('#rp-card-' + qId + ' [style*="বার ভুল"]');
+        if (badgeEl) badgeEl.textContent = '❌ ' + wc[qId] + 'বার ভুল';
+    }
+}
+
+function checkReviewWritten(qId) {
+    var textarea = document.getElementById('rp-written-' + qId);
+    var userAns  = textarea ? textarea.value.trim() : '';
+    if (!userAns) { showToast('উত্তর লিখুন'); return; }
+    var allQ = [...(fullData['QBank']||[]),...(fullData['Quiz']||[]),...(fullData['Study']||[])];
+    var item = allQ.find(function(i){ return String(getVal(i,'id')) === qId; });
+    if (!item) return;
+    var correct = getVal(item,'correct') || '';
+    var result  = localMatchAnswer(userAns, correct);
+    var resEl   = document.getElementById('rp-result-' + qId);
+    if (resEl) {
+        resEl.style.display = 'block';
+        var pct = result.pct || 0;
+        var color = pct >= 70 ? '#16a34a' : pct >= 40 ? '#d97706' : '#dc2626';
+        resEl.innerHTML = '<div style="background:#f8fafc;border-radius:10px;padding:10px;border:1px solid #e2e8f0;">' +
+            '<div style="font-weight:900;font-size:13px;color:' + color + ';">' +
+            (pct >= 70 ? '✅ সঠিক (' + pct + '%)' : pct >= 40 ? '⚠️ আংশিক (' + pct + '%)' : '❌ ভুল (' + pct + '%)') +
+            '</div><div style="font-size:12px;color:#15803d;font-weight:700;margin-top:4px;">সঠিক উত্তর: ' + correct + '</div></div>';
+    }
+    if (pct >= 70) {
+        markAsCorrect(qId);
+        awardXP(10);
+        setTimeout(function() {
+            var card = document.getElementById('rp-card-' + qId);
+            if (card) {
+                card.style.transition = 'opacity .4s,max-height .4s';
+                card.style.opacity = '0'; card.style.maxHeight = '0';
+                card.style.overflow = 'hidden'; card.style.marginBottom = '0'; card.style.padding = '0';
+                setTimeout(function() {
+                    if (card.parentNode) card.parentNode.removeChild(card);
+                    refreshReviewPopup();
+                }, 450);
+            }
+        }, 900);
+    } else {
+        var wc = JSON.parse(localStorage.getItem('wrong_q_count') || '{}');
+        wc[qId] = (wc[qId] || 1) + 1;
+        localStorage.setItem('wrong_q_count', JSON.stringify(wc));
+    }
 }
 
 </script>
@@ -6460,6 +6575,33 @@ function submitReportDialog() {
       <button onclick="submitReportDialog()" style="flex:1;padding:12px;border-radius:12px;border:none;background:#ef4444;font-weight:900;font-size:13px;color:white;cursor:pointer;">পাঠান 📤</button>
     </div>
   </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     REVIEW POPUP — ভুল প্রশ্নের Bottom Sheet
+══════════════════════════════════════════════════ -->
+<div id="review-popup-overlay" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);" onclick="closeReviewPopup()"></div>
+
+<div id="review-popup-sheet" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:9001;background:white;border-radius:24px 24px 0 0;height:80vh;display:none;flex-direction:column;box-shadow:0 -8px 40px rgba(0,0,0,0.25);">
+
+    <!-- Header -->
+    <div style="padding:12px 16px 0;flex-shrink:0;">
+        <div style="width:40px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 14px;"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div>
+                <div style="font-weight:900;font-size:16px;color:#dc2626;">🔁 ভুল প্রশ্ন Review</div>
+                <div id="review-popup-count" style="font-size:11px;color:#94a3b8;font-weight:700;margin-top:2px;"></div>
+            </div>
+            <button onclick="closeReviewPopup()" style="width:36px;height:36px;background:#f1f5f9;border:none;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:900;color:#64748b;">✕</button>
+        </div>
+    </div>
+
+    <!-- Scrollable Question List -->
+    <div id="review-popup-list" style="flex:1;overflow-y:auto;padding:0 16px 20px;">
+        <!-- Questions injected here by JS -->
+    </div>
+
 </div>
 
 </body>
