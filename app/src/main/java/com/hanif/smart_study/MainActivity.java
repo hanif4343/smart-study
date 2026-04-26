@@ -200,6 +200,13 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         }
+
+        @JavascriptInterface
+        public void exitApp() {
+            runOnUiThread(() -> {
+                finishAndRemoveTask();
+            });
+        }
     }
 
     @Override
