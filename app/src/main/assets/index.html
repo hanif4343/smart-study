@@ -3884,7 +3884,8 @@ function closeResult() {
         if (backCtrl) { backCtrl.classList.add('hidden'); backCtrl.classList.remove('flex'); }
     }
     renderView();
-    pushAppState();
+    // Replace state (not push) so back button works correctly
+    window.history.replaceState({mode: currentMode, path: [...path]}, '');
 }
 
 
@@ -6267,6 +6268,8 @@ function closeReviewPopup() {
     var sheet   = document.getElementById('review-popup-sheet');
     if (overlay) overlay.style.display = 'none';
     if (sheet)   sheet.style.display   = 'none';
+    // Restore home state so back works correctly
+    window.history.replaceState({mode: 'home', path: [], _base: true}, '');
 }
 
 function refreshReviewPopup() {
@@ -6321,7 +6324,8 @@ function renderReviewPopupList() {
         var opt1 = getVal(item,'opt1')||''; var opt2 = getVal(item,'opt2')||'';
         var opt3 = getVal(item,'opt3')||''; var opt4 = getVal(item,'opt4')||'';
         var correct  = getVal(item,'correct') || '';
-        var isWritten = qType === 'written' || (!opt1 && !opt2);
+        var isWritten = qType === 'written' || qType === 'Written' || qType === 'WRITTEN' ||
+                       (qType !== 'mcq' && qType !== 'MCQ' && qType !== 'Quiz' && (!opt1 || !opt2));
 
         // Wrong badge color
         var badgeColor = wrongCnt >= 3 ? '#dc2626' : wrongCnt === 2 ? '#f97316' : '#f59e0b';
@@ -6340,7 +6344,7 @@ function renderReviewPopupList() {
         if (isWritten) {
             // Written question
             html2 += '<textarea id="rp-written-' + qId + '" placeholder="উত্তর লিখুন..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:8px;font-size:13px;min-height:60px;resize:none;outline:none;font-family:inherit;margin-bottom:8px;box-sizing:border-box;"></textarea>';
-            html2 += '<button onclick="checkReviewWritten(' + JSON.stringify(qId) + ')" style="width:100%;padding:10px;background:#4f46e5;color:white;border:none;border-radius:10px;font-weight:900;font-size:13px;cursor:pointer;">মিলিয়ে দেখো ✓</button>';
+            html2 += '<button data-qid="' + qId + '" onclick="checkReviewWritten(this.dataset.qid)" style="width:100%;padding:10px;background:#4f46e5;color:white;border:none;border-radius:10px;font-weight:900;font-size:13px;cursor:pointer;">মিলিয়ে দেখো ✓</button>';
             html2 += '<div id="rp-result-' + qId + '" style="margin-top:8px;display:none;"></div>';
         } else {
             // MCQ — options
