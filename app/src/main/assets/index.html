@@ -1859,12 +1859,34 @@
             }
         }
         renderView();
+    } else if (event.state && event.state._base) {
+        // Base home state hit — show exit dialog
+        history.pushState({mode:'home',path:[],_base:true},'');
+        if (currentMode !== 'home' || path.length > 0) {
+            // Navigate to home first
+            path = []; currentMode = 'home'; updateUIMode('home');
+            document.getElementById('back-and-ctrls').classList.add('hidden');
+            renderView();
+            pushAppState();
+        } else {
+            // Already at home — exit dialog
+            showConfirm('Smart Study থেকে বের হবেন?', function() {
+                try { AndroidBridge.exitApp(); } catch(e) { history.go(-20); }
+            });
+        }
     } else {
-        // No history left — exit dialog
+        // Completely empty — last resort exit dialog
         history.pushState({mode:currentMode,path:[...path]},'');
-        showConfirm('Smart Study থেকে বের হবেন?', function() {
-            try { AndroidBridge.exitApp(); } catch(e) { history.go(-10); }
-        });
+        if (currentMode !== 'home' || path.length > 0) {
+            path = []; currentMode = 'home'; updateUIMode('home');
+            document.getElementById('back-and-ctrls').classList.add('hidden');
+            renderView();
+            pushAppState();
+        } else {
+            showConfirm('Smart Study থেকে বের হবেন?', function() {
+                try { AndroidBridge.exitApp(); } catch(e) { history.go(-20); }
+            });
+        }
     }
 });
 
@@ -2223,6 +2245,8 @@ function generateTableHtml(rows) {
         // 🚀 APP INIT (Offline-capable)
         // ====================================================
         function initApp() {
+    // ── Ensure proper history base state ──
+    window.history.replaceState({mode:'home', path:[], _base:true}, '');
     // ── Font size restore ──
     const savedFontSize = localStorage.getItem('user_font_size');
     if (savedFontSize) {
@@ -2360,7 +2384,13 @@ function loadFirebaseData() {
 }
 
                 function closeNotice() { document.getElementById('notice-overlay').classList.add('hidden'); }
-        function pushAppState() { window.history.pushState({mode: currentMode, path: [...path]}, ""); }
+        function pushAppState() {
+    // Ensure base home state exists so back never hits empty history
+    if (window.history.length <= 1) {
+        window.history.replaceState({mode:'home', path:[], _base:true}, '');
+    }
+    window.history.pushState({mode: currentMode, path: [...path]}, '');
+}
 
 function pushPath(p) {
     path.push(p);
@@ -2425,20 +2455,24 @@ function copyForAI() {
 
         function changeMode(m, shouldPush = true) {
     if(currentMode === m && path.length === 0 && shouldPush && m !== 'home') return;
-    
-    // রেজাল্ট বোর্ডটি হাইড করার জন্য নিচের লাইনটি যোগ করুন
+    window._reviewMode = false;
     document.getElementById('sticky-result').classList.add('hidden');
-    // Hide progress bar and badge on mode change
     document.getElementById('reading-progress-bar').classList.add('hidden');
     document.getElementById('q-counter-badge').style.display = 'none';
     if (window._scrollListener) { window.removeEventListener('scroll', window._scrollListener); window._scrollListener = null; }
-    
     currentMode = m;
     if(m !== 'home') localStorage.setItem('last_mode', m);
     updateUIMode(m); path = []; stopTimer(); selectedSubTopics = [];
-    updateUIMode(m);
     document.getElementById('back-and-ctrls').classList.add('hidden');
-    if(shouldPush) pushAppState();
+    if(shouldPush) {
+        // Always push at least 2 states: home base + current
+        if (window.history.length <= 1 || m === 'home') {
+            window.history.replaceState({mode:'home', path:[], _base:true}, '');
+        }
+        if (m !== 'home') {
+            window.history.pushState({mode: m, path:[]}, '');
+        }
+    }
     renderView();
     if (m === 'menu' && localStorage.getItem('exam_date')) {
         setTimeout(() => startCountdownTick(), 400);
@@ -6416,11 +6450,11 @@ function submitReportDialog() {
 
 
 <!-- ── Report Dialog ── -->
-<div id="report-dialog-modal" style="display:none;position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.55);align-items:flex-end;justify-content:center;">
-  <div style="background:white;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:20px;">
+<div id="report-dialog-modal" style="display:none;position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.55);align-items:flex-start;justify-content:center;padding-top:60px;overflow-y:auto;">
+  <div style="background:white;width:92%;max-width:460px;border-radius:20px;padding:20px;margin-bottom:20px;">
     <div style="font-weight:900;font-size:15px;color:#1e293b;margin-bottom:6px;">🚩 সমস্যা রিপোর্ট করুন</div>
     <p style="font-size:12px;color:#64748b;margin-bottom:12px;">এই প্রশ্নে কি সমস্যা আছে? বিস্তারিত লিখুন:</p>
-    <textarea id="report-issue-input" placeholder="যেমন: ভুল উত্তর, বানান ভুল, প্রশ্ন অস্পষ্ট..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px;font-size:13px;min-height:80px;resize:none;outline:none;font-family:inherit;"></textarea>
+    <textarea id="report-issue-input" placeholder="যেমন: ভুল উত্তর, বানান ভুল, প্রশ্ন অস্পষ্ট..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px;font-size:13px;min-height:80px;resize:none;outline:none;font-family:inherit;" onblur="document.getElementById('report-dialog-modal').scrollTop=0"></textarea>
     <div style="display:flex;gap:10px;margin-top:12px;">
       <button onclick="document.getElementById('report-dialog-modal').style.display='none'" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid #e2e8f0;background:white;font-weight:800;font-size:13px;color:#64748b;cursor:pointer;">বাতিল</button>
       <button onclick="submitReportDialog()" style="flex:1;padding:12px;border-radius:12px;border:none;background:#ef4444;font-weight:900;font-size:13px;color:white;cursor:pointer;">পাঠান 📤</button>
