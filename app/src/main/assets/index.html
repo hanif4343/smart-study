@@ -1820,38 +1820,51 @@
         function updateTransform() { if (scale === 1) { posX = 0; posY = 0; } zoomedImg.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`; }
 
         window.addEventListener('popstate', function(event) {
-    if (isZoomOpen) {
-        closeImageZoom();
-        return;
-    }
-    // Close result modal if open (back button = same as ✕ cross)
+    // 1. Image zoom close
+    if (isZoomOpen) { closeImageZoom(); history.pushState({mode:currentMode,path:[...path]},''); return; }
+
+    // 2. Result modal close
     var _rm = document.getElementById('result-modal-enhanced');
-    if (_rm && !_rm.classList.contains('hidden-modal')) {
-        closeResult();
-        return;
-    }
+    if (_rm && !_rm.classList.contains('hidden-modal')) { closeResult(); return; }
+
+    // 3. Leaderboard close
+    var _lb = document.getElementById('leaderboard-modal');
+    if (_lb && _lb.style.display === 'flex') { closeLeaderboard(); history.pushState({mode:currentMode,path:[...path]},''); return; }
+
+    // 4. Report dialog close
+    var _rd = document.getElementById('report-dialog-modal');
+    if (_rd && _rd.style.display === 'flex') { _rd.style.display='none'; history.pushState({mode:currentMode,path:[...path]},''); return; }
+
+    // 5. Custom confirm close
+    var _cc = document.getElementById('custom-confirm-modal');
+    if (_cc && _cc.style.display === 'flex') { _cc.style.display='none'; history.pushState({mode:currentMode,path:[...path]},''); return; }
+
     document.getElementById('sticky-result').classList.add('hidden');
-    if (event.state) {
-        stopTimer(); 
-        currentMode = event.state.mode; 
+
+    if (event.state && event.state.mode) {
+        stopTimer();
+        currentMode = event.state.mode;
         path = [...(event.state.path || [])];
         updateUIMode(currentMode);
-
-        const ctrlBar = document.getElementById('back-and-ctrls');
-        const readingCtrls = document.getElementById('reading-controls');
-
-        if(path.length === 0) {
+        var ctrlBar = document.getElementById('back-and-ctrls');
+        var readingCtrls = document.getElementById('reading-controls');
+        if (path.length === 0) {
             ctrlBar.classList.add('hidden');
         } else {
             ctrlBar.classList.remove('hidden');
-            // পরিবর্তন এখানে: শুধুমাত্র ৩য় লেভেলে (path.length >= 2) গেলে রিডিং কন্ট্রোল দেখাবে
-            if(path.length >= 2 || path.includes('MockResult')) {
+            if (path.length >= 2 || path.includes('MockResult')) {
                 readingCtrls.classList.remove('hidden');
             } else {
                 readingCtrls.classList.add('hidden');
             }
         }
         renderView();
+    } else {
+        // No history left — exit dialog
+        history.pushState({mode:currentMode,path:[...path]},'');
+        showConfirm('Smart Study থেকে বের হবেন?', function() {
+            try { AndroidBridge.exitApp(); } catch(e) { history.go(-10); }
+        });
     }
 });
 
@@ -3919,22 +3932,32 @@ function fallbackShare(text) {
         document.body.removeChild(ta);
     }
 }
-        async function reportQuestion(idx, event) {
-            const item = quizItems[idx], issue = prompt("এই প্রশ্নে কি সমস্যা?"); if (!issue) return;
-            const btn = event.target; btn.innerText = "⏳";
-            const reportData = { type: "report", Phone: USER_PHONE, Subject: getVal(item, 'subject'), Topic: getVal(item, 'sub_topic'), Question: getVal(item, 'question'), Issue: issue, Timestamp: new Date().toLocaleString() };
-            if (!navigator.onLine) {
-                addToPendingQueue(reportData);
-                showToast('📦 অফলাইনে রিপোর্ট সেভ হয়েছে। ইন্টারনেট আসলে পাঠানো হবে।');
-                btn.innerText = "🚩"; return;
-            }
-            try { 
-                await fetch(GAS_URL, { method: "POST", body: JSON.stringify(reportData) }); 
-                showToast('✅ রিপোর্ট পাঠানো হয়েছে। ধন্যবাদ!'); 
-            } catch (e) { 
-                addToPendingQueue(reportData);
-                showToast('📦 রিপোর্ট অফলাইনে সেভ হয়েছে।'); 
-            } finally { btn.innerText = "🚩"; }
+        function reportQuestion(idx, event) {
+            var item = quizItems[idx];
+            var btn  = event.target;
+            // Custom input dialog — no native prompt()
+            showReportDialog(function(issue) {
+                if (!issue || !issue.trim()) return;
+                btn.innerText = '⏳';
+                var reportData = {
+                    type: 'report',
+                    Phone: currentUser ? currentUser.phone : USER_PHONE,
+                    Subject: getVal(item,'subject'),
+                    Topic: getVal(item,'sub_topic'),
+                    Question: getVal(item,'question'),
+                    Issue: issue.trim(),
+                    Timestamp: new Date().toLocaleString()
+                };
+                if (!navigator.onLine) {
+                    addToPendingQueue(reportData);
+                    showToast('📦 অফলাইনে রিপোর্ট সেভ হয়েছে।');
+                    btn.innerText = '🚩'; return;
+                }
+                fetch(GAS_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type':'application/json'}, body: JSON.stringify(reportData) })
+                    .then(function() { showToast('✅ রিপোর্ট পাঠানো হয়েছে। ধন্যবাদ!'); })
+                    .catch(function() { addToPendingQueue(reportData); showToast('📦 রিপোর্ট অফলাইনে সেভ হয়েছে।'); })
+                    .finally(function() { btn.innerText = '🚩'; });
+            });
         }
 
         function toggleSave(btn, item) { const q = getVal(item, 'question'), idx = savedQs.findIndex(s => getVal(s, 'question') === q); if(idx > -1) { savedQs.splice(idx, 1); btn.classList.remove('star-active'); } else { savedQs.push(item); btn.classList.add('star-active'); } localStorage.setItem('hs_saved', JSON.stringify(savedQs)); }
@@ -6273,6 +6296,28 @@ function refreshReviewZoneIfActive() {
     quizItems = wrongItems;
 }
 
+
+// ── Report Dialog functions ──
+var _reportCallback = null;
+function showReportDialog(callback) {
+    _reportCallback = callback;
+    var modal = document.getElementById('report-dialog-modal');
+    var input = document.getElementById('report-issue-input');
+    if (!modal) { var issue = ''; if(callback) callback(issue); return; }
+    input.value = '';
+    modal.style.display = 'flex';
+    input.focus();
+    history.pushState({mode:currentMode,path:[...path]},'');
+}
+function submitReportDialog() {
+    var input = document.getElementById('report-issue-input');
+    var val   = (input ? input.value : '').trim();
+    if (!val) { showToast('⚠️ সমস্যার বিবরণ লিখুন'); return; }
+    var modal = document.getElementById('report-dialog-modal');
+    if (modal) modal.style.display = 'none';
+    if (_reportCallback) { _reportCallback(val); _reportCallback = null; }
+}
+
 </script>
 
 <!-- ===== AUTH SCREEN ===== -->
@@ -6367,6 +6412,20 @@ function refreshReviewZoneIfActive() {
             <button id="custom-confirm-ok" style="flex:1;padding:12px;border-radius:12px;border:none;background:#ef4444;font-weight:900;font-size:14px;color:white;cursor:pointer;">নিশ্চিত</button>
         </div>
     </div>
+</div>
+
+
+<!-- ── Report Dialog ── -->
+<div id="report-dialog-modal" style="display:none;position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.55);align-items:flex-end;justify-content:center;">
+  <div style="background:white;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:20px;">
+    <div style="font-weight:900;font-size:15px;color:#1e293b;margin-bottom:6px;">🚩 সমস্যা রিপোর্ট করুন</div>
+    <p style="font-size:12px;color:#64748b;margin-bottom:12px;">এই প্রশ্নে কি সমস্যা আছে? বিস্তারিত লিখুন:</p>
+    <textarea id="report-issue-input" placeholder="যেমন: ভুল উত্তর, বানান ভুল, প্রশ্ন অস্পষ্ট..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px;font-size:13px;min-height:80px;resize:none;outline:none;font-family:inherit;"></textarea>
+    <div style="display:flex;gap:10px;margin-top:12px;">
+      <button onclick="document.getElementById('report-dialog-modal').style.display='none'" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid #e2e8f0;background:white;font-weight:800;font-size:13px;color:#64748b;cursor:pointer;">বাতিল</button>
+      <button onclick="submitReportDialog()" style="flex:1;padding:12px;border-radius:12px;border:none;background:#ef4444;font-weight:900;font-size:13px;color:white;cursor:pointer;">পাঠান 📤</button>
+    </div>
+  </div>
 </div>
 
 </body>
