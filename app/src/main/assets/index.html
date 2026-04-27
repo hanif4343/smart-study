@@ -6310,10 +6310,11 @@ function renderReviewPopupList() {
         var qId     = String(getVal(item,'id') || '');
         // Use EXACT same field name as main renderQuestions
         var rawType  = (getVal(item,'Question Type') || getVal(item,'qType') || getVal(item,'type') || '').toString().toLowerCase().trim();
-        var opt1     = (getVal(item,'opt1') || '').toString().trim();
-        var opt2     = (getVal(item,'opt2') || '').toString().trim();
-        var opt3     = (getVal(item,'opt3') || '').toString().trim();
-        var opt4     = (getVal(item,'opt4') || '').toString().trim();
+        // Use same column reading as main renderQuestions
+        var opt1     = (getVal(item,'option1') || getVal(item,'opt1') || '').toString().trim();
+        var opt2     = (getVal(item,'option2') || getVal(item,'opt2') || '').toString().trim();
+        var opt3     = (getVal(item,'option3') || getVal(item,'opt3') || '').toString().trim();
+        var opt4     = (getVal(item,'option4') || getVal(item,'opt4') || '').toString().trim();
         var correct  = (getVal(item,'correct') || '').toString().trim();
         var expl     = (getVal(item,'explanation') || '').toString().trim();
         var subTopic = (getVal(item,'sub_topic') || getVal(item,'subject') || '').toString().trim();
