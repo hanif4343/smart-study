@@ -6308,17 +6308,18 @@ function renderReviewPopupList() {
 
     wrongItems.forEach(function(item) {
         var qId     = String(getVal(item,'id') || '');
-        var rawType = (getVal(item,'qType') || getVal(item,'type') || '').toString().toLowerCase().trim();
-        var opt1    = (getVal(item,'opt1') || '').toString().trim();
-        var opt2    = (getVal(item,'opt2') || '').toString().trim();
-        var opt3    = (getVal(item,'opt3') || '').toString().trim();
-        var opt4    = (getVal(item,'opt4') || '').toString().trim();
-        var correct = (getVal(item,'correct') || '').toString().trim();
-        var expl    = (getVal(item,'explanation') || '').toString().trim();
-        var subTopic= (getVal(item,'sub_topic') || getVal(item,'subject') || '').toString().trim();
-        var wrongCnt= parseInt(wrongCount[qId] || 1);
-        var opts    = [opt1,opt2,opt3,opt4].filter(function(o){ return o.length > 0; });
-        var isWritten = rawType === 'written' || opts.length < 2;
+        // Use EXACT same field name as main renderQuestions
+        var rawType  = (getVal(item,'Question Type') || getVal(item,'qType') || getVal(item,'type') || '').toString().toLowerCase().trim();
+        var opt1     = (getVal(item,'opt1') || '').toString().trim();
+        var opt2     = (getVal(item,'opt2') || '').toString().trim();
+        var opt3     = (getVal(item,'opt3') || '').toString().trim();
+        var opt4     = (getVal(item,'opt4') || '').toString().trim();
+        var correct  = (getVal(item,'correct') || '').toString().trim();
+        var expl     = (getVal(item,'explanation') || '').toString().trim();
+        var subTopic = (getVal(item,'sub_topic') || getVal(item,'subject') || '').toString().trim();
+        var wrongCnt = parseInt(wrongCount[qId] || 1);
+        var opts     = [opt1,opt2,opt3,opt4].filter(function(o){ return o.length > 0; });
+        var isWritten = rawType === 'written';
         var badgeClr  = wrongCnt >= 3 ? '#dc2626' : wrongCnt === 2 ? '#f97316' : '#f59e0b';
 
         // ── Card wrapper ──
