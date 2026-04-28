@@ -6319,8 +6319,11 @@ function closeReviewPopup() {
     var sheet   = document.getElementById('review-popup-sheet');
     if (overlay) overlay.style.display = 'none';
     if (sheet)   sheet.style.display   = 'none';
-    // Restore home state so back works correctly
     window.history.replaceState({mode: 'home', path: [], _base: true}, '');
+    // Always re-render home to show updated review counts
+    if (currentMode === 'home' || path.length === 0) {
+        setTimeout(function() { renderView(); }, 100);
+    }
 }
 
 function refreshReviewPopup() {
@@ -6597,7 +6600,13 @@ function _checkReviewComplete() {
                 '</div>';
         }
         showToast('🎉 সব ভুল প্রশ্ন সঠিক করা হয়েছে!');
-        setTimeout(function() { closeReviewPopup(); }, 2200);
+        setTimeout(function() {
+            closeReviewPopup();
+            // Re-render home to remove review section
+            if (currentMode === 'home' || !currentMode) {
+                renderView();
+            }
+        }, 2200);
     }
 }
 
