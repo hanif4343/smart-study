@@ -2688,10 +2688,17 @@ function renderHome(container) {
     });
     // weakTopics replaced by wrong_q_ids approach
 
-    // ── Review Section: All wrong question IDs ──
+    // ── Review Section: All wrong question IDs (format: "quiz:id" or "qbank:id") ──
     var _wrongQIds  = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
-    var _allQPool   = [...(fullData['QBank']||[]),...(fullData['Quiz']||[]),...(fullData['Study']||[])];
-    var _wrongItems = _allQPool.filter(function(i){ return _wrongQIds.includes(String(getVal(i,'id')||'')); });
+    // Count unique wrong questions (new format)
+    var _wrongItems = [];
+    _wrongQIds.forEach(function(entry) {
+        var parts = entry.indexOf(':') !== -1 ? [entry.split(':')[0], entry.split(':').slice(1).join(':')] : ['quiz', entry];
+        var sheet = parts[0]; var qid = parts[1];
+        var pool  = sheet === 'qbank' ? (fullData['QBank']||[]) : (fullData['Quiz']||[]);
+        var found = pool.find(function(i){ return String(getVal(i,'id')||'') === qid; });
+        if (found) _wrongItems.push(found);
+    });
     var reviewHTML  = '';
     if (_wrongItems.length > 0) {
         var _previewItems = _wrongItems.slice(0, 2);
@@ -6528,10 +6535,7 @@ function _hideReviewCard(qId) {
 // Check if all done
 function _checkReviewComplete() {
     var wrongQIds = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
-    var allQPool  = (fullData['QBank']||[]).concat(fullData['Quiz']||[]);
-    var remaining = allQPool.filter(function(i) {
-        return wrongQIds.includes(String(getVal(i,'id') || ''));
-    });
+    var remaining = wrongQIds; // just count entries
     var countEl = document.getElementById('review-popup-count');
     if (countEl) countEl.textContent = remaining.length + 'টি ভুল প্রশ্ন বাকি';
 
