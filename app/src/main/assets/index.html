@@ -3682,19 +3682,22 @@ function showCopyToast(id) {
 
 function markAsCorrect(id) {
     if (!id) return;
-    var sid = String(id);
+    var rawId = String(id);
+    var mode  = currentMode === 'qbank' ? 'qbank' : 'quiz';
+    var sid   = mode + ':' + rawId;
+    
     var correctHistory = JSON.parse(localStorage.getItem('correct_history') || '[]');
     if (!correctHistory.includes(sid)) {
         correctHistory.push(sid);
         localStorage.setItem('correct_history', JSON.stringify(correctHistory));
     }
-    // Remove from wrong_q_ids — answered correctly
+    // Remove from wrong_q_ids
     var wrongIds = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
     var widx = wrongIds.indexOf(sid);
     if (widx !== -1) {
         wrongIds.splice(widx, 1);
         localStorage.setItem('wrong_q_ids', JSON.stringify(wrongIds));
-        // _hideReviewCard handles auto-refresh internally
+        setTimeout(function() { _hideReviewCard(sid); }, 600);
     }
 }
 
@@ -4192,12 +4195,12 @@ function trackWrongAnswer(topic, qId) {
     wrongHistory[topic] = (wrongHistory[topic] || 0) + 1;
     localStorage.setItem('wrong_history', JSON.stringify(wrongHistory));
     if (qId) {
-        var sid = String(qId);
-        // wrong_q_ids: unique list
+        // Store as "mode:id" to prevent Quiz/QBank ID collision
+        var mode = currentMode === 'qbank' ? 'qbank' : 'quiz';
+        var sid  = mode + ':' + String(qId);
         var wrongIds = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
         if (!wrongIds.includes(sid)) wrongIds.push(sid);
         localStorage.setItem('wrong_q_ids', JSON.stringify(wrongIds));
-        // wrong_q_count: per-question count
         var wrongCount = JSON.parse(localStorage.getItem('wrong_q_count') || '{}');
         wrongCount[sid] = (wrongCount[sid] || 0) + 1;
         localStorage.setItem('wrong_q_count', JSON.stringify(wrongCount));
@@ -6286,10 +6289,18 @@ function renderReviewPopupList() {
     var wrongCount = JSON.parse(localStorage.getItem('wrong_q_count') || '{}');
 
     // ONLY questions that were actually attempted wrong
-    var allQPool = (fullData['QBank']||[]).concat(fullData['Quiz']||[]);
-    var wrongItems = allQPool.filter(function(i) {
-        var id = String(getVal(i,'id') || '');
-        return id && wrongQIds.includes(id);
+    // wrongQIds format: "quiz:1001" or "qbank:1001"
+    var quizItems2  = (fullData['Quiz']  || []);
+    var qbankItems2 = (fullData['QBank'] || []);
+    var wrongItems  = [];
+    wrongQIds.forEach(function(entry) {
+        var parts = entry.split(':');
+        if (parts.length < 2) return; // skip old format
+        var sheet = parts[0]; // 'quiz' or 'qbank'
+        var qid   = parts.slice(1).join(':');
+        var pool  = sheet === 'qbank' ? qbankItems2 : quizItems2;
+        var found = pool.find(function(i) { return String(getVal(i,'id')||'') === qid; });
+        if (found) wrongItems.push({item: found, key: entry});
     });
 
     if (countEl) countEl.textContent = wrongItems.length + 'টি ভুল প্রশ্ন বাকি';
@@ -6306,7 +6317,7 @@ function renderReviewPopupList() {
 
     listEl.innerHTML = '';
 
-    wrongItems.forEach(function(item) {
+    wrongItems.forEach(function(wObj) { var item = wObj.item; var _wKey = wObj.key;
         var qId     = String(getVal(item,'id') || '');
         // Use EXACT same field name as main renderQuestions
         var rawType  = (getVal(item,'Question Type') || getVal(item,'qType') || getVal(item,'type') || '').toString().toLowerCase().trim();
@@ -6318,7 +6329,7 @@ function renderReviewPopupList() {
         var correct  = (getVal(item,'correct') || '').toString().trim();
         var expl     = (getVal(item,'explanation') || '').toString().trim();
         var subTopic = (getVal(item,'sub_topic') || getVal(item,'subject') || '').toString().trim();
-        var wrongCnt = parseInt(wrongCount[qId] || 1);
+        var wrongCnt = parseInt(wrongCount[_wKey] || 1);
         var opts     = [opt1,opt2,opt3,opt4].filter(function(o){ return o.length > 0; });
         var isWritten = rawType === 'written';
         var badgeClr  = wrongCnt >= 3 ? '#dc2626' : wrongCnt === 2 ? '#f97316' : '#f59e0b';
@@ -6362,11 +6373,11 @@ function renderReviewPopupList() {
             var submitBtn = document.createElement('button');
             submitBtn.textContent = '🔍 মিলিয়ে দেখো';
             submitBtn.style.cssText = 'width:100%;padding:11px;background:#4f46e5;color:white;border:none;border-radius:12px;font-weight:900;font-size:13px;cursor:pointer;margin-bottom:6px;';
-            (function(id, cor) {
+            (function(id, cor, wkey) {
                 submitBtn.addEventListener('click', function() {
-                    _checkReviewWritten(id, cor, this);
+                    _checkReviewWritten(id, cor, this, wkey);
                 });
-            })(qId, correct);
+            })(qId, correct, _wKey);
             card.appendChild(submitBtn);
 
         } else {
@@ -6376,11 +6387,11 @@ function renderReviewPopupList() {
                 btn.id = 'rp-opt-' + qId + '-' + oi;
                 btn.style.cssText = 'display:block;width:100%;text-align:left;padding:10px 14px;margin-bottom:7px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;font-size:13px;font-weight:600;color:#334155;cursor:pointer;transition:background .2s,border-color .2s;';
                 btn.innerHTML = '<span style="display:inline-block;width:20px;height:20px;border-radius:50%;border:2px solid #cbd5e1;margin-right:8px;vertical-align:middle;"></span>' + optTxt;
-                (function(id, chosen, cor, expl2, allOpts) {
+                (function(id, chosen, cor, expl2, allOpts, wkey) {
                     btn.addEventListener('click', function() {
-                        _checkReviewMCQ(id, chosen, cor, expl2, allOpts, oi);
+                        _checkReviewMCQ(id, chosen, cor, expl2, allOpts, oi, wkey);
                     });
-                })(qId, optTxt, correct, expl, opts);
+                })(qId, optTxt, correct, expl, opts, _wKey);
                 card.appendChild(btn);
             });
         }
@@ -6391,7 +6402,7 @@ function renderReviewPopupList() {
 }
 
 // Internal MCQ check
-function _checkReviewMCQ(qId, chosen, correct, expl, allOpts, selectedOi) {
+function _checkReviewMCQ(qId, chosen, correct, expl, allOpts, selectedOi, wKey) {
     var isCorrect = chosen.trim().toLowerCase() === correct.trim().toLowerCase();
 
     // Color all options
@@ -6421,30 +6432,27 @@ function _checkReviewMCQ(qId, chosen, correct, expl, allOpts, selectedOi) {
             '<div style="color:#15803d;font-weight:900;font-size:13px;">✅ সঠিক! চমৎকার!</div>' +
             (expl ? '<div style="color:#166534;font-size:12px;margin-top:4px;line-height:1.5;">💡 ' + expl + '</div>' : '') +
             '</div>';
-        markAsCorrect(qId);
+        _markReviewCorrect(wKey, qId);
         awardXP(10);
-        // Smooth hide after 1.2s
-        setTimeout(function() { _hideReviewCard(qId); }, 1200);
     } else {
         var wrongCount = JSON.parse(localStorage.getItem('wrong_q_count') || '{}');
-        wrongCount[qId] = (wrongCount[qId] || 1) + 1;
+        wrongCount[wKey] = (wrongCount[wKey] || 1) + 1;
         localStorage.setItem('wrong_q_count', JSON.stringify(wrongCount));
         resDiv.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;margin-top:6px;">' +
             '<div style="color:#dc2626;font-weight:900;font-size:13px;">❌ ভুল হয়েছে</div>' +
             '<div style="color:#15803d;font-size:12px;font-weight:700;margin-top:4px;">✅ সঠিক উত্তর: ' + correct + '</div>' +
             (expl ? '<div style="color:#64748b;font-size:12px;margin-top:4px;line-height:1.5;">💡 ' + expl + '</div>' : '') +
             '</div>';
-        // Update badge
         var card = document.getElementById('rp-card-' + qId);
         if (card) {
-            var badge = card.querySelector('span[style*="বার ভুল"]') || card.querySelectorAll('span')[1];
-            if (badge) { badge.textContent = '❌ ' + wrongCount[qId] + 'বার ভুল'; }
+            var badge = card.querySelectorAll('span')[1];
+            if (badge) { badge.textContent = '❌ ' + wrongCount[wKey] + 'বার ভুল'; }
         }
     }
 }
 
 // Internal Written check  
-function _checkReviewWritten(qId, correct, btn) {
+function _checkReviewWritten(qId, correct, btn, wKey) {
     var ta = document.getElementById('rp-ta-' + qId);
     if (!ta) return;
     var userAns = ta.value.trim();
@@ -6467,9 +6475,8 @@ function _checkReviewWritten(qId, correct, btn) {
             '<div style="color:#15803d;font-weight:900;font-size:13px;">✅ সঠিক! (' + pct + '%)</div>' +
             '<div style="background:#dcfce7;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:12px;color:#166534;font-weight:700;">সঠিক উত্তর:<br>' + correct + '</div>' +
             '</div>';
-        markAsCorrect(qId);
+        _markReviewCorrect(wKey || qId, qId);
         awardXP(10);
-        setTimeout(function() { _hideReviewCard(qId); }, 1400);
     } else {
         resDiv.innerHTML =
             '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;margin-top:6px;">' +
@@ -6477,7 +6484,8 @@ function _checkReviewWritten(qId, correct, btn) {
             '<div style="background:#fef9c3;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:12px;color:#854d0e;font-weight:700;">সঠিক উত্তর:<br>' + correct + '</div>' +
             '</div>';
         var wrongCount = JSON.parse(localStorage.getItem('wrong_q_count') || '{}');
-        wrongCount[qId] = (wrongCount[qId] || 1) + 1;
+        var _wk = wKey || qId;
+        wrongCount[_wk] = (wrongCount[_wk] || 1) + 1;
         localStorage.setItem('wrong_q_count', JSON.stringify(wrongCount));
         // Show retry button
         var retry = document.createElement('button');
@@ -6546,6 +6554,24 @@ function _checkReviewComplete() {
 
 
 
+
+
+// Remove from wrong_q_ids by mode:id key, then hide card
+function _markReviewCorrect(wKey, qId) {
+    var wrongIds = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
+    var idx = wrongIds.indexOf(wKey);
+    if (idx !== -1) {
+        wrongIds.splice(idx, 1);
+        localStorage.setItem('wrong_q_ids', JSON.stringify(wrongIds));
+    }
+    // Also update correct_history
+    var correct_h = JSON.parse(localStorage.getItem('correct_history') || '[]');
+    if (!correct_h.includes(wKey)) {
+        correct_h.push(wKey);
+        localStorage.setItem('correct_history', JSON.stringify(correct_h));
+    }
+    setTimeout(function() { _hideReviewCard(qId); }, 1200);
+}
 
 </script>
 
