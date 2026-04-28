@@ -2701,30 +2701,72 @@ function renderHome(container) {
     });
     var reviewHTML  = '';
     if (_wrongItems.length > 0) {
+        // Get wrong count per question
+        var _wqCount = JSON.parse(localStorage.getItem('wrong_q_count') || '{}');
         var _previewItems = _wrongItems.slice(0, 2);
-        var _hasMore = _wrongItems.length > 2;
+
+        // Build preview question cards
         var _previewCards = _previewItems.map(function(item) {
-            var qText = (getVal(item,'question')||'').replace(/<[^>]+>/g,'').slice(0,60);
-            var topic = getVal(item,'sub_topic') || getVal(item,'subject') || '';
-            var src   = (fullData['QBank']||[]).includes(item) ? 'QBank' : 'Quiz';
-            return '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 10px;margin-bottom:5px;">' +
-                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">' +
-                '<span style="font-size:10px;font-weight:900;color:#dc2626;">❌ ' + src + '</span>' +
-                '<span style="font-size:9px;color:#94a3b8;font-weight:700;">' + topic + '</span>' +
+            var qText    = (getVal(item,'question')||'').replace(/<[^>]+>/g,'').slice(0,55);
+            var topic    = getVal(item,'sub_topic') || getVal(item,'subject') || '';
+            var rawType  = (getVal(item,'Question Type')||'').toLowerCase();
+            var isW      = rawType === 'written';
+            var typeIcon = isW ? '✍️' : '🔘';
+            var typeClr  = isW ? '#7c3aed' : '#0284c7';
+            var entry    = item._wrongEntry || '';
+            var cnt      = parseInt(_wqCount[entry] || 1);
+            var badgeClr = cnt >= 3 ? '#dc2626' : cnt === 2 ? '#f97316' : '#f59e0b';
+            return '<div style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:white;border-radius:12px;margin-bottom:6px;border:1px solid #fde8e8;">' +
+                '<div style="width:28px;height:28px;border-radius:8px;background:#fef2f2;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;margin-top:1px;">' + typeIcon + '</div>' +
+                '<div style="flex:1;min-width:0;">' +
+                    '<div style="font-size:12px;font-weight:700;color:#1e293b;line-height:1.4;">' + qText + (qText.length>=55?'…':'') + '</div>' +
+                    '<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">' +
+                        '<span style="font-size:9px;color:'+typeClr+';font-weight:800;background:'+(isW?'#f3e8ff':'#e0f2fe')+';padding:2px 6px;border-radius:6px;">' + (isW?'Written':'MCQ') + '</span>' +
+                        '<span style="font-size:9px;color:#64748b;font-weight:600;">' + topic + '</span>' +
+                    '</div>' +
                 '</div>' +
-                '<div style="font-size:12px;font-weight:600;color:#7f1d1d;line-height:1.4;">' + qText + (qText.length>=60?'…':'') + '</div>' +
+                '<span style="background:'+badgeClr+';color:white;font-size:9px;font-weight:900;padding:2px 7px;border-radius:10px;flex-shrink:0;margin-top:2px;">×'+cnt+'</span>' +
                 '</div>';
         }).join('');
-        var _moreBtn = '<div onclick="openReviewPopup()" style="text-align:center;padding:8px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;cursor:pointer;font-weight:900;font-size:12px;color:#dc2626;">' +
-            (_hasMore ? 'আরো ' + (_wrongItems.length - 2) + 'টি সহ ' : '') +
-            'সব ' + _wrongItems.length + 'টি ভুল প্রশ্ন অনুশীলন করুন ❯</div>';
-        reviewHTML = '<div style="background:var(--card-bg);border-radius:14px;padding:12px 14px;margin-bottom:8px;border:1px solid rgba(239,68,68,0.2);">' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
-            '<div style="font-weight:900;font-size:13px;color:#dc2626;">🔁 ভুল প্রশ্ন Review</div>' +
-            '<div style="font-size:10px;color:#94a3b8;font-weight:700;">' + _wrongItems.length + 'টি বাকি</div>' +
+
+        var _remaining = _wrongItems.length;
+        var _correctCount = JSON.parse(localStorage.getItem('correct_history') || '[]').length;
+
+        reviewHTML =
+            '<div style="background:white;border-radius:16px;padding:14px;margin-bottom:10px;border:1.5px solid rgba(239,68,68,0.2);box-shadow:0 2px 12px rgba(239,68,68,0.08);">' +
+
+            // Header
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
+                '<div style="display:flex;align-items:center;gap:8px;">' +
+                    '<div style="width:32px;height:32px;background:linear-gradient(135deg,#dc2626,#f97316);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;">🔁</div>' +
+                    '<div>' +
+                        '<div style="font-weight:900;font-size:13px;color:#dc2626;">ভুল প্রশ্ন Review</div>' +
+                        '<div style="font-size:10px;color:#94a3b8;font-weight:600;margin-top:1px;">আবার চেষ্টা করো</div>' +
+                    '</div>' +
+                '</div>' +
+                // Stats pills
+                '<div style="display:flex;gap:5px;align-items:center;">' +
+                    '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:4px 9px;text-align:center;">' +
+                        '<div style="font-size:14px;font-weight:900;color:#dc2626;line-height:1;">' + _remaining + '</div>' +
+                        '<div style="font-size:9px;color:#94a3b8;font-weight:700;">ভুল</div>' +
+                    '</div>' +
+                    '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:4px 9px;text-align:center;">' +
+                        '<div style="font-size:14px;font-weight:900;color:#16a34a;line-height:1;">' + _correctCount + '</div>' +
+                        '<div style="font-size:9px;color:#94a3b8;font-weight:700;">সঠিক</div>' +
+                    '</div>' +
+                '</div>' +
             '</div>' +
+
+            // Preview cards
             _previewCards +
-            _moreBtn +
+
+            // Action button
+            '<button onclick="openReviewPopup()" style="width:100%;padding:13px;background:linear-gradient(135deg,#dc2626,#ef4444);color:white;border:none;border-radius:12px;font-weight:900;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px;">' +
+                '<span>🎯</span>' +
+                '<span>' + (_wrongItems.length > 2 ? 'সব ' + _wrongItems.length + 'টি প্রশ্ন অনুশীলন করুন' : _wrongItems.length + 'টি ভুল প্রশ্ন অনুশীলন করুন') + '</span>' +
+                '<span style="background:rgba(255,255,255,0.25);padding:2px 8px;border-radius:8px;font-size:11px;">' + _wrongItems.length + '</span>' +
+            '</button>' +
+
             '</div>';
     }
 
@@ -6310,7 +6352,12 @@ function renderReviewPopupList() {
         if (found) wrongItems.push({item: found, key: entry});
     });
 
-    if (countEl) countEl.textContent = wrongItems.length + 'টি ভুল প্রশ্ন বাকি';
+    if (countEl) {
+        var _ch = JSON.parse(localStorage.getItem('correct_history') || '[]').length;
+        countEl.innerHTML = '<span style="color:#dc2626;font-weight:900;">' + wrongItems.length + ' ভুল বাকি</span>' +
+            '<span style="color:#64748b;margin:0 6px;">·</span>' +
+            '<span style="color:#16a34a;font-weight:900;">' + _ch + ' সঠিক</span>';
+    }
 
     if (wrongItems.length === 0) {
         listEl.innerHTML =
