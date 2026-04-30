@@ -3994,6 +3994,7 @@ function fallbackShare(text) {
                     Phone: currentUser ? currentUser.phone : USER_PHONE,
                     Subject: getVal(item,'subject'),
                     Topic: getVal(item,'sub_topic'),
+                    QuestionID: getVal(item, 'id'),
                     Question: getVal(item,'question'),
                     Issue: issue.trim(),
                     Timestamp: new Date().toLocaleString()
