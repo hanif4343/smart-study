@@ -3904,12 +3904,15 @@ function check(btn, sel, corRaw, qId) {
 
     // ── Analytics: Firebase এ quiz result save ──
     if (currentUser && currentUser.phone) {
+        var _subject = quizItems.length > 0 ? (getVal(quizItems[0],'subject') || '') : '';
         saveQuizResultToFirebase({
-            correct, wrong, skipped, total, pct,
-            subject: (quizItems[0] ? (getVal(quizItems[0],'subject')||'') : ''),
-            subjectStats
+            correct: correct, wrong: wrong, skipped: skipped,
+            total: total, pct: pct,
+            subject: _subject,
+            subjectStats: subjectStats
         });
     }
+
     // Hide reading progress bar on submit
     document.getElementById('reading-progress-bar').classList.add('hidden');
     document.getElementById('q-counter-badge').style.display = 'none';
@@ -3989,8 +3992,7 @@ function fallbackShare(text) {
                     type: 'report',
                     Phone: currentUser ? currentUser.phone : USER_PHONE,
                     Subject: getVal(item,'subject'),
-                    SubTopic: getVal(item,'sub_topic'),
-                    QuestionID: getVal(item,'id') || getVal(item,'ID') || '',
+                    Topic: getVal(item,'sub_topic'),
                     Question: getVal(item,'question'),
                     Issue: issue.trim(),
                     Timestamp: new Date().toLocaleString()
@@ -4835,13 +4837,11 @@ function startSessionTimer() {
     _sessionTimer = setInterval(() => {
         const minutesPassed = Math.floor((Date.now() - _sessionStart) / 60000);
         if (minutesPassed > 0 && minutesPassed % 1 === 0) {
-            // Save every minute locally
+            // Save every minute
             const todayKey = 'time_' + new Date().toDateString();
             const current = parseInt(localStorage.getItem(todayKey) || '0');
             localStorage.setItem(todayKey, current + 1);
             _sessionStart = Date.now(); // reset per-minute
-            // Firebase এ ও save
-            saveSessionMinuteToFirebase();
         }
     }, 60000);
 }
@@ -6002,7 +6002,7 @@ function doLogin() {
             // Use whichever is higher (offline XP might be ahead)
             localStorage.setItem(_xpKey, Math.max(localXP, fireXP));
             hideAuthScreen();
-            try { initApp(); } catch(e) { console.error('initApp after login:', e); }
+            try { initApp(); startSessionTimer(); } catch(e) { console.error('initApp after login:', e); }
         })
         .catch(function() {
             showAuthLoading(false);
@@ -6191,75 +6191,6 @@ function lbCalcXP(xp) {
 
 
 // ── Sync XP to Firebase Users node directly ──
-// ════════════════════════════════════════════
-// 📊 ANALYTICS — Firebase এ save
-// ════════════════════════════════════════════
-
-function saveQuizResultToFirebase(result) {
-    if (!currentUser || !currentUser.phone || !FIREBASE_URL || FIREBASE_URL.includes('%%')) return;
-    var phone = currentUser.phone.toString().trim().replace(/\s/g,'');
-    var safePhone = phone.replace(/[.#$\[\]]/g, '_');
-    var now = new Date();
-    var dateKey = now.toISOString().split('T')[0]; // "2025-05-01"
-    var timeKey = now.toTimeString().substring(0,5).replace(':',''); // "1430"
-    var entryKey = dateKey + '_' + timeKey;
-
-    var payload = {
-        correct:  result.correct,
-        wrong:    result.wrong,
-        skipped:  result.skipped,
-        total:    result.total,
-        pct:      result.pct,
-        subject:  result.subject || '',
-        ts:       now.toLocaleString('bn-BD'),
-        date:     dateKey
-    };
-
-    // Analytics/Results/phone/entryKey এ PUT
-    fetch(FIREBASE_URL + 'Analytics/Results/' + safePhone + '/' + entryKey + '.json?auth=' + SECRET_KEY, {
-        method: 'PUT',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
-    }).catch(function(){});
-
-    // Analytics/Summary/phone এ running total update
-    fetch(FIREBASE_URL + 'Analytics/Summary/' + safePhone + '.json?auth=' + SECRET_KEY)
-        .then(function(r){ return r.json(); })
-        .then(function(prev){
-            prev = prev || { totalCorrect:0, totalWrong:0, totalQuizzes:0, totalQuestions:0, name:'', lastActive:'' };
-            prev.totalCorrect   = (prev.totalCorrect   || 0) + result.correct;
-            prev.totalWrong     = (prev.totalWrong     || 0) + result.wrong;
-            prev.totalQuizzes   = (prev.totalQuizzes   || 0) + 1;
-            prev.totalQuestions = (prev.totalQuestions || 0) + result.total;
-            prev.name           = currentUser.name || prev.name || '';
-            prev.picture        = currentUser.picture || prev.picture || '';
-            prev.lastActive     = dateKey;
-            return fetch(FIREBASE_URL + 'Analytics/Summary/' + safePhone + '.json?auth=' + SECRET_KEY, {
-                method: 'PUT',
-                headers: {'Content-Type':'application/json'},
-                body: JSON.stringify(prev)
-            });
-        }).catch(function(){});
-}
-
-function saveSessionMinuteToFirebase() {
-    if (!currentUser || !currentUser.phone || !FIREBASE_URL || FIREBASE_URL.includes('%%')) return;
-    var phone = currentUser.phone.toString().trim().replace(/\s/g,'');
-    var safePhone = phone.replace(/[.#$\[\]]/g, '_');
-    var dateKey = new Date().toISOString().split('T')[0];
-
-    fetch(FIREBASE_URL + 'Analytics/Time/' + safePhone + '/' + dateKey + '.json?auth=' + SECRET_KEY)
-        .then(function(r){ return r.json(); })
-        .then(function(cur){
-            var mins = (parseInt(cur) || 0) + 1;
-            return fetch(FIREBASE_URL + 'Analytics/Time/' + safePhone + '/' + dateKey + '.json?auth=' + SECRET_KEY, {
-                method: 'PUT',
-                headers: {'Content-Type':'application/json'},
-                body: JSON.stringify(mins)
-            });
-        }).catch(function(){});
-}
-
 function syncXPToFirebase(phone, xp) {
     if (!phone) return;
     fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
@@ -6736,6 +6667,88 @@ function _markReviewCorrect(wKey, qId) {
     }
     setTimeout(function() { _hideReviewCard(qId); }, 1200);
 }
+
+
+// ════════════════════════════════════════════
+// 📊 ANALYTICS — Quiz Result + Session
+// ════════════════════════════════════════════
+
+function saveQuizResultToFirebase(result) {
+    if (!currentUser || !currentUser.phone || !FIREBASE_URL || FIREBASE_URL.includes('%%')) return;
+    var phone     = currentUser.phone.toString().trim().replace(/\s/g,'');
+    var safePhone = phone.replace(/[.#$\[\]]/g, '_');
+    var now       = new Date();
+    var dateKey   = now.toISOString().split('T')[0];
+    var timeKey   = now.toTimeString().substring(0,5).replace(':','');
+    var entryKey  = dateKey + '_' + timeKey;
+
+    var payload = {
+        correct:  result.correct  || 0,
+        wrong:    result.wrong    || 0,
+        skipped:  result.skipped  || 0,
+        total:    result.total    || 0,
+        pct:      result.pct      || 0,
+        subject:  result.subject  || '',
+        ts:       now.toLocaleString('en-BD'),
+        date:     dateKey
+    };
+
+    // Analytics/Results/{phone}/{date_time} = result
+    fetch(FIREBASE_URL + 'Analytics/Results/' + safePhone + '/' + entryKey + '.json?auth=' + SECRET_KEY, {
+        method: 'PUT',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+    }).catch(function(){});
+
+    // Analytics/Summary/{phone} = running totals
+    fetch(FIREBASE_URL + 'Analytics/Summary/' + safePhone + '.json?auth=' + SECRET_KEY)
+        .then(function(r){ return r.json(); })
+        .then(function(prev){
+            prev = prev || { totalCorrect:0, totalWrong:0, totalQuizzes:0, totalQuestions:0 };
+            prev.totalCorrect   = (prev.totalCorrect   || 0) + (result.correct  || 0);
+            prev.totalWrong     = (prev.totalWrong     || 0) + (result.wrong    || 0);
+            prev.totalQuizzes   = (prev.totalQuizzes   || 0) + 1;
+            prev.totalQuestions = (prev.totalQuestions || 0) + (result.total    || 0);
+            prev.name           = currentUser.name    || prev.name    || '';
+            prev.picture        = currentUser.picture || prev.picture || '';
+            prev.phone          = phone;
+            prev.lastActive     = dateKey;
+            return fetch(FIREBASE_URL + 'Analytics/Summary/' + safePhone + '.json?auth=' + SECRET_KEY, {
+                method: 'PUT',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(prev)
+            });
+        }).catch(function(){});
+}
+
+
+function saveSessionMinuteToFirebase() {
+    if (!currentUser || !currentUser.phone || !FIREBASE_URL || FIREBASE_URL.includes('%%')) return;
+    var phone     = currentUser.phone.toString().trim().replace(/\s/g,'');
+    var safePhone = phone.replace(/[.#$\[\]]/g, '_');
+    var dateKey   = new Date().toISOString().split('T')[0];
+
+    fetch(FIREBASE_URL + 'Analytics/Time/' + safePhone + '/' + dateKey + '.json?auth=' + SECRET_KEY)
+        .then(function(r){ return r.json(); })
+        .then(function(cur){
+            var mins = (parseInt(cur) || 0) + 1;
+            return fetch(FIREBASE_URL + 'Analytics/Time/' + safePhone + '/' + dateKey + '.json?auth=' + SECRET_KEY, {
+                method: 'PUT',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(mins)
+            });
+        }).catch(function(){});
+}
+
+
+// Resume session timer when app becomes visible
+document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible' && isLoggedIn()) {
+        startSessionTimer();
+    } else if (document.visibilityState === 'hidden') {
+        clearInterval(_sessionTimer);
+    }
+});
 
 </script>
 
