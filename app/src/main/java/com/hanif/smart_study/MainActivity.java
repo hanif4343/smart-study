@@ -2,12 +2,14 @@ package com.hanif.smart_study;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Message;
+import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.ConsoleMessage;
@@ -19,15 +21,26 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.webkit.WebViewCompat;
-import androidx.webkit.WebViewFeature;
+
+import com.google.firebase.messaging.FirebaseMessaging;
 
 public class MainActivity extends AppCompatActivity {
+
+    private static final String TAG = "MainActivity";
+
+    // WebView instance - FCM service থেকে JS call করার জন্য static রাখা হয়েছে
+    public static WebView webViewInstance = null;
 
     private WebView webView;
     private ValueCallback<Uri[]> filePathCallback;
     private static final int FILE_CHOOSER_REQUEST = 1001;
+
+    // Android 13+ এ Notification Permission চাওয়ার জন্য
+    private ActivityResultLauncher<String> notificationPermissionLauncher;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -47,6 +60,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         webView = findViewById(R.id.webview);
+        webViewInstance = webView; // static reference সেট করুন
+
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
@@ -68,25 +83,35 @@ public class MainActivity extends AppCompatActivity {
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                // Page load হওয়ার পর FCM token WebView-এ পাঠান
+                sendFCMTokenToWebView();
+
+                // Notification এর মাধ্যমে app খুললে URL navigate করুন
+                String notifUrl = getIntent().getStringExtra("notification_url");
+                if (notifUrl != null && !notifUrl.isEmpty()) {
+                    String js = "javascript:if(typeof navigateTo === 'function') { navigateTo('" + notifUrl + "'); }";
+                    view.loadUrl(js);
+                    getIntent().removeExtra("notification_url");
+                }
+            }
+
+            @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 String url = request.getUrl().toString();
-                // Facebook deep link
                 if (url.startsWith("fb://")) {
                     try {
-                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                        startActivity(intent);
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
                     } catch (Exception e) {
-                        // FB app not installed, open browser
                         startActivity(new Intent(Intent.ACTION_VIEW,
                             Uri.parse(url.replace("fb://facewebmodal/f?href=", ""))));
                     }
                     return true;
                 }
-                // YouTube deep link
                 if (url.startsWith("vnd.youtube:")) {
                     try {
-                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                        startActivity(intent);
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
                     } catch (Exception e) {
                         String videoId = url.replace("vnd.youtube:", "");
                         startActivity(new Intent(Intent.ACTION_VIEW,
@@ -94,12 +119,10 @@ public class MainActivity extends AppCompatActivity {
                     }
                     return true;
                 }
-                // External links
                 if (url.startsWith("http://") || url.startsWith("https://")) {
-                    if (!url.contains("file://") && !url.contains("smartentrydb") && 
+                    if (!url.contains("file://") && !url.contains("smartentrydb") &&
                         !url.contains("googleapis.com") && !url.contains("script.google.com")) {
-                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                        startActivity(intent);
+                        startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
                         return true;
                     }
                 }
@@ -126,36 +149,92 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
-            public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
-                return true;
-            }
+            public boolean onConsoleMessage(ConsoleMessage consoleMessage) { return true; }
 
-            // Block ALL native JS dialogs (alert/confirm/prompt)
-            // These show "The page at file:// says:" — we handle them in JS instead
             @Override
             public boolean onJsAlert(WebView view, String url, String message, android.webkit.JsResult result) {
-                result.cancel();
-                return true;
+                result.cancel(); return true;
             }
 
             @Override
             public boolean onJsConfirm(WebView view, String url, String message, android.webkit.JsResult result) {
-                result.cancel();
-                return true;
+                result.cancel(); return true;
             }
 
             @Override
             public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, android.webkit.JsPromptResult result) {
-                result.cancel();
-                return true;
+                result.cancel(); return true;
             }
         });
 
-        // Load from assets
+        // Notification Permission Request (Android 13+)
+        notificationPermissionLauncher = registerForActivityResult(
+            new ActivityResultContracts.RequestPermission(),
+            isGranted -> {
+                if (isGranted) {
+                    Log.d(TAG, "Notification permission দেওয়া হয়েছে");
+                } else {
+                    Toast.makeText(this, "Notification বন্ধ আছে। Settings থেকে চালু করুন।", Toast.LENGTH_LONG).show();
+                }
+            }
+        );
+
+        // Setup steps
+        createNotificationChannel();
+        requestNotificationPermission();
+        fetchFCMToken();
+
         webView.loadUrl("file:///android_asset/index.html");
     }
 
+    private void fetchFCMToken() {
+        FirebaseMessaging.getInstance().getToken()
+            .addOnCompleteListener(task -> {
+                if (!task.isSuccessful()) {
+                    Log.e(TAG, "FCM Token নিতে সমস্যা হয়েছে", task.getException());
+                    return;
+                }
+                String token = task.getResult();
+                Log.d(TAG, "FCM Token: " + token);
+                getSharedPreferences("FCM", MODE_PRIVATE)
+                    .edit().putString("token", token).apply();
+            });
+    }
+
+    private void sendFCMTokenToWebView() {
+        String token = getSharedPreferences("FCM", MODE_PRIVATE).getString("token", "");
+        if (!token.isEmpty()) {
+            String js = "javascript:if(typeof onFCMTokenReceived === 'function') { onFCMTokenReceived('" + token + "'); }";
+            webView.loadUrl(js);
+        }
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                "smart_study_channel",
+                "Smart Study Notifications",
+                NotificationManager.IMPORTANCE_HIGH
+            );
+            channel.setDescription("Smart Study থেকে গুরুত্বপূর্ণ notification পাবেন");
+            channel.enableVibration(true);
+            channel.setShowBadge(true);
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) manager.createNotificationChannel(channel);
+        }
+    }
+
+    private void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS);
+            }
+        }
+    }
+
     public class AndroidBridge {
+
         @JavascriptInterface
         public void showToast(String message) {
             runOnUiThread(() -> Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show());
@@ -179,8 +258,7 @@ public class MainActivity extends AppCompatActivity {
         public void openFacebook(String url) {
             runOnUiThread(() -> {
                 try {
-                    String fbUrl = "fb://facewebmodal/f?href=" + url;
-                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(fbUrl)));
+                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("fb://facewebmodal/f?href=" + url)));
                 } catch (Exception e) {
                     startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
                 }
@@ -191,9 +269,8 @@ public class MainActivity extends AppCompatActivity {
         public void openYoutube(String url) {
             runOnUiThread(() -> {
                 try {
-                    String videoId = "";
-                    if (url.contains("v=")) videoId = url.split("v=")[1].split("&")[0];
-                    else videoId = url.substring(url.lastIndexOf("/") + 1);
+                    String videoId = url.contains("v=") ? url.split("v=")[1].split("&")[0]
+                        : url.substring(url.lastIndexOf("/") + 1);
                     startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("vnd.youtube:" + videoId)));
                 } catch (Exception e) {
                     startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
@@ -203,46 +280,79 @@ public class MainActivity extends AppCompatActivity {
 
         @JavascriptInterface
         public void exitApp() {
-            runOnUiThread(() -> {
-                finishAndRemoveTask();
-            });
+            runOnUiThread(() -> finishAndRemoveTask());
+        }
+
+        /** JavaScript থেকে FCM Token নিন: AndroidBridge.getFCMToken() */
+        @JavascriptInterface
+        public String getFCMToken() {
+            return getSharedPreferences("FCM", MODE_PRIVATE).getString("token", "");
+        }
+
+        /** Topic subscribe করুন: AndroidBridge.subscribeToTopic("all_users") */
+        @JavascriptInterface
+        public void subscribeToTopic(String topic) {
+            FirebaseMessaging.getInstance().subscribeToTopic(topic)
+                .addOnCompleteListener(task -> {
+                    Log.d(TAG, "Subscribe '" + topic + "': " + task.isSuccessful());
+                    runOnUiThread(() -> webView.loadUrl(
+                        "javascript:if(typeof onTopicSubscribed === 'function') { onTopicSubscribed('" + topic + "', " + task.isSuccessful() + "); }"
+                    ));
+                });
+        }
+
+        /** Topic unsubscribe করুন: AndroidBridge.unsubscribeFromTopic("all_users") */
+        @JavascriptInterface
+        public void unsubscribeFromTopic(String topic) {
+            FirebaseMessaging.getInstance().unsubscribeFromTopic(topic)
+                .addOnCompleteListener(task -> Log.d(TAG, "Unsubscribe '" + topic + "': " + task.isSuccessful()));
+        }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String notifUrl = intent.getStringExtra("notification_url");
+        if (notifUrl != null && !notifUrl.isEmpty() && webView != null) {
+            webView.loadUrl("javascript:if(typeof navigateTo === 'function') { navigateTo('" + notifUrl + "'); }");
         }
     }
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == FILE_CHOOSER_REQUEST) {
-            if (filePathCallback != null) {
-                Uri[] results = null;
-                if (resultCode == Activity.RESULT_OK && data != null) {
-                    results = new Uri[]{data.getData()};
-                }
-                filePathCallback.onReceiveValue(results);
-                filePathCallback = null;
-            }
+        if (requestCode == FILE_CHOOSER_REQUEST && filePathCallback != null) {
+            Uri[] results = (resultCode == Activity.RESULT_OK && data != null)
+                ? new Uri[]{data.getData()} : null;
+            filePathCallback.onReceiveValue(results);
+            filePathCallback = null;
         }
     }
 
     @Override
     public void onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack();
-        } else {
-            super.onBackPressed();
-        }
+        if (webView.canGoBack()) webView.goBack();
+        else super.onBackPressed();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         webView.onResume();
+        webViewInstance = webView;
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         webView.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        webViewInstance = null;
     }
 
     @Override
