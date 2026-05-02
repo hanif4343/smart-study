@@ -1352,7 +1352,7 @@
     </div>
 
     <!-- ===== MOTIVATION TOAST ===== -->
-    <div id="home-motivation-toast">
+    <div id="home-motivation-toast" style="display:none!important;">
         <div style="display:flex;align-items:flex-start;gap:10px;">
             <span style="font-size:22px;flex-shrink:0;">💬</span>
             <div>
@@ -2152,7 +2152,7 @@ function generateTableHtml(rows) {
             if (!isOnline()) {
                 banner.classList.add('show');
                 const pq = getPendingQueue();
-                countText.innerText = pq.length > 0 ? ` · ${pq.length} টি আপডেট পেন্ডিং` : '';
+                countText.innerText = pq.length > 0 ? `` : '';
             } else {
                 banner.classList.remove('show');
             }
@@ -3035,7 +3035,7 @@ function renderView() {
     if (currentMode === 'home') {
         renderHome(container);
         // দিনের প্রথমবার home দেখলে motivation toast
-        setTimeout(showMotivationToast, 800);
+        // motivation toast removed
         return;
     }
 
@@ -4077,6 +4077,48 @@ function fallbackShare(text) {
             document.body.appendChild(modal);
         }
       
+// ── FCM Token received — GAS এ save করো ──
+function onFCMTokenReceived(token) {
+    if (!token || token.trim() === '') return;
+    // Token locally রাখো
+    localStorage.setItem('fcm_token', token);
+    // currentUser থাকলে GAS এ save করো
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.phone && typeof GAS_URL !== 'undefined') {
+        fetch(GAS_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                type: 'save_fcm_token',
+                phone: currentUser.phone,
+                token: token
+            })
+        }).catch(function(){});
+    }
+}
+
+// ── App foreground এ থাকলে FCM notification আসলে call হবে ──
+function onFCMNotification(title, body, url) {
+    showToast('🔔 ' + title + ': ' + body);
+}
+
+// ── Login এর পর token save করো (user login হলে call করো) ──
+function saveFCMTokenAfterLogin() {
+    var savedToken = localStorage.getItem('fcm_token');
+    if (savedToken && currentUser && currentUser.phone && typeof GAS_URL !== 'undefined') {
+        fetch(GAS_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                type: 'save_fcm_token',
+                phone: currentUser.phone,
+                token: savedToken
+            })
+        }).catch(function(){});
+    }
+}
+
 function triggerMathJax() {
     if (window.MathJax && MathJax.typesetPromise) {
         MathJax.typesetPromise();
@@ -6044,6 +6086,8 @@ function doLogin() {
             localStorage.setItem(_xpKey, Math.max(localXP, fireXP));
             hideAuthScreen();
             try { initApp(); } catch(e) { console.error('initApp after login:', e); }
+            // Login এর পর FCM token save
+            setTimeout(saveFCMTokenAfterLogin, 2000);
         })
         .catch(function() {
             showAuthLoading(false);
