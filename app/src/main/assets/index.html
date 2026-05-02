@@ -424,6 +424,8 @@
             transition: 0.2s; -webkit-tap-highlight-color: transparent;
         }
         .zoom-close-btn:active { transform: scale(0.8); background: rgba(220, 38, 38, 0.8); }
+        <!-- FCM Token দেখার Button -->
+         <button onclick="showMyToken()">📋 FCM Token দেখাও</button>
 
         .scan-btn {
             background: #2563eb; color: white; padding: 4px 10px; border-radius: 8px;
@@ -6792,7 +6794,11 @@ function _checkReviewComplete() {
 }
 
 
-
+function showMyToken() {
+    const token = AndroidBridge.getFCMToken();
+    // Screen-এ দেখাবে + copy করা যাবে
+    prompt("আপনার FCM Token (Select করে Copy করুন):", token);
+}
 
 
 
