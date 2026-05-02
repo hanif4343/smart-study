@@ -424,8 +424,6 @@
             transition: 0.2s; -webkit-tap-highlight-color: transparent;
         }
         .zoom-close-btn:active { transform: scale(0.8); background: rgba(220, 38, 38, 0.8); }
-        <!-- FCM Token দেখার Button -->
-         <button onclick="showMyToken()">📋 FCM Token দেখাও</button>
 
         .scan-btn {
             background: #2563eb; color: white; padding: 4px 10px; border-radius: 8px;
@@ -4054,7 +4052,29 @@ function fallbackShare(text) {
                 showToast("Token এখনো পাওয়া যায়নি। App একটু পর retry করুন।");
                 return;
             }
-            prompt("FCM Token (সব select করে copy করুন):", token);
+            // Custom modal - prompt() blocked in WebView
+            let modal = document.createElement('div');
+            modal.id = 'fcm-modal';
+            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;';
+            modal.innerHTML = `
+                <div style="background:#fff;border-radius:20px;padding:24px;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                    <p style="font-weight:900;font-size:16px;color:#1e293b;margin-bottom:4px;">🔔 FCM Token</p>
+                    <p style="font-size:11px;color:#94a3b8;font-weight:700;margin-bottom:12px;">নিচের token টা copy করে Firebase-এ দিন</p>
+                    <div id="fcm-token-box" style="background:#f1f5f9;border-radius:12px;padding:12px;font-size:10px;font-weight:700;color:#334155;word-break:break-all;line-height:1.6;border:2px solid #e2e8f0;margin-bottom:16px;max-height:120px;overflow-y:auto;">${token}</div>
+                    <div style="display:flex;gap:10px;">
+                        <button onclick="
+                            var box = document.getElementById('fcm-token-box');
+                            var range = document.createRange();
+                            range.selectNode(box);
+                            window.getSelection().removeAllRanges();
+                            window.getSelection().addRange(range);
+                            try { document.execCommand('copy'); showToast('Token copy হয়েছে! ✅'); } catch(e) { showToast('Manual copy করুন'); }
+                            window.getSelection().removeAllRanges();
+                        " style="flex:1;background:#4f46e5;color:white;border:none;border-radius:12px;padding:12px;font-weight:900;font-size:13px;cursor:pointer;">📋 Copy করুন</button>
+                        <button onclick="document.getElementById('fcm-modal').remove();" style="flex:1;background:#f1f5f9;color:#64748b;border:none;border-radius:12px;padding:12px;font-weight:900;font-size:13px;cursor:pointer;">বন্ধ করুন</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(modal);
         }
       
 function triggerMathJax() {
@@ -6811,11 +6831,7 @@ function _checkReviewComplete() {
 }
 
 
-function showMyToken() {
-    const token = AndroidBridge.getFCMToken();
-    // Screen-এ দেখাবে + copy করা যাবে
-    prompt("আপনার FCM Token (Select করে Copy করুন):", token);
-}
+
 
 
 
