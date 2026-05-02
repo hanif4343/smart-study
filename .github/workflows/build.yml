@@ -33,6 +33,9 @@ jobs:
       - name: Install build tools
         run: sdkmanager "build-tools;34.0.0" "platforms;android-34" "platform-tools"
 
+      - name: Create google-services.json from secret
+        run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > app/google-services.json
+
       - name: Inject API keys into index.html
         run: |
           sed -i "s|%%FIREBASE_URL%%|${{ secrets.FIREBASE_URL }}|g" app/src/main/assets/index.html
