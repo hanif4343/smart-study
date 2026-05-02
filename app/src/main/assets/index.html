@@ -3210,6 +3210,13 @@ function renderView() {
             <span class="font-bold">🔊 সাউন্ড ইফেক্ট</span>
             <button onclick="toggleSound()" class="goal-btn ${localStorage.getItem('sound_off') ? '' : 'selected'}" style="width:52px; font-size:18px;">${localStorage.getItem('sound_off') ? '🔇' : '🔊'}</button>
         </div><div onclick="toggleDarkMode()" class="card mb-2">🌙 ডার্ক মোড</div>
+        <div onclick="showFCMToken()" class="card flex justify-between items-center mb-2" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7); border-color:#86efac;">
+            <div>
+                <span class="font-black text-green-700">🔔 FCM Token দেখাও</span>
+                <p class="text-[10px] text-gray-400 font-bold mt-0.5">Notification test করতে এই token লাগবে</p>
+            </div>
+            <span class="text-green-400 font-black text-lg">❯</span>
+        </div>
         <div onclick="clearCache()" class="card text-red-500 mb-20">🔄 ডাটা রিসেট</div>`;
         return;
     }
@@ -4039,6 +4046,16 @@ function fallbackShare(text) {
             });
         }
         function showSavedQuestions() { showSavedQWithFilter(); }
+
+        function showFCMToken() {
+            let token = "";
+            try { token = AndroidBridge.getFCMToken(); } catch(e) { token = ""; }
+            if (!token || token.trim() === "") {
+                showToast("Token এখনো পাওয়া যায়নি। App একটু পর retry করুন।");
+                return;
+            }
+            prompt("FCM Token (সব select করে copy করুন):", token);
+        }
       
 function triggerMathJax() {
     if (window.MathJax && MathJax.typesetPromise) {
