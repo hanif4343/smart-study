@@ -19,7 +19,8 @@ import com.google.firebase.messaging.RemoteMessage;
 public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
     private static final String TAG = "FCM_Service";
-    private static final String CHANNEL_ID = "smart_study_channel";
+    // ✅ Channel ID পরিবর্তন করা হয়েছে — পুরানো cached channel বাদ দিতে
+    private static final String CHANNEL_ID = "smart_study_v2";
     private static final String CHANNEL_NAME = "Smart Study Notifications";
     private static final int NOTIFICATION_ID = 1001;
 
@@ -72,6 +73,10 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // ✅ পুরানো channel delete করুন প্রথমে
+            notificationManager.deleteNotificationChannel("smart_study_channel");
+
+            // ✅ নতুন channel তৈরি করুন
             NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH
             );
