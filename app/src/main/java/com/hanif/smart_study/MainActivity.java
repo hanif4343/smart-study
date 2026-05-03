@@ -79,7 +79,6 @@ public class MainActivity extends AppCompatActivity {
         settings.setGeolocationEnabled(false);
         // Cache — আগের cache থাকলে দ্রুত load হবে
         settings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
-        settings.setAppCacheEnabled(true);
 
         // WebView background purple করো — load এর আগে white screen দেখাবে না
         webView.setBackgroundColor(android.graphics.Color.parseColor("#4f46e5"));
