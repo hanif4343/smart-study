@@ -3631,7 +3631,7 @@ function renderQuestions() {
                                 <span class="text-[9px] font-black bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">Written</span>
                                 ${hasSubQ ? `<span class="text-[9px] font-black bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full">${subParts.length} টি অংশ</span>` : ''}
                                 <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
-                                    ${isAdmin() ? '<button onclick="editWrittenQuestion(\'' + getVal(i,'id') + '\', this)" data-q="' + (qRaw||'').replace(/"/g,'&quot;') + '" style="width:20px;height:20px;background:#fce7f3;color:#be185d;border:1px solid #fbcfe8;border-radius:4px;font-size:13px;cursor:pointer;" title="প্রশ্ন edit">✎</button>' : ''}
+
                                     <span onclick="reportQuestion(${idx}, event)" class="report-btn">🚩</span>
                                     ${isAdmin() ? '<button onclick="editWrittenQuestion(\'' + getVal(i,'id') + '\', this)" data-q="' + (qRaw||'').replace(/"/g,'&quot;') + '" style="width:20px;height:20px;background:#fce7f3;color:#be185d;border:1px solid #fbcfe8;border-radius:4px;font-size:13px;cursor:pointer;" title="প্রশ্ন edit">✎</button>' : ''}
                                     <span onclick='toggleSave(this, ${itemData})' class="text-xl cursor-pointer ${isSaved?'star-active':'text-gray-300'}">★</span>
@@ -7047,3 +7047,4 @@ function _markReviewCorrect(wKey, qId) {
 
 </body>
 </html>
+
