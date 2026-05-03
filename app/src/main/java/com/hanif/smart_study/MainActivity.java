@@ -77,6 +77,12 @@ public class MainActivity extends AppCompatActivity {
         settings.setBuiltInZoomControls(false);
         settings.setDisplayZoomControls(false);
         settings.setGeolocationEnabled(false);
+        // Cache — আগের cache থাকলে দ্রুত load হবে
+        settings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
+        settings.setAppCacheEnabled(true);
+
+        // WebView background purple করো — load এর আগে white screen দেখাবে না
+        webView.setBackgroundColor(android.graphics.Color.parseColor("#4f46e5"));
 
         // JavaScript Interface for native features
         webView.addJavascriptInterface(new AndroidBridge(), "AndroidBridge");
@@ -85,6 +91,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
+                // Content load হলে background transparent করো
+                view.setBackgroundColor(android.graphics.Color.TRANSPARENT);
                 // Page load হওয়ার পর FCM token WebView-এ পাঠান
                 sendFCMTokenToWebView();
 
