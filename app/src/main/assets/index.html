@@ -1862,6 +1862,30 @@
         function updateTransform() { if (scale === 1) { posX = 0; posY = 0; } zoomedImg.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`; }
 
         window.addEventListener('popstate', function(event) {
+    // 0. Typing overlay back — result → home → close
+    var _to = document.getElementById('typing-overlay');
+    if (_to && _to.style.display !== 'none') {
+        var badge = document.getElementById('tt-mode-badge');
+        var badgeText = badge ? badge.innerText : '';
+        if (badgeText === 'RESULT') {
+            // result থেকে home এ যাও
+            renderTypingHome();
+            history.pushState({mode:currentMode,path:[...path]},'');
+            return;
+        } else if (badgeText !== 'HOME') {
+            // practice থেকে home এ যাও
+            ttStop();
+            renderTypingHome();
+            history.pushState({mode:currentMode,path:[...path]},'');
+            return;
+        } else {
+            // home থেকে typing overlay বন্ধ করো
+            closeTypingTest();
+            history.pushState({mode:currentMode,path:[...path]},'');
+            return;
+        }
+    }
+
     // 1. Image zoom close
     if (isZoomOpen) { closeImageZoom(); history.pushState({mode:currentMode,path:[...path]},''); return; }
 
@@ -3029,7 +3053,7 @@ function renderHome(container) {
 function openTypingTest() {
     // overlay আগে না থাকলে তৈরি করো
     var existing = document.getElementById('typing-overlay');
-    if (existing) { existing.style.display = 'flex'; renderTypingHome(); return; }
+    if (existing) { existing.style.display = 'flex'; renderTypingHome(); history.pushState({mode:currentMode,path:[...path]},''); return; }
 
     var overlay = document.createElement('div');
     overlay.id = 'typing-overlay';
@@ -3052,8 +3076,8 @@ function openTypingTest() {
         .tt-stat-pill { background:#f1f5f9;border-radius:10px;padding:5px 10px;text-align:center; }
         .tt-stat-pill .v { font-size:15px;font-weight:900;color:#0f172a; }
         .tt-stat-pill .l { font-size:9px;font-weight:700;color:#94a3b8; }
-        .tt-passage { font-size:16px;line-height:2;letter-spacing:0.3px;padding:14px;background:white;border-radius:14px;border:1.5px solid #e2e8f0;margin-bottom:10px;min-height:120px; }
-        .tt-ch { color:#cbd5e1; }
+        .tt-passage { font-size:17px;line-height:2.1;letter-spacing:0.4px;padding:14px;background:white;border-radius:14px;border:1.5px solid #e2e8f0;margin-bottom:10px;min-height:120px;word-break:break-all;overflow-wrap:break-word;white-space:pre-wrap;overflow:hidden; }
+        .tt-ch { color:#374151; }
         .tt-ch.correct { color:#16a34a; }
         .tt-ch.wrong { color:#dc2626;background:#fef2f2;border-radius:3px; }
         .tt-ch.cursor { border-left:2.5px solid #0369a1;margin-left:-1px;animation:tt-blink 1s infinite; }
@@ -3092,6 +3116,9 @@ function openTypingTest() {
         oninput="ttHandleInput(this.value)" onkeydown="ttHandleKey(event)">
     `;
     document.body.appendChild(overlay);
+
+    // Android back button support — history এ push করো
+    history.pushState({mode:currentMode,path:[...path]},'');
 
     // ── Typing state
     window._tt = {
@@ -3134,7 +3161,7 @@ function renderTypingHome() {
     var passages = getTypingPassages();
 
     // Filter options
-    var subjects = [...new Set(passages.map(p => p.subject).filter(Boolean))];
+    var subjects = [...new Set(passages.map(p => p.subject || p.language).filter(Boolean))];
     var levels   = [...new Set(passages.map(p => p.level).filter(Boolean))];
 
     var subjectOpts = subjects.map(s => `<option value="${s}" ${tt.selectedSubject===s?'selected':''}>${s}</option>`).join('');
@@ -3142,7 +3169,7 @@ function renderTypingHome() {
 
     // Filtered passages
     var filtered = passages.filter(p => {
-        if (tt.selectedSubject && p.subject !== tt.selectedSubject) return false;
+        if (tt.selectedSubject && (p.subject || p.language) !== tt.selectedSubject) return false;
         if (tt.selectedLevel  && p.level  !== tt.selectedLevel)  return false;
         return true;
     });
@@ -3237,10 +3264,11 @@ function getTypingPassages() {
     var raw = fullData['Typing'] || [];
     return raw.map(function(item) {
         return {
-            Title:    getVal(item,'Title')   || getVal(item,'Title')   || '',
-            Level:    getVal(item,'Level')   || getVal(item,'Level')   || '',
-            Language: getVal(item,'Language')|| getVal(item,'Language')|| 'bn',
-            Content:  getVal(item,'Content') || getVal(item,'Content') || ''
+            title:    getVal(item,'Title')    || '',
+            level:    getVal(item,'Level')    || '',
+            language: getVal(item,'Language') || 'bn',
+            content:  getVal(item,'Content')  || '',
+            subject:  getVal(item,'Language') || ''
         };
     }).filter(function(p){ return p.content && p.content.trim().length > 5; });
 }
@@ -3250,7 +3278,7 @@ function ttStartFromDB() {
     var subject  = window._tt.selectedSubject;
     var level    = window._tt.selectedLevel;
     var filtered = passages.filter(p => {
-        if (subject && p.subject !== subject) return false;
+        if (subject && (p.subject || p.language) !== subject) return false;
         if (level  && p.level  !== level)  return false;
         return true;
     });
@@ -3443,6 +3471,20 @@ function ttFinish(forced) {
     var dashOffset    = circumference - (accuracy / 100 * circumference);
     var ringColor     = accuracy >= 85 ? '#10b981' : accuracy >= 60 ? '#f59e0b' : '#ef4444';
 
+    // typobd-এর মত সব stats হিসাব
+    var charsWithSpace  = tt.typed.length;
+    var charsNoSpace    = tt.typed.replace(/\s/g,'').length;
+    var wpmNoSpace      = elapsed > 0 ? Math.round((charsNoSpace / 5) / (elapsed/60)) : 0;
+    var wpmWordBased    = elapsed > 0 ? Math.round(words / (elapsed/60)) : 0;
+    var totalTypedWords = words;
+    var correctWords    = 0;
+    var passWordsArr    = tt.passage.split(/\s+/);
+    var typedWordsArr   = tt.typed.split(/\s+/);
+    passWordsArr.forEach(function(w,i){ if(typedWordsArr[i]===w) correctWords++; });
+    var mistakeCount    = wrongWords.length;
+    var skippedCount    = Math.max(0, passWordsArr.length - typedWordsArr.length);
+    var isPassed        = accuracy >= 80 && wpm >= 20;
+
     var wrongHTML = wrongWords.length > 0 ? `
     <div class="tt-wrong-list">
         <div style="font-size:12px;font-weight:900;color:#dc2626;margin-bottom:8px;">❌ ভুল শব্দগুলো (${Math.min(wrongWords.length,20)}টি)</div>
@@ -3454,7 +3496,6 @@ function ttFinish(forced) {
     document.getElementById('tt-body').innerHTML = `
     <div style="text-align:center;margin-bottom:16px;">
         <div style="font-size:13px;font-weight:800;color:#64748b;margin-bottom:12px;">📊 ফলাফল — ${tt.title}</div>
-        <!-- Accuracy ring -->
         <div class="tt-result-ring">
             <svg width="110" height="110" viewBox="0 0 110 110">
                 <circle cx="55" cy="55" r="42" fill="none" stroke="#e2e8f0" stroke-width="9"/>
@@ -3472,26 +3513,62 @@ function ttFinish(forced) {
     <div class="tt-result-grid">
         <div class="tt-result-box">
             <div class="rv" style="color:#0369a1;">${wpm}</div>
-            <div class="rl">WPM (শব্দ/মিনিট)</div>
+            <div class="rl">WPM (With Space)</div>
         </div>
         <div class="tt-result-box">
-            <div class="rv" style="color:${accuracy>=85?'#16a34a':'#dc2626'};">${accuracy}%</div>
-            <div class="rl">নির্ভুলতা</div>
+            <div class="rv" style="color:#0369a1;">${wpmNoSpace}</div>
+            <div class="rl">WPM (Without Space)</div>
         </div>
         <div class="tt-result-box">
-            <div class="rv" style="color:#7c3aed;">${tt.correctChars}</div>
-            <div class="rl">সঠিক অক্ষর</div>
+            <div class="rv" style="color:#0369a1;">${wpmWordBased}</div>
+            <div class="rl">WPM (Word-based)</div>
+        </div>
+        <div class="tt-result-box">
+            <div class="rv" style="color:${accuracy>=80?'#16a34a':'#dc2626'};">${accuracy}%</div>
+            <div class="rl">Accuracy</div>
+        </div>
+        <div class="tt-result-box">
+            <div class="rv" style="color:#0f172a;">${totalTypedWords}</div>
+            <div class="rl">Total Typed Words</div>
+        </div>
+        <div class="tt-result-box">
+            <div class="rv" style="color:#16a34a;">${correctWords}</div>
+            <div class="rl">Correct Words</div>
+        </div>
+        <div class="tt-result-box">
+            <div class="rv" style="color:#0f172a;">${charsWithSpace}</div>
+            <div class="rl">Characters (With Space)</div>
+        </div>
+        <div class="tt-result-box">
+            <div class="rv" style="color:#0f172a;">${charsNoSpace}</div>
+            <div class="rl">Characters (Without Space)</div>
         </div>
         <div class="tt-result-box">
             <div class="rv" style="color:#d97706;">${ttFormatTime(Math.floor(elapsed))}</div>
-            <div class="rl">সময় নিয়েছ</div>
+            <div class="rl">Duration</div>
         </div>
+        <div class="tt-result-box">
+            <div class="rv" style="color:${isPassed?'#16a34a':'#dc2626'};">${isPassed?'PASSED':'FAILED'}</div>
+            <div class="rl">Result</div>
+        </div>
+    </div>
+
+    <!-- Total Mistakes breakdown -->
+    <div class="tt-wrong-list" style="margin-bottom:10px;">
+        <div style="font-size:12px;font-weight:900;color:#dc2626;margin-bottom:6px;">Total Mistakes: ${mistakeCount}</div>
+        <div style="font-size:11px;color:#64748b;font-weight:700;">(Mistakes: ${mistakeCount}, Skipped: ${skippedCount}, Extra: 0, Spaces: 0)</div>
+    </div>
+
+    <!-- Your Typed Text -->
+    <div style="background:#f8fafc;border-radius:12px;padding:12px;margin-bottom:10px;border:1px solid #e2e8f0;">
+        <div style="font-size:11px;font-weight:800;color:#64748b;margin-bottom:6px;">Your Typed Text:</div>
+        <div style="font-size:13px;color:#1e293b;line-height:1.7;word-break:break-all;">${tt.typed||'(কিছু টাইপ হয়নি)'}</div>
     </div>
 
     ${wrongHTML}
 
     <div style="margin-top:14px;display:grid;gap:8px;">
-        <button onclick="ttBegin('${tt.passage.replace(/'/g,"\\'")}','${tt.title.replace(/'/g,"\\'")}',${tt.timeLimit})"
+        <button onclick="ttBegin(window._tt.passage, window._tt.title, window._tt.timeLimit)"
             style="width:100%;padding:13px;background:linear-gradient(135deg,#0369a1,#0c4a6e);color:white;border:none;border-radius:12px;font-size:14px;font-weight:900;cursor:pointer;">
             🔄 আবার চেষ্টা করো
         </button>
