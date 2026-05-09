@@ -2314,6 +2314,7 @@ function generateTableHtml(rows) {
         fullData['Quiz']   = cachedData.Quiz   || [];
         fullData['QBank']  = cachedData.QBank  || [];
         fullData['Notice'] = cachedData.Notice || [];
+        fullData['Typing'] = cachedData.Typing || [];
         console.log('✅ Cache loaded:', fullData['Study'].length, 'items');
         // Cache থেকে লোড হলে UI refresh
         try {
@@ -2367,6 +2368,7 @@ function loadFirebaseData() {
             fullData['QBank']  = fixData('QBank');
             fullData['Notice'] = fixData('Notice');
             fullData['Users']  = fixData('Users');
+            fullData['Typing'] = fixData('Typing');
             if (currentUser && currentUser.phone) {
                 var fbPhone = currentUser.phone.toString().trim();
                 var freshU = (fullData['Users']||[]).find(function(u){ return (u.Phone||u.phone||'').toString().trim()===fbPhone; });
@@ -2392,7 +2394,8 @@ function loadFirebaseData() {
                 Study: fullData['Study'],
                 Quiz:  fullData['Quiz'],
                 QBank: fullData['QBank'],
-                Notice: fullData['Notice']
+                Notice: fullData['Notice'],
+                Typing: fullData['Typing']
             });
 
             if (dbDot) dbDot.style.display = 'none';
@@ -3001,6 +3004,15 @@ function renderHome(container) {
         </div>
     </div>
 
+    <!-- TYPING TEST -->
+    <div onclick="openTypingTest()" style="background:linear-gradient(135deg,#0c4a6e,#0369a1);border-radius:14px;padding:13px 14px;margin-top:10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border:1px solid rgba(56,189,248,0.25);">
+        <div>
+            <div style="color:white;font-weight:900;font-size:14px;">⌨️ Typing Test</div>
+            <div style="color:rgba(255,255,255,0.6);font-size:11px;margin-top:1px;">টাইপিং স্পিড ও নির্ভুলতা যাচাই করো</div>
+        </div>
+        <div style="background:rgba(56,189,248,0.2);border-radius:10px;padding:6px 12px;color:#7dd3fc;font-weight:900;font-size:13px;">শুরু করো ❯</div>
+    </div>
+
     </div></div>`;
 
     // Countdown শুরু
@@ -3009,6 +3021,503 @@ function renderHome(container) {
 
 
 
+
+// ═══════════════════════════════════════════
+// ⌨️  TYPING TEST — Full Overlay System
+// ═══════════════════════════════════════════
+
+function openTypingTest() {
+    // overlay আগে না থাকলে তৈরি করো
+    var existing = document.getElementById('typing-overlay');
+    if (existing) { existing.style.display = 'flex'; renderTypingHome(); return; }
+
+    var overlay = document.createElement('div');
+    overlay.id = 'typing-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:#f8fafc;z-index:9999;display:flex;flex-direction:column;overflow:hidden;';
+    overlay.innerHTML = `
+    <style>
+        #typing-overlay { font-family:"Noto Sans Bengali",sans-serif; }
+        .tt-topbar { background:linear-gradient(135deg,#0c4a6e,#0369a1);padding:14px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0; }
+        .tt-back { background:rgba(255,255,255,0.15);border:none;border-radius:10px;color:white;font-size:18px;padding:6px 11px;cursor:pointer; }
+        .tt-title { color:white;font-weight:900;font-size:16px;flex:1; }
+        .tt-body { flex:1;overflow-y:auto;padding:14px; }
+        .tt-card { background:white;border-radius:14px;padding:14px;margin-bottom:10px;border:1px solid rgba(0,0,0,0.06);box-shadow:0 2px 8px rgba(0,0,0,0.05); }
+        .tt-label { font-size:11px;font-weight:800;color:#64748b;margin-bottom:6px; }
+        .tt-select { width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:13px;font-weight:700;background:white;color:#1e293b;-webkit-appearance:none;appearance:none; }
+        .tt-start-btn { width:100%;padding:14px;background:linear-gradient(135deg,#0369a1,#0c4a6e);color:white;border:none;border-radius:14px;font-size:15px;font-weight:900;cursor:pointer;margin-top:6px; }
+        .tt-custom-area { width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:13px;font-weight:600;min-height:100px;resize:none;box-sizing:border-box;color:#1e293b; }
+        /* Practice screen */
+        .tt-timer-bar { background:white;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e2e8f0;flex-shrink:0; }
+        .tt-timer-num { font-size:26px;font-weight:900;color:#0369a1;font-variant-numeric:tabular-nums; }
+        .tt-stat-pill { background:#f1f5f9;border-radius:10px;padding:5px 10px;text-align:center; }
+        .tt-stat-pill .v { font-size:15px;font-weight:900;color:#0f172a; }
+        .tt-stat-pill .l { font-size:9px;font-weight:700;color:#94a3b8; }
+        .tt-passage { font-size:16px;line-height:2;letter-spacing:0.3px;padding:14px;background:white;border-radius:14px;border:1.5px solid #e2e8f0;margin-bottom:10px;min-height:120px; }
+        .tt-ch { color:#cbd5e1; }
+        .tt-ch.correct { color:#16a34a; }
+        .tt-ch.wrong { color:#dc2626;background:#fef2f2;border-radius:3px; }
+        .tt-ch.cursor { border-left:2.5px solid #0369a1;margin-left:-1px;animation:tt-blink 1s infinite; }
+        @keyframes tt-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+        .tt-input { position:absolute;opacity:0;pointer-events:none; }
+        .tt-tap-hint { text-align:center;color:#94a3b8;font-size:12px;font-weight:700;padding:8px; }
+        .tt-finish-btn { width:100%;padding:12px;background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;border:none;border-radius:12px;font-size:14px;font-weight:900;cursor:pointer; }
+        /* Result */
+        .tt-result-ring { width:110px;height:110px;margin:0 auto 16px;position:relative; }
+        .tt-result-val { position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center; }
+        .tt-result-grid { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px; }
+        .tt-result-box { background:#f8fafc;border-radius:12px;padding:12px;text-align:center;border:1px solid rgba(0,0,0,0.06); }
+        .tt-result-box .rv { font-size:22px;font-weight:900;color:#0369a1; }
+        .tt-result-box .rl { font-size:10px;font-weight:700;color:#94a3b8;margin-top:3px; }
+        .tt-wrong-list { background:#fef2f2;border-radius:12px;padding:12px;border:1px solid #fecaca; }
+        .tt-wrong-word { display:inline-block;background:white;border:1px solid #fca5a5;border-radius:8px;padding:3px 8px;font-size:12px;font-weight:700;color:#dc2626;margin:3px; }
+        .tt-tab-row { display:flex;margin-bottom:12px;background:#f1f5f9;border-radius:12px;padding:3px; }
+        .tt-tab { flex:1;padding:8px;text-align:center;font-size:12px;font-weight:800;border-radius:9px;cursor:pointer;border:none;background:transparent;color:#64748b; }
+        .tt-tab.active { background:white;color:#0369a1;box-shadow:0 1px 4px rgba(0,0,0,0.1); }
+    </style>
+
+    <!-- Topbar -->
+    <div class="tt-topbar">
+        <button class="tt-back" onclick="closeTypingTest()">←</button>
+        <span class="tt-title">⌨️ Typing Test</span>
+        <span id="tt-mode-badge" style="background:rgba(255,255,255,0.15);color:white;font-size:10px;font-weight:800;padding:3px 9px;border-radius:8px;">HOME</span>
+    </div>
+
+    <!-- Body (dynamic) -->
+    <div class="tt-body" id="tt-body">
+        <div style="text-align:center;padding:40px;color:#94a3b8;">লোড হচ্ছে...</div>
+    </div>
+
+    <!-- hidden input for typing capture -->
+    <input type="text" class="tt-input" id="tt-hidden-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+        oninput="ttHandleInput(this.value)" onkeydown="ttHandleKey(event)">
+    `;
+    document.body.appendChild(overlay);
+
+    // ── Typing state
+    window._tt = {
+        passage: '',
+        title: '',
+        typed: '',
+        startTime: null,
+        timerInterval: null,
+        timeLimit: 0,   // seconds; 0 = unlimited
+        timeElapsed: 0,
+        running: false,
+        finished: false,
+        wrongWords: [],
+        wpm: 0,
+        accuracy: 0,
+        totalChars: 0,
+        correctChars: 0,
+        tab: 'db',   // 'db' | 'custom'
+        selectedPassageIdx: 0,
+        selectedTime: 180,
+        selectedLevel: '',
+        selectedSubject: ''
+    };
+
+    renderTypingHome();
+}
+
+function closeTypingTest() {
+    var ov = document.getElementById('typing-overlay');
+    if (ov) ov.style.display = 'none';
+    ttStop();
+}
+
+// ─── HOME SCREEN ───────────────────────────────
+function renderTypingHome() {
+    ttStop();
+    document.getElementById('tt-mode-badge').innerText = 'HOME';
+
+    var tt = window._tt;
+    var passages = getTypingPassages();
+
+    // Filter options
+    var subjects = [...new Set(passages.map(p => p.subject).filter(Boolean))];
+    var levels   = [...new Set(passages.map(p => p.level).filter(Boolean))];
+
+    var subjectOpts = subjects.map(s => `<option value="${s}" ${tt.selectedSubject===s?'selected':''}>${s}</option>`).join('');
+    var levelOpts   = levels.map(l => `<option value="${l}" ${tt.selectedLevel===l?'selected':''}>${l}</option>`).join('');
+
+    // Filtered passages
+    var filtered = passages.filter(p => {
+        if (tt.selectedSubject && p.subject !== tt.selectedSubject) return false;
+        if (tt.selectedLevel  && p.level  !== tt.selectedLevel)  return false;
+        return true;
+    });
+    var passageOpts = filtered.map((p, i) => `<option value="${i}">${p.title||('অনুচ্ছেদ '+(i+1))}</option>`).join('');
+    if (!passageOpts) passageOpts = '<option>কোনো অনুচ্ছেদ নেই</option>';
+
+    var noData = passages.length === 0;
+
+    document.getElementById('tt-body').innerHTML = `
+    <!-- Tab row -->
+    <div class="tt-tab-row">
+        <button class="tt-tab ${tt.tab==='db'?'active':''}" onclick="ttSwitchTab('db')">📚 Firebase Passages</button>
+        <button class="tt-tab ${tt.tab==='custom'?'active':''}" onclick="ttSwitchTab('custom')">✏️ Custom Text</button>
+    </div>
+
+    ${tt.tab === 'db' ? `
+    <!-- DB TAB -->
+    ${noData ? `<div class="tt-card" style="text-align:center;color:#94a3b8;padding:30px;">
+        <div style="font-size:32px;margin-bottom:8px;">📭</div>
+        <div style="font-weight:800;">Firebase-এ কোনো Typing ডেটা নেই</div>
+        <div style="font-size:11px;margin-top:6px;">Firebase-এ <b>Typing</b> collection যোগ করুন<br>অথবা Custom Text ব্যবহার করুন</div>
+        <div style="font-size:10px;margin-top:10px;background:#f1f5f9;border-radius:8px;padding:8px;text-align:left;color:#64748b;">
+            Firebase structure:<br>
+            <code>Typing/ { id, title, subject, level, language, content }</code>
+        </div>
+    </div>` : `
+    <div class="tt-card">
+        <div class="tt-label">বিষয় নির্বাচন</div>
+        <select class="tt-select" onchange="ttSetFilter('subject',this.value)">
+            <option value="">সব বিষয়</option>
+            ${subjectOpts}
+        </select>
+    </div>
+    <div class="tt-card">
+        <div class="tt-label">লেভেল নির্বাচন</div>
+        <select class="tt-select" onchange="ttSetFilter('level',this.value)">
+            <option value="">সব লেভেল</option>
+            ${levelOpts}
+        </select>
+    </div>
+    <div class="tt-card">
+        <div class="tt-label">অনুচ্ছেদ নির্বাচন</div>
+        <select class="tt-select" id="tt-passage-sel">
+            ${passageOpts}
+        </select>
+    </div>
+    <div class="tt-card">
+        <div class="tt-label">সময় নির্বাচন</div>
+        <select class="tt-select" id="tt-time-sel">
+            <option value="180" ${tt.selectedTime===180?'selected':''}>৩ মিনিট</option>
+            <option value="300" ${tt.selectedTime===300?'selected':''}>৫ মিনিট</option>
+            <option value="420" ${tt.selectedTime===420?'selected':''}>৭ মিনিট</option>
+            <option value="600" ${tt.selectedTime===600?'selected':''}>১০ মিনিট</option>
+            <option value="0">সময় সীমা নেই</option>
+        </select>
+    </div>
+    <button class="tt-start-btn" onclick="ttStartFromDB()">▶ Typing Test শুরু করো</button>
+    `}
+    ` : `
+    <!-- CUSTOM TAB -->
+    <div class="tt-card">
+        <div class="tt-label">টেক্সট টাইটেল (ঐচ্ছিক)</div>
+        <input id="tt-custom-title" class="tt-select" placeholder="শিরোনাম লিখুন..." style="margin-bottom:0;">
+    </div>
+    <div class="tt-card">
+        <div class="tt-label">তোমার টেক্সট লিখো বা পেস্ট করো</div>
+        <textarea id="tt-custom-text" class="tt-custom-area" placeholder="এখানে অনুচ্ছেদ লিখুন বা পেস্ট করুন..."></textarea>
+    </div>
+    <div class="tt-card">
+        <div class="tt-label">সময় নির্বাচন</div>
+        <select class="tt-select" id="tt-custom-time">
+            <option value="120">২ মিনিট</option>
+            <option value="180" selected>৩ মিনিট</option>
+            <option value="300">৫ মিনিট</option>
+            <option value="600">১০ মিনিট</option>
+            <option value="0">সময় সীমা নেই</option>
+        </select>
+    </div>
+    <button class="tt-start-btn" onclick="ttStartCustom()">▶ Custom Typing শুরু করো</button>
+    `}
+    `;
+}
+
+function ttSwitchTab(tab) { window._tt.tab = tab; renderTypingHome(); }
+function ttSetFilter(key, val) {
+    window._tt['selected'+key.charAt(0).toUpperCase()+key.slice(1)] = val;
+    window._tt.selectedPassageIdx = 0;
+    renderTypingHome();
+}
+
+function getTypingPassages() {
+    var raw = fullData['Typing'] || [];
+    return raw.map(function(item) {
+        return {
+            title:    getVal(item,'title')   || getVal(item,'Title')   || '',
+            subject:  getVal(item,'subject') || getVal(item,'Subject') || '',
+            level:    getVal(item,'level')   || getVal(item,'Level')   || '',
+            language: getVal(item,'language')|| getVal(item,'Language')|| 'bn',
+            content:  getVal(item,'content') || getVal(item,'Content') || ''
+        };
+    }).filter(function(p){ return p.content && p.content.trim().length > 5; });
+}
+
+function ttStartFromDB() {
+    var passages = getTypingPassages();
+    var subject  = window._tt.selectedSubject;
+    var level    = window._tt.selectedLevel;
+    var filtered = passages.filter(p => {
+        if (subject && p.subject !== subject) return false;
+        if (level  && p.level  !== level)  return false;
+        return true;
+    });
+    var idx = parseInt(document.getElementById('tt-passage-sel')?.value || '0');
+    var p   = filtered[idx] || filtered[0];
+    if (!p) { ttAlert('অনুচ্ছেদ পাওয়া যায়নি! Firebase-এ Typing data যোগ করুন।'); return; }
+    var timeLimit = parseInt(document.getElementById('tt-time-sel')?.value || '180');
+    ttBegin(p.content.trim(), p.title || 'অনুচ্ছেদ', timeLimit);
+}
+
+function ttStartCustom() {
+    var txt = (document.getElementById('tt-custom-text')?.value || '').trim();
+    var title = (document.getElementById('tt-custom-title')?.value || '').trim() || 'Custom Text';
+    if (txt.length < 10) { ttAlert('অনুচ্ছেদ অনেক ছোট! আরও টেক্সট লিখুন।'); return; }
+    var timeLimit = parseInt(document.getElementById('tt-custom-time')?.value || '180');
+    ttBegin(txt, title, timeLimit);
+}
+
+// ─── PRACTICE SCREEN ───────────────────────────────
+function ttBegin(passage, title, timeLimit) {
+    var tt  = window._tt;
+    tt.passage    = passage;
+    tt.title      = title;
+    tt.typed      = '';
+    tt.startTime  = null;
+    tt.timeElapsed= 0;
+    tt.timeLimit  = timeLimit;
+    tt.running    = false;
+    tt.finished   = false;
+    tt.wrongWords = [];
+    tt.wpm        = 0;
+    tt.accuracy   = 100;
+    tt.totalChars = 0;
+    tt.correctChars = 0;
+
+    document.getElementById('tt-mode-badge').innerText = title.slice(0,12)+(title.length>12?'…':'');
+
+    var timeLabel = timeLimit === 0 ? '∞' : ttFormatTime(timeLimit);
+    document.getElementById('tt-body').innerHTML = `
+    <div class="tt-timer-bar" style="display:flex;gap:10px;">
+        <div class="tt-stat-pill" style="flex:1;">
+            <div class="v" id="tt-timer">${timeLabel}</div>
+            <div class="l">সময়</div>
+        </div>
+        <div class="tt-stat-pill" style="flex:1;">
+            <div class="v" id="tt-wpm">0</div>
+            <div class="l">WPM</div>
+        </div>
+        <div class="tt-stat-pill" style="flex:1;">
+            <div class="v" id="tt-acc">100%</div>
+            <div class="l">নির্ভুলতা</div>
+        </div>
+        <div class="tt-stat-pill" style="flex:1;">
+            <div class="v" id="tt-chars">0</div>
+            <div class="l">অক্ষর</div>
+        </div>
+    </div>
+    <div style="padding:12px;">
+        <div class="tt-passage" id="tt-passage-display" onclick="ttFocusInput()"></div>
+        <div class="tt-tap-hint" id="tt-hint">👆 উপরে ক্লিক/ট্যাপ করো টাইপিং শুরু করতে</div>
+        <button class="tt-finish-btn" onclick="ttFinish(true)">⏹ এখনই শেষ করো</button>
+    </div>
+    `;
+
+    ttRenderPassage();
+}
+
+function ttRenderPassage() {
+    var tt   = window._tt;
+    var pass = tt.passage;
+    var typed = tt.typed;
+    var html = '';
+    for (var i = 0; i < pass.length; i++) {
+        var ch = pass[i] === ' ' ? '&nbsp;' : pass[i] === '\n' ? '<br>' : pass[i];
+        var cls = 'tt-ch';
+        if (i < typed.length) {
+            cls += (typed[i] === pass[i]) ? ' correct' : ' wrong';
+        } else if (i === typed.length) {
+            cls += ' cursor';
+        }
+        html += `<span class="${cls}">${ch}</span>`;
+    }
+    var el = document.getElementById('tt-passage-display');
+    if (el) el.innerHTML = html;
+    // scroll cursor into view
+    var cur = el && el.querySelector('.cursor');
+    if (cur) cur.scrollIntoView({block:'center', behavior:'smooth'});
+}
+
+function ttFocusInput() {
+    var inp = document.getElementById('tt-hidden-input');
+    if (inp) { inp.focus(); inp.click(); }
+    var hint = document.getElementById('tt-hint');
+    if (hint) hint.style.display = 'none';
+}
+
+function ttHandleInput(val) {
+    var tt = window._tt;
+    if (tt.finished) return;
+    if (!tt.running) ttStartTimer();
+
+    tt.typed = val;
+
+    // live stats
+    var correct = 0;
+    for (var i = 0; i < val.length && i < tt.passage.length; i++) {
+        if (val[i] === tt.passage[i]) correct++;
+    }
+    tt.totalChars   = val.length;
+    tt.correctChars = correct;
+    tt.accuracy     = val.length > 0 ? Math.round(correct / val.length * 100) : 100;
+
+    var elapsed = tt.startTime ? (Date.now() - tt.startTime) / 60000 : 0;
+    var words   = val.trim().split(/\s+/).filter(w => w).length;
+    tt.wpm = elapsed > 0 ? Math.round(words / elapsed) : 0;
+
+    ttRenderPassage();
+    ttUpdateStats();
+
+    // auto-finish when passage complete
+    if (val.length >= tt.passage.length) { ttFinish(false); return; }
+}
+
+function ttHandleKey(e) {
+    // prevent backspace from navigating
+    if (e.key === 'Backspace') { /* allow default */ }
+}
+
+function ttStartTimer() {
+    var tt = window._tt;
+    tt.running   = true;
+    tt.startTime = Date.now();
+    if (tt.timerInterval) clearInterval(tt.timerInterval);
+    tt.timerInterval = setInterval(function() {
+        if (!tt.running) return;
+        tt.timeElapsed = Math.floor((Date.now() - tt.startTime) / 1000);
+        var remaining  = tt.timeLimit > 0 ? tt.timeLimit - tt.timeElapsed : 0;
+        var el = document.getElementById('tt-timer');
+        if (el) el.innerText = tt.timeLimit > 0 ? ttFormatTime(Math.max(0, remaining)) : ttFormatTime(tt.timeElapsed);
+        if (tt.timeLimit > 0 && remaining <= 0) { ttFinish(true); }
+        // color red in last 30s
+        if (el && tt.timeLimit > 0 && remaining <= 30) el.style.color = '#dc2626';
+    }, 500);
+}
+
+function ttStop() {
+    var tt = window._tt;
+    if (!tt) return;
+    tt.running = false;
+    if (tt.timerInterval) { clearInterval(tt.timerInterval); tt.timerInterval = null; }
+}
+
+function ttUpdateStats() {
+    var tt = window._tt;
+    var wEl  = document.getElementById('tt-wpm');
+    var aEl  = document.getElementById('tt-acc');
+    var cEl  = document.getElementById('tt-chars');
+    if (wEl) wEl.innerText = tt.wpm;
+    if (aEl) { aEl.innerText = tt.accuracy + '%'; aEl.style.color = tt.accuracy >= 90 ? '#16a34a' : tt.accuracy >= 70 ? '#d97706' : '#dc2626'; }
+    if (cEl) cEl.innerText  = tt.totalChars;
+}
+
+function ttFormatTime(sec) {
+    var m = Math.floor(sec/60);
+    var s = sec % 60;
+    return (m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+}
+
+function ttFinish(forced) {
+    var tt = window._tt;
+    if (tt.finished) return;
+    tt.finished = true;
+    ttStop();
+
+    var elapsed  = tt.startTime ? (Date.now() - tt.startTime) / 1000 : 1;
+    var words    = tt.typed.trim().split(/\s+/).filter(w=>w).length;
+    var wpm      = elapsed > 0 ? Math.round(words / (elapsed/60)) : 0;
+    var accuracy = tt.totalChars > 0 ? Math.round(tt.correctChars / tt.totalChars * 100) : 100;
+
+    // wrong words
+    var passWords  = tt.passage.split(/\s+/);
+    var typedWords = tt.typed.split(/\s+/);
+    var wrongWords = [];
+    passWords.forEach(function(w, i) {
+        if (typedWords[i] && typedWords[i] !== w) wrongWords.push({expected: w, typed: typedWords[i]});
+    });
+
+    var grade = accuracy >= 95 ? {g:'S',c:'#7c3aed'} : accuracy >= 85 ? {g:'A',c:'#059669'} : accuracy >= 70 ? {g:'B',c:'#2563eb'} : accuracy >= 50 ? {g:'C',c:'#d97706'} : {g:'D',c:'#dc2626'};
+    var circumference = 2 * Math.PI * 42;
+    var dashOffset    = circumference - (accuracy / 100 * circumference);
+    var ringColor     = accuracy >= 85 ? '#10b981' : accuracy >= 60 ? '#f59e0b' : '#ef4444';
+
+    var wrongHTML = wrongWords.length > 0 ? `
+    <div class="tt-wrong-list">
+        <div style="font-size:12px;font-weight:900;color:#dc2626;margin-bottom:8px;">❌ ভুল শব্দগুলো (${Math.min(wrongWords.length,20)}টি)</div>
+        ${wrongWords.slice(0,20).map(w=>`<span class="tt-wrong-word" title="সঠিক: ${w.expected}">${w.typed}</span>`).join('')}
+        ${wrongWords.length>20?`<div style="font-size:11px;color:#94a3b8;margin-top:6px;">আরও ${wrongWords.length-20}টি ভুল...</div>`:''}
+    </div>` : `<div style="background:#f0fdf4;border-radius:12px;padding:14px;text-align:center;border:1px solid #bbf7d0;color:#166534;font-weight:800;">🎉 কোনো ভুল নেই! অসাধারণ!</div>`;
+
+    document.getElementById('tt-mode-badge').innerText = 'RESULT';
+    document.getElementById('tt-body').innerHTML = `
+    <div style="text-align:center;margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:800;color:#64748b;margin-bottom:12px;">📊 ফলাফল — ${tt.title}</div>
+        <!-- Accuracy ring -->
+        <div class="tt-result-ring">
+            <svg width="110" height="110" viewBox="0 0 110 110">
+                <circle cx="55" cy="55" r="42" fill="none" stroke="#e2e8f0" stroke-width="9"/>
+                <circle cx="55" cy="55" r="42" fill="none" stroke="${ringColor}" stroke-width="9"
+                    stroke-dasharray="${circumference}" stroke-dashoffset="${dashOffset}"
+                    stroke-linecap="round" transform="rotate(-90 55 55)" style="transition:stroke-dashoffset 1s ease;"/>
+            </svg>
+            <div class="tt-result-val">
+                <div style="font-size:24px;font-weight:900;color:${grade.c};">${grade.g}</div>
+                <div style="font-size:13px;font-weight:900;color:#0f172a;">${accuracy}%</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tt-result-grid">
+        <div class="tt-result-box">
+            <div class="rv" style="color:#0369a1;">${wpm}</div>
+            <div class="rl">WPM (শব্দ/মিনিট)</div>
+        </div>
+        <div class="tt-result-box">
+            <div class="rv" style="color:${accuracy>=85?'#16a34a':'#dc2626'};">${accuracy}%</div>
+            <div class="rl">নির্ভুলতা</div>
+        </div>
+        <div class="tt-result-box">
+            <div class="rv" style="color:#7c3aed;">${tt.correctChars}</div>
+            <div class="rl">সঠিক অক্ষর</div>
+        </div>
+        <div class="tt-result-box">
+            <div class="rv" style="color:#d97706;">${ttFormatTime(Math.floor(elapsed))}</div>
+            <div class="rl">সময় নিয়েছ</div>
+        </div>
+    </div>
+
+    ${wrongHTML}
+
+    <div style="margin-top:14px;display:grid;gap:8px;">
+        <button onclick="ttBegin('${tt.passage.replace(/'/g,"\\'")}','${tt.title.replace(/'/g,"\\'")}',${tt.timeLimit})"
+            style="width:100%;padding:13px;background:linear-gradient(135deg,#0369a1,#0c4a6e);color:white;border:none;border-radius:12px;font-size:14px;font-weight:900;cursor:pointer;">
+            🔄 আবার চেষ্টা করো
+        </button>
+        <button onclick="renderTypingHome()"
+            style="width:100%;padding:13px;background:#f1f5f9;color:#1e293b;border:none;border-radius:12px;font-size:14px;font-weight:900;cursor:pointer;">
+            ← নতুন অনুচ্ছেদ বেছে নাও
+        </button>
+    </div>
+    `;
+}
+
+function ttAlert(msg) {
+    var b = document.getElementById('tt-body');
+    var old = b.querySelector('.tt-alert');
+    if(old) old.remove();
+    var d = document.createElement('div');
+    d.className='tt-alert';
+    d.style.cssText='background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:10px 14px;color:#dc2626;font-weight:800;font-size:13px;margin-bottom:10px;';
+    d.innerText='⚠️ '+msg;
+    b.insertBefore(d, b.firstChild);
+    setTimeout(()=>d.remove(), 3000);
+}
+
+// Firebase Typing data load — existing loadFirebaseData() এর মধ্যে যোগ হবে স্বয়ংক্রিয়ভাবে
+// fullData['Typing'] populate করা হবে fixData('Typing') দিয়ে
 
 function getChallengeProgress() {
     const today = new Date().toDateString();
