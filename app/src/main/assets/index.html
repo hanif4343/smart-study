@@ -3193,7 +3193,7 @@ function renderTypingHome() {
         <div style="font-size:11px;margin-top:6px;">Firebase-এ <b>Typing</b> collection যোগ করুন<br>অথবা Custom Text ব্যবহার করুন</div>
         <div style="font-size:10px;margin-top:10px;background:#f1f5f9;border-radius:8px;padding:8px;text-align:left;color:#64748b;">
             Firebase structure:<br>
-            <code>Typing/ { Id, Title, Level, Language, Content, AudienceTags }</code>
+            <code>Typing/ { id, title, level, language, content, audiencetags }</code>
         </div>
     </div>` : `
     <div class="tt-card">
@@ -3264,11 +3264,11 @@ function getTypingPassages() {
     var raw = fullData['Typing'] || [];
     return raw.map(function(item) {
         return {
-            title:    getVal(item,'Title')    || '',
-            level:    getVal(item,'Level')    || '',
-            language: getVal(item,'Language') || 'bn',
-            content:  getVal(item,'Content')  || '',
-            subject:  getVal(item,'Language') || ''
+            title:    getVal(item,'title')    || '',
+            level:    getVal(item,'level')    || '',
+            language: getVal(item,'language') || 'bn',
+            content:  getVal(item,'content')  || '',
+
         };
     }).filter(function(p){ return p.content && p.content.trim().length > 5; });
 }
