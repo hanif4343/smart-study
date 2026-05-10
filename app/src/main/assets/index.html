@@ -3051,9 +3051,18 @@ function renderHome(container) {
 // ═══════════════════════════════════════════
 
 function openTypingTest() {
-    // overlay আগে না থাকলে তৈরি করো
     var existing = document.getElementById('typing-overlay');
-    if (existing) { existing.style.display = 'flex'; renderTypingHome(); history.pushState({mode:currentMode,path:[...path]},''); return; }
+    if (existing) {
+        existing.style.display = 'flex';
+        // fullData['Typing'] empty হলে আবার load করো
+        if (!fullData['Typing'] || fullData['Typing'].length === 0) {
+            ttLoadTypingData(function(){ renderTypingHome(); });
+        } else {
+            renderTypingHome();
+        }
+        history.pushState({mode:currentMode,path:[...path]},'');
+        return;
+    }
 
     var overlay = document.createElement('div');
     overlay.id = 'typing-overlay';
@@ -3127,7 +3136,7 @@ function openTypingTest() {
         typed: '',
         startTime: null,
         timerInterval: null,
-        timeLimit: 0,   // seconds; 0 = unlimited
+        timeLimit: 0,
         timeElapsed: 0,
         running: false,
         finished: false,
@@ -3136,14 +3145,19 @@ function openTypingTest() {
         accuracy: 0,
         totalChars: 0,
         correctChars: 0,
-        tab: 'db',   // 'db' | 'custom'
+        tab: 'db',
         selectedPassageIdx: 0,
         selectedTime: 180,
         selectedLevel: '',
         selectedSubject: ''
     };
 
-    renderTypingHome();
+    // fullData['Typing'] empty হলে সরাসরি Firebase থেকে load করো
+    if (!fullData['Typing'] || fullData['Typing'].length === 0) {
+        ttLoadTypingData(function(){ renderTypingHome(); });
+    } else {
+        renderTypingHome();
+    }
 }
 
 function closeTypingTest() {
@@ -3193,7 +3207,7 @@ function renderTypingHome() {
         <div style="font-size:11px;margin-top:6px;">Firebase-এ <b>Typing</b> collection যোগ করুন<br>অথবা Custom Text ব্যবহার করুন</div>
         <div style="font-size:10px;margin-top:10px;background:#f1f5f9;border-radius:8px;padding:8px;text-align:left;color:#64748b;">
             Firebase structure:<br>
-            <code>Typing/ { id, title, level, language, content, audiencetags }</code>
+            <code>Typing/ { Id, Title, Level, Language, Content, AudienceTags }</code>
         </div>
     </div>` : `
     <div class="tt-card">
@@ -3260,15 +3274,33 @@ function ttSetFilter(key, val) {
     renderTypingHome();
 }
 
+// ── Typing data সরাসরি Firebase থেকে load করো ──
+function ttLoadTypingData(callback) {
+    var body = document.getElementById('tt-body');
+    if (body) body.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b;font-weight:700;">⏳ ডেটা লোড হচ্ছে...</div>';
+
+    fetch(FIREBASE_URL + 'Typing.json?auth=' + SECRET_KEY)
+        .then(function(r){ return r.json(); })
+        .then(function(data){
+            if (data && typeof data === 'object') {
+                fullData['Typing'] = Array.isArray(data) ? data : Object.values(data);
+            }
+            if (callback) callback();
+        })
+        .catch(function(){
+            if (callback) callback(); // error হলেও render করো (empty দেখাবে)
+        });
+}
+
 function getTypingPassages() {
     var raw = fullData['Typing'] || [];
     return raw.map(function(item) {
         return {
-            title:    getVal(item,'title')    || '',
-            level:    getVal(item,'level')    || '',
-            language: getVal(item,'language') || 'bn',
-            content:  getVal(item,'content')  || '',
-
+            title:    getVal(item,'Title')    || getVal(item,'title')    || '',
+            level:    getVal(item,'Level')    || getVal(item,'level')    || '',
+            language: getVal(item,'Language') || getVal(item,'language') || 'Bangla',
+            content:  getVal(item,'Content')  || getVal(item,'content')  || '',
+            subject:  getVal(item,'Language') || getVal(item,'language') || ''
         };
     }).filter(function(p){ return p.content && p.content.trim().length > 5; });
 }
