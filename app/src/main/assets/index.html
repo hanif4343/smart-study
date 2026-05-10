@@ -3453,37 +3453,69 @@ function ttFinish(forced) {
     tt.finished = true;
     ttStop();
 
-    var elapsed  = tt.startTime ? (Date.now() - tt.startTime) / 1000 : 1;
-    var words    = tt.typed.trim().split(/\s+/).filter(w=>w).length;
-    var wpm      = elapsed > 0 ? Math.round(words / (elapsed/60)) : 0;
-    var accuracy = tt.totalChars > 0 ? Math.round(tt.correctChars / tt.totalChars * 100) : 100;
+    var elapsedSec  = tt.startTime ? (Date.now() - tt.startTime) / 1000 : 1;
+    var elapsedMin  = elapsedSec / 60;
 
-    // wrong words
-    var passWords  = tt.passage.split(/\s+/);
-    var typedWords = tt.typed.split(/\s+/);
+    // ── চরিত্র হিসাব ──
+    var charsWithSpace = tt.typed.length;
+    var charsNoSpace   = tt.typed.replace(/\s/g,'').length;
+
+    // ── ভুল শব্দ বের করো (character-level) ──
+    var passWordsArr  = tt.passage.trim().split(/\s+/);
+    var typedWordsArr = tt.typed.trim().split(/\s+/).filter(w=>w);
     var wrongWords = [];
-    passWords.forEach(function(w, i) {
-        if (typedWords[i] && typedWords[i] !== w) wrongWords.push({expected: w, typed: typedWords[i]});
+    passWordsArr.forEach(function(w, i) {
+        if (typedWordsArr[i] !== undefined && typedWordsArr[i] !== w) {
+            wrongWords.push({expected: w, typed: typedWordsArr[i]});
+        }
     });
+
+    // ── Character-level ভুল গণনা (সঠিক accuracy) ──
+    var totalTyped   = tt.typed.length;
+    var correctChars = 0;
+    for (var ci = 0; ci < totalTyped && ci < tt.passage.length; ci++) {
+        if (tt.typed[ci] === tt.passage[ci]) correctChars++;
+    }
+    var wrongChars   = totalTyped - correctChars;
+    var accuracy     = totalTyped > 0 ? Math.round((correctChars / totalTyped) * 100) : 0;
+
+    // ── Word stats ──
+    var totalTypedWords = typedWordsArr.length;
+    var correctWords    = 0;
+    passWordsArr.forEach(function(w,i){ if(typedWordsArr[i]===w) correctWords++; });
+    var mistakeCount    = wrongWords.length;
+    var skippedCount    = Math.max(0, passWordsArr.length - typedWordsArr.length);
+
+    // ── WPM হিসাব (selftyping.com / standard) ──
+    // Gross WPM (With Space) = সব typed chars ÷ 5 ÷ minutes (space সহ)
+    var grossWPM = elapsedMin > 0 ? Math.round((charsWithSpace / 5) / elapsedMin) : 0;
+
+    // Net WPM (With Space) = শুধু correct chars ÷ 5 ÷ minutes
+    // এটাই real speed — ভুলগুলো count হবে না
+    var netWPM = elapsedMin > 0 ? Math.round((correctChars / 5) / elapsedMin) : 0;
+
+    // WPM Without Space = space বাদে সব chars ÷ 5 ÷ minutes
+    var wpmNoSpace = elapsedMin > 0 ? Math.round((charsNoSpace / 5) / elapsedMin) : 0;
+
+    // WPM Word-based = total typed words ÷ minutes (gross, speed measure)
+    var wpmWordBased = elapsedMin > 0 ? Math.round(totalTypedWords / elapsedMin) : 0;
+
+    // display এ "wpm" = gross WPM with space (typobd এর "WPM With Space" এর মত)
+    var wpm = grossWPM;
+    var elapsed = elapsedSec;
+
+    // ── PASSED/FAILED — সঠিক লজিক ──
+    // word-level accuracy = correct words / total typed words
+    var wordAccuracy = totalTypedWords > 0 ? (correctWords / totalTypedWords) * 100 : 0;
+    // PASSED হতে হলে:
+    //   - word accuracy >= 80% (সঠিকভাবে type করা words)
+    //   - net WPM >= 20 (minimum useful speed)
+    var isPassed = (wordAccuracy >= 80) && (netWPM >= 20);
 
     var grade = accuracy >= 95 ? {g:'S',c:'#7c3aed'} : accuracy >= 85 ? {g:'A',c:'#059669'} : accuracy >= 70 ? {g:'B',c:'#2563eb'} : accuracy >= 50 ? {g:'C',c:'#d97706'} : {g:'D',c:'#dc2626'};
     var circumference = 2 * Math.PI * 42;
     var dashOffset    = circumference - (accuracy / 100 * circumference);
     var ringColor     = accuracy >= 85 ? '#10b981' : accuracy >= 60 ? '#f59e0b' : '#ef4444';
-
-    // typobd-এর মত সব stats হিসাব
-    var charsWithSpace  = tt.typed.length;
-    var charsNoSpace    = tt.typed.replace(/\s/g,'').length;
-    var wpmNoSpace      = elapsed > 0 ? Math.round((charsNoSpace / 5) / (elapsed/60)) : 0;
-    var wpmWordBased    = elapsed > 0 ? Math.round(words / (elapsed/60)) : 0;
-    var totalTypedWords = words;
-    var correctWords    = 0;
-    var passWordsArr    = tt.passage.split(/\s+/);
-    var typedWordsArr   = tt.typed.split(/\s+/);
-    passWordsArr.forEach(function(w,i){ if(typedWordsArr[i]===w) correctWords++; });
-    var mistakeCount    = wrongWords.length;
-    var skippedCount    = Math.max(0, passWordsArr.length - typedWordsArr.length);
-    var isPassed        = accuracy >= 80 && wpm >= 20;
 
     var wrongHTML = wrongWords.length > 0 ? `
     <div class="tt-wrong-list">
@@ -3491,6 +3523,9 @@ function ttFinish(forced) {
         ${wrongWords.slice(0,20).map(w=>`<span class="tt-wrong-word" title="সঠিক: ${w.expected}">${w.typed}</span>`).join('')}
         ${wrongWords.length>20?`<div style="font-size:11px;color:#94a3b8;margin-top:6px;">আরও ${wrongWords.length-20}টি ভুল...</div>`:''}
     </div>` : `<div style="background:#f0fdf4;border-radius:12px;padding:14px;text-align:center;border:1px solid #bbf7d0;color:#166534;font-weight:800;">🎉 কোনো ভুল নেই! অসাধারণ!</div>`;
+
+    // Duration format
+    var durMins = Math.floor(elapsedSec / 60);
 
     document.getElementById('tt-mode-badge').innerText = 'RESULT';
     document.getElementById('tt-body').innerHTML = `
@@ -3512,7 +3547,7 @@ function ttFinish(forced) {
 
     <div class="tt-result-grid">
         <div class="tt-result-box">
-            <div class="rv" style="color:#0369a1;">${wpm}</div>
+            <div class="rv" style="color:#0369a1;">${grossWPM}</div>
             <div class="rl">WPM (With Space)</div>
         </div>
         <div class="tt-result-box">
@@ -3524,7 +3559,7 @@ function ttFinish(forced) {
             <div class="rl">WPM (Word-based)</div>
         </div>
         <div class="tt-result-box">
-            <div class="rv" style="color:${accuracy>=80?'#16a34a':'#dc2626'};">${accuracy}%</div>
+            <div class="rv" style="color:${wordAccuracy>=80?'#16a34a':'#dc2626'};">${accuracy}%</div>
             <div class="rl">Accuracy</div>
         </div>
         <div class="tt-result-box">
@@ -3544,24 +3579,24 @@ function ttFinish(forced) {
             <div class="rl">Characters (Without Space)</div>
         </div>
         <div class="tt-result-box">
-            <div class="rv" style="color:#d97706;">${ttFormatTime(Math.floor(elapsed))}</div>
+            <div class="rv" style="color:#d97706;font-size:20px;">${(durMins>0?String(durMins).padStart(2,'0')+':':'')+String(Math.floor(elapsedSec%60)).padStart(2,'0')}</div>
             <div class="rl">Duration</div>
         </div>
         <div class="tt-result-box">
-            <div class="rv" style="color:${isPassed?'#16a34a':'#dc2626'};">${isPassed?'PASSED':'FAILED'}</div>
+            <div class="rv" style="font-size:18px;font-weight:900;color:${isPassed?'#16a34a':'#dc2626'};">${isPassed?'PASSED':'FAILED'}</div>
             <div class="rl">Result</div>
         </div>
     </div>
 
     <!-- Total Mistakes breakdown -->
     <div class="tt-wrong-list" style="margin-bottom:10px;">
-        <div style="font-size:12px;font-weight:900;color:#dc2626;margin-bottom:6px;">Total Mistakes: ${mistakeCount}</div>
-        <div style="font-size:11px;color:#64748b;font-weight:700;">(Mistakes: ${mistakeCount}, Skipped: ${skippedCount}, Extra: 0, Spaces: 0)</div>
+        <div style="font-size:13px;font-weight:900;color:#dc2626;margin-bottom:5px;">Total Mistakes: ${mistakeCount}</div>
+        <div style="font-size:12px;color:#64748b;font-weight:700;">(Mistakes: ${mistakeCount}, Skipped: ${skippedCount}, Extra: 0, Spaces: 0)</div>
     </div>
 
     <!-- Your Typed Text -->
     <div style="background:#f8fafc;border-radius:12px;padding:12px;margin-bottom:10px;border:1px solid #e2e8f0;">
-        <div style="font-size:11px;font-weight:800;color:#64748b;margin-bottom:6px;">Your Typed Text:</div>
+        <div style="font-size:12px;font-weight:800;color:#64748b;margin-bottom:6px;">Your Typed Text:</div>
         <div style="font-size:13px;color:#1e293b;line-height:1.7;word-break:break-all;">${tt.typed||'(কিছু টাইপ হয়নি)'}</div>
     </div>
 
