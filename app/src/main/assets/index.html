@@ -430,7 +430,8 @@
     font-size: 16px; 
     cursor: pointer; 
     margin-left: 10px; 
-    transition: 0.2s; 
+    transition: 0.2s;
+    display: none;
 }
 .copy-id-btn:active { color: #4f46e5; transform: scale(0.8); }
 
@@ -1722,7 +1723,7 @@
     <button onclick="handleBack()" class="bg-white border border-gray-200 px-4 py-2 rounded-xl font-bold shadow-sm text-sm h-[38px]">← ফিরে যান</button>
     
     <div id="reading-controls" class="flex gap-2 items-center">
-        <button onclick="copyForAI()" title="Copy for AI" class="bg-indigo-50 border border-indigo-200 px-3 py-2 rounded-xl shadow-sm text-sm h-[38px] flex items-center gap-1 text-indigo-700 hover:bg-indigo-100 active:scale-95 transition-all">
+        <button onclick="copyForAI()" title="Copy for AI" id="ai-copy-btn" class="bg-indigo-50 border border-indigo-200 px-3 py-2 rounded-xl shadow-sm text-sm h-[38px] flex items-center gap-1 text-indigo-700 hover:bg-indigo-100 active:scale-95 transition-all" style="display:none;">
             <span class="text-base">🤖</span>
             <span class="font-bold">AI Copy</span>
         </button>
@@ -2620,6 +2621,23 @@ function popPath() {
     }
     renderView();
 }
+function applyAdminVisibility() {
+    var isAdmin = currentUser && currentUser.role && currentUser.role.toLowerCase() === 'admin';
+    // AI Copy button
+    var aiBtn = document.getElementById('ai-copy-btn');
+    if (aiBtn) aiBtn.style.display = isAdmin ? '' : 'none';
+    // copy-id-btn elements (rendered dynamically, so use CSS class injection)
+    var styleId = 'admin-style-override';
+    var existing = document.getElementById(styleId);
+    if (existing) existing.remove();
+    if (isAdmin) {
+        var st = document.createElement('style');
+        st.id = styleId;
+        st.textContent = '.copy-id-btn { display:inline !important; }';
+        document.head.appendChild(st);
+    }
+}
+
 function copyForAI() {
     // আপনার কমান্ড
     const aiCommand = " নিচের টেক্সটগুলোকে উদাহরন এর মত করে দাও। সিরিয়াল নাম্বার লাগবেনা, অপশনে ক খ গ ঘ দরকার নাই।  ফরম্যাট হবে: প্রশ্ন;অপশনগুলো;উত্তর। যেন কুইজের মত হয়। অপ্রাসাঙ্গিক টেক্সট এড়িয়ে যাবে উদাহরন এর মত করে দিবে প্লিজ, ১৩তম জাতীয় সংসদের বিরোধীদলীয় প্রধান হুইপ কে?; শফিকুর রহমান; নাহিদ ইসলাম; কায়সার কামাল; হাফিজ উদ্দিন আহমেদ; নাহিদ ইসলাম    আমাদের জাতীয় কবি কে?;জসিমউদ্দিন;রবীন্দ্রনাথ ঠাকুর;জীবনানন্দ দাশ; কাজী নজরুল ইসলাম প্রশ্ন; অপশনগুলো;উত্তর অপশনে উততরের পজিশন বারবার পরিবতর্ন করে দিও যেন আনতাজ করা না যা্য়,যেহেতু এটা লিখিত প্রশ্ন একই প্রশ্নের মধ্যে একাধিক প্রশ্ন আছে সেটাও mcq আকারে করে দিবে। ।\n\n";
@@ -3077,7 +3095,7 @@ function renderHome(container) {
     <!-- TYPING TEST — first screen এ দেখাবে -->
     <div onclick="openTypingTest()" style="background:linear-gradient(135deg,#0c4a6e,#0369a1);border-radius:14px;padding:12px 14px;margin-bottom:7px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border:1px solid rgba(56,189,248,0.25);box-shadow:0 2px 10px rgba(3,105,161,0.2);">
         <div>
-            <div style="color:white;font-weight:900;font-size:14px;">⌨️ Typing Test</div>
+            <div style="color:white;font-weight:900;font-size:14px;">⌨️ Typing Speed Test</div>
             <div style="color:rgba(255,255,255,0.6);font-size:11px;margin-top:1px;">টাইপিং স্পিড ও নির্ভুলতা যাচাই করো</div>
         </div>
         <div style="background:rgba(56,189,248,0.25);border-radius:10px;padding:6px 12px;color:#7dd3fc;font-weight:900;font-size:13px;">শুরু করো ❯</div>
@@ -3190,7 +3208,7 @@ function openTypingTest() {
     <!-- Topbar -->
     <div class="tt-topbar">
         <button class="tt-back" onclick="closeTypingTest()">←</button>
-        <span class="tt-title">⌨️ Typing Test</span>
+        <span class="tt-title">⌨️ Typing Speed Test</span>
         <span id="tt-mode-badge" style="background:rgba(255,255,255,0.15);color:white;font-size:10px;font-weight:800;padding:3px 9px;border-radius:8px;">HOME</span>
     </div>
 
@@ -3319,7 +3337,7 @@ function renderTypingHome() {
             <option value="0">সময় সীমা নেই</option>
         </select>
     </div>
-    <button class="tt-start-btn" onclick="ttStartFromDB()">▶ Typing Test শুরু করো</button>
+    <button class="tt-start-btn" onclick="ttStartFromDB()">▶ Typing Speed Test শুরু করো</button>
     `}
     ` : `
     <!-- CUSTOM TAB -->
@@ -5026,6 +5044,7 @@ function goToResult(mode, subject, subTopic, targetQId) {
         displayLimit = quizItems.length;
         
         document.getElementById('back-and-ctrls').classList.remove('hidden');
+    if(typeof applyAdminVisibility==='function') applyAdminVisibility();
         if(currentMode !== 'study') startTimer(quizItems.length);
         
         // ৪. প্রশ্নগুলো রেন্ডার করা
@@ -6845,6 +6864,7 @@ function doLogin() {
             localStorage.setItem(_xpKey, Math.max(localXP, fireXP));
             hideAuthScreen();
             try { initApp(); } catch(e) { console.error('initApp after login:', e); }
+            setTimeout(applyAdminVisibility, 200);
         })
         .catch(function() {
             showAuthLoading(false);
