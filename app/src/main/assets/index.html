@@ -1083,16 +1083,7 @@
             border:1px solid rgba(255,255,255,0.12);
         }
         /* Motivation toast */
-        #home-motivation-toast {
-            position:fixed; bottom:80px; left:0; right:0; z-index:9996;
-            background:linear-gradient(135deg,#6366f1,#4338ca);
-            color:white; padding:14px 20px 16px;
-            border-radius:16px 16px 0 0;
-            transform:translateY(120%);
-            transition:transform 0.5s cubic-bezier(0.175,0.885,0.32,1.2);
-            box-shadow:0 -4px 32px rgba(99,102,241,0.4);
-        }
-        #home-motivation-toast.show { transform:translateY(0); }
+
         .dark-theme .home-stat-mini { box-shadow:none; }
         .dark-theme .home-goal-card { box-shadow:none; }
 
@@ -1395,16 +1386,7 @@
         }
 
         /* Motivation toast */
-        #home-motivation-toast {
-            position:fixed; bottom:80px; left:0; right:0; z-index:9996;
-            background:linear-gradient(135deg,#6366f1,#4338ca);
-            color:white; padding:14px 16px 16px;
-            border-radius:16px 16px 0 0;
-            transform:translateY(120%);
-            transition:transform 0.5s cubic-bezier(0.175,0.885,0.32,1.2);
-            box-shadow:0 -4px 32px rgba(99,102,241,0.4);
-        }
-        #home-motivation-toast.show { transform:translateY(0); }
+
 
     </style>
 </head>
@@ -1418,16 +1400,7 @@
     </div>
 
     <!-- ===== MOTIVATION TOAST ===== -->
-    <div id="home-motivation-toast">
-        <div style="display:flex;align-items:flex-start;gap:10px;">
-            <span style="font-size:22px;flex-shrink:0;">💬</span>
-            <div>
-                <div id="motivation-quote-text" style="font-size:13px;font-weight:700;line-height:1.5;"></div>
-                <div id="motivation-quote-author" style="font-size:10px;opacity:0.6;font-weight:800;margin-top:4px;"></div>
-            </div>
-            <button onclick="hideMotivationToast()" style="background:rgba(255,255,255,0.15);border:none;color:white;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:900;cursor:pointer;margin-left:auto;flex-shrink:0;">✕</button>
-        </div>
-    </div>
+
 
     <!-- ===== IN-APP REMINDER BAR ===== -->
     <div id="inapp-reminder-bar">
@@ -2692,37 +2665,7 @@ const MOTIVATIONAL_QUOTES = [
     { text: "ধৈর্য ও পরিশ্রম — সাফল্যের দুই চাবিকাঠি।", author: "অজানা" },
 ];
 
-function getTodayQuote() {
-    const dayIdx = new Date().getDate() % MOTIVATIONAL_QUOTES.length;
-    return MOTIVATIONAL_QUOTES[dayIdx];
-}
 
-function showMotivationToast() {
-    const today = new Date().toDateString();
-    const lastShown = localStorage.getItem('motivation_shown');
-    if (lastShown === today) return; // আজকে দেখানো হয়েছে
-    localStorage.setItem('motivation_shown', today);
-
-    const quote = getTodayQuote();
-    const textEl   = document.getElementById('motivation-quote-text');
-    const authorEl = document.getElementById('motivation-quote-author');
-    const toast    = document.getElementById('home-motivation-toast');
-    if (!toast || !textEl) return;
-
-    textEl.innerText   = '"' + quote.text + '"';
-    authorEl.innerText = '— ' + quote.author;
-
-    setTimeout(function() {
-        toast.classList.add('show');
-        // 5 সেকেন্ড পর auto-hide
-        setTimeout(hideMotivationToast, 5000);
-    }, 600);
-}
-
-function hideMotivationToast() {
-    const toast = document.getElementById('home-motivation-toast');
-    if (toast) toast.classList.remove('show');
-}
 
 
 
@@ -3857,8 +3800,7 @@ function renderView() {
 
     if (currentMode === 'home') {
         renderHome(container);
-        // দিনের প্রথমবার home দেখলে motivation toast
-        setTimeout(showMotivationToast, 800);
+
         return;
     }
 
