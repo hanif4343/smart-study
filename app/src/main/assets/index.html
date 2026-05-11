@@ -1271,53 +1271,77 @@
         .name-input-home::placeholder { color:rgba(255,255,255,0.5); }
 /* ===== HOME SCREEN v3 ===== */
         .home-hero {
-            background: linear-gradient(135deg, #6366f1 0%, #4338ca 60%, #312e81 100%);
-            padding: 18px 16px 22px;
+            background: linear-gradient(145deg, #1e1b4b 0%, #312e81 40%, #4338ca 100%);
+            padding: 14px 16px 16px;
             position: relative; overflow: hidden;
-            border-radius: 0 0 28px 28px;
+            border-radius: 0 0 24px 24px;
+        }
+        .home-hero::before {
+            content:''; position:absolute; inset:0; pointer-events:none;
+            background: radial-gradient(ellipse at 80% 20%, rgba(99,102,241,0.35) 0%, transparent 60%),
+                        radial-gradient(ellipse at 10% 80%, rgba(167,139,250,0.2) 0%, transparent 50%);
         }
         .home-hero::after {
             content:''; position:absolute;
-            width:200px; height:200px; border-radius:50%;
-            background:rgba(255,255,255,0.05);
-            right:-40px; top:-40px; pointer-events:none;
+            width:160px; height:160px; border-radius:50%;
+            background:rgba(255,255,255,0.04);
+            right:-30px; top:-30px; pointer-events:none;
+        }
+        /* User card inside hero */
+        .home-user-card {
+            display:flex; align-items:center; gap:12px;
+            background:rgba(255,255,255,0.08);
+            border:1px solid rgba(255,255,255,0.14);
+            border-radius:16px; padding:11px 12px;
+            backdrop-filter:blur(10px);
+            margin-bottom:10px; position:relative; z-index:1;
         }
         .home-avatar {
-            width:64px; height:64px; border-radius:50%;
-            border:3px solid rgba(255,255,255,0.5);
-            background:rgba(255,255,255,0.15);
+            width:52px; height:52px; border-radius:14px;
+            border:2px solid rgba(255,255,255,0.35);
+            background:linear-gradient(135deg,rgba(255,255,255,0.2),rgba(255,255,255,0.08));
             display:flex; align-items:center; justify-content:center;
-            font-size:28px; cursor:pointer; flex-shrink:0; overflow:hidden;
-            box-shadow:0 0 0 3px rgba(255,255,255,0.15);
+            font-size:24px; cursor:pointer; flex-shrink:0; overflow:hidden;
+            box-shadow:0 4px 12px rgba(0,0,0,0.25);
         }
-        .home-avatar img { width:100%;height:100%;object-fit:cover;border-radius:50%; }
-        .home-name-input {
-            background:rgba(255,255,255,0.12); border:1.5px solid rgba(255,255,255,0.25);
-            border-radius:10px; padding:5px 10px; color:white; font-family:inherit;
-            font-size:15px; font-weight:800; outline:none; width:100%; margin-top:4px;
+        .home-avatar img { width:100%;height:100%;object-fit:cover;border-radius:12px; }
+        .home-user-info { flex:1; min-width:0; }
+        .home-user-greeting { font-size:10px; color:rgba(255,255,255,0.5); font-weight:700; margin-bottom:2px; letter-spacing:0.3px; }
+        .home-user-name { font-size:16px; font-weight:900; color:white; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .home-user-meta { display:flex; align-items:center; gap:5px; margin-top:4px; flex-wrap:wrap; }
+        .home-role-badge {
+            font-size:9px; font-weight:900; padding:2px 8px; border-radius:8px;
+            background:#fef3c7; color:#92400e; letter-spacing:0.3px;
         }
-        .home-name-input::placeholder { color:rgba(255,255,255,0.4); font-weight:500; }
+        .home-role-badge.regular { background:rgba(255,255,255,0.15); color:rgba(255,255,255,0.85); }
         .home-level-badge {
-            display:inline-flex; align-items:center; gap:5px;
-            background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.2);
-            border-radius:20px; padding:3px 10px; font-size:11px; font-weight:800; color:white;
-            margin-top:6px;
+            display:inline-flex; align-items:center; gap:4px;
+            background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.18);
+            border-radius:8px; padding:2px 7px; font-size:9px; font-weight:800; color:rgba(255,255,255,0.9);
         }
+        .home-xp-right { text-align:right; flex-shrink:0; }
+        .home-xp-number { font-size:22px; font-weight:900; color:white; line-height:1; }
+        .home-xp-label { font-size:9px; color:rgba(255,255,255,0.45); font-weight:800; letter-spacing:0.5px; margin-top:1px; }
+        /* XP progress */
+        .home-xp-bar-wrap { position:relative; z-index:1; }
         .home-xp-bar {
-            height:5px; background:rgba(255,255,255,0.2); border-radius:4px;
-            margin-top:6px; overflow:hidden;
+            height:5px; background:rgba(255,255,255,0.15); border-radius:4px;
+            overflow:hidden;
         }
-        .home-xp-fill { height:100%; border-radius:4px; background:linear-gradient(90deg,#fbbf24,#f59e0b); }
+        .home-xp-fill { height:100%; border-radius:4px; background:linear-gradient(90deg,#fbbf24,#f59e0b); transition:width 0.8s ease; }
+        .home-xp-labels { display:flex; justify-content:space-between; font-size:9px; color:rgba(255,255,255,0.35); font-weight:700; margin-top:3px; }
+        /* Stats row */
         .home-stats-3 {
-            display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin:10px 0 8px;
+            display:grid; grid-template-columns:1fr 1fr 1fr; gap:7px; margin:8px 0 6px;
         }
         .hstat {
-            background:var(--card-bg); border-radius:14px; padding:10px 6px;
+            background:var(--card-bg); border-radius:12px; padding:9px 4px 8px;
             text-align:center; border:1px solid rgba(0,0,0,0.05);
+            box-shadow:0 1px 4px rgba(0,0,0,0.04);
         }
-        .hstat .hi { font-size:22px; margin-bottom:2px; }
-        .hstat .hv { font-size:17px; font-weight:900; line-height:1; }
-        .hstat .hl { font-size:9px; font-weight:700; color:#94a3b8; margin-top:2px; }
+        .hstat .hi { font-size:20px; margin-bottom:1px; }
+        .hstat .hv { font-size:16px; font-weight:900; line-height:1; }
+        .hstat .hl { font-size:8px; font-weight:800; color:#94a3b8; margin-top:2px; text-transform:uppercase; letter-spacing:0.3px; }
         .dark-theme .hstat { border-color:rgba(255,255,255,0.05); }
 
         /* Weekly streak dots */
@@ -2753,7 +2777,12 @@ function renderHome(container) {
     const examDate = localStorage.getItem('exam_date');
     const examName = localStorage.getItem('exam_name')||'পরীক্ষা';
     const dbReady  = (fullData['QBank']||[]).length>0||(fullData['Study']||[]).length>0;
-    const correctCount = JSON.parse(localStorage.getItem('correct_history')||'[]').length;
+    // মোট সঠিক: Firebase Summary cache প্রথমে, তারপর local fallback
+    var _fbSummary = {};
+    try { _fbSummary = JSON.parse(localStorage.getItem('fb_summary_cache')||'{}'); } catch(e){}
+    var correctCount = (_fbSummary.totalCorrect > 0)
+        ? _fbSummary.totalCorrect
+        : JSON.parse(localStorage.getItem('correct_history')||'[]').length;
 
     // XP bar
     const xpPct = xpInfo.nextLevel
@@ -2765,8 +2794,8 @@ function renderHome(container) {
     var _dispName = (currentUser && currentUser.name) ? currentUser.name : userName;
     var _dispRole = (currentUser && currentUser.role) ? currentUser.role : '';
     var _isAdminRole  = _dispRole.toLowerCase() === 'admin';
-    var _rbSt         = _isAdminRole ? 'background:#fef3c7;color:#92400e;' : 'background:rgba(255,255,255,0.2);color:rgba(255,255,255,0.9);';
-    var _roleBadgeHTML = _dispRole ? ('<span style="font-size:9px;font-weight:900;padding:2px 7px;border-radius:10px;' + _rbSt + '">' + _dispRole + '</span>') : '';
+    var _roleCls       = _isAdminRole ? 'home-role-badge' : 'home-role-badge regular';
+    var _roleBadgeHTML = _dispRole ? ('<span class="' + _roleCls + '">' + _dispRole + '</span>') : '';
     const avatarInner = _picSrc
         ? `<img src="${_picSrc}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display='none'">`
         : `<span style="font-size:28px;">👤</span>`;
@@ -2998,27 +3027,29 @@ function renderHome(container) {
 
     <!-- HERO -->
     <div class="home-hero">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-            <div class="home-avatar" onclick="homePickPhoto()" title="ছবি বদলাও">
-                ${avatarInner}
-            </div>
-            <div style="flex:1;min-width:0;">
-                <div style="font-size:11px;color:rgba(255,255,255,0.6);font-weight:700;">স্বাগতম! 👋</div>
-                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:3px 0;">
-                    <div class="home-name-input" style="cursor:default;padding:4px 0;flex:1;">${_dispName||'নাম লিখো...'}</div>
+        <!-- User Card -->
+        <div class="home-user-card">
+            <div class="home-avatar" onclick="homePickPhoto()" title="ছবি বদলাও">${avatarInner}</div>
+            <div class="home-user-info">
+                <div class="home-user-greeting">স্বাগতম! 👋</div>
+                <div class="home-user-name">${_dispName||'নাম লিখো...'}</div>
+                <div class="home-user-meta">
                     ${_roleBadgeHTML}
+                    <span class="home-level-badge">${xpInfo.currentLevel.emoji} Lv.${xpInfo.currentLevel.level} · ${xpInfo.currentLevel.name}</span>
                 </div>
-                <div class="home-level-badge">${xpInfo.currentLevel.emoji} Lv.${xpInfo.currentLevel.level} · ${xpInfo.currentLevel.name}</div>
             </div>
-            <div style="text-align:right;flex-shrink:0;">
-                <div style="font-size:20px;font-weight:900;color:white;">${xpInfo.xp}</div>
-                <div style="font-size:9px;color:rgba(255,255,255,0.5);font-weight:700;">XP</div>
+            <div class="home-xp-right">
+                <div class="home-xp-number">${xpInfo.xp}</div>
+                <div class="home-xp-label">XP</div>
             </div>
         </div>
-        <div class="home-xp-bar"><div class="home-xp-fill" style="width:${xpPct}%;"></div></div>
-        <div style="display:flex;justify-content:space-between;font-size:9px;color:rgba(255,255,255,0.4);font-weight:700;margin-top:3px;">
-            <span>Level ${xpInfo.currentLevel.level}</span>
-            <span>${xpInfo.nextLevel?(xpInfo.nextLevel.minXP-xpInfo.xp)+' XP → '+xpInfo.nextLevel.name:'🏆 সর্বোচ্চ!'}</span>
+        <!-- XP Bar -->
+        <div class="home-xp-bar-wrap">
+            <div class="home-xp-bar"><div class="home-xp-fill" style="width:${xpPct}%;"></div></div>
+            <div class="home-xp-labels">
+                <span>Level ${xpInfo.currentLevel.level}</span>
+                <span>${xpInfo.nextLevel?(xpInfo.nextLevel.minXP-xpInfo.xp)+' XP → '+xpInfo.nextLevel.name:'🏆 সর্বোচ্চ!'}</span>
+            </div>
         </div>
     </div>
 
@@ -3043,24 +3074,37 @@ function renderHome(container) {
         </div>
     </div>
 
-    <!-- WEEKLY STREAK -->
-    <div style="background:var(--card-bg);border-radius:14px;padding:12px 14px;margin-bottom:8px;border:1px solid rgba(0,0,0,0.05);">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <div style="font-size:13px;font-weight:900;">সাপ্তাহিক Streak</div>
-            <div style="font-size:11px;font-weight:800;color:#f59e0b;background:#fffbeb;padding:2px 10px;border-radius:20px;border:1px solid #fde68a;">
-                🔥 ${streak.streak} দিন
-            </div>
+    <!-- TYPING TEST — first screen এ দেখাবে -->
+    <div onclick="openTypingTest()" style="background:linear-gradient(135deg,#0c4a6e,#0369a1);border-radius:14px;padding:12px 14px;margin-bottom:7px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border:1px solid rgba(56,189,248,0.25);box-shadow:0 2px 10px rgba(3,105,161,0.2);">
+        <div>
+            <div style="color:white;font-weight:900;font-size:14px;">⌨️ Typing Test</div>
+            <div style="color:rgba(255,255,255,0.6);font-size:11px;margin-top:1px;">টাইপিং স্পিড ও নির্ভুলতা যাচাই করো</div>
         </div>
-        <div style="display:flex;gap:5px;">${weekDots}</div>
+        <div style="background:rgba(56,189,248,0.25);border-radius:10px;padding:6px 12px;color:#7dd3fc;font-weight:900;font-size:13px;">শুরু করো ❯</div>
     </div>
 
-    <!-- LEADERBOARD -->
-    <div onclick="openLeaderboard()" style="background:linear-gradient(135deg,#5b21b6,#7c3aed);border-radius:14px;padding:13px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border:1px solid rgba(167,139,250,0.3);">
-        <div>
-            <div style="color:white;font-weight:900;font-size:14px;">🏆 Leaderboard</div>
-            <div style="color:rgba(255,255,255,0.6);font-size:11px;margin-top:1px;">সেরা শিক্ষার্থীদের র‍্যাংকিং</div>
+    <!-- LEADERBOARD + DAILY CHALLENGE: side by side -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:7px;">
+        <div onclick="openLeaderboard()" style="background:linear-gradient(135deg,#5b21b6,#7c3aed);border-radius:14px;padding:12px 12px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;border:1px solid rgba(167,139,250,0.3);min-height:72px;">
+            <div style="color:rgba(255,255,255,0.6);font-size:10px;font-weight:800;">🏆 Leaderboard</div>
+            <div style="color:white;font-size:12px;font-weight:900;margin-top:4px;">র‍্যাংকিং দেখো ❯</div>
         </div>
-        <div style="color:rgba(255,255,255,0.8);font-size:20px;font-weight:900;">❯</div>
+        <div style="background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:14px;padding:12px 12px;border:1px solid rgba(99,102,241,0.25);min-height:72px;display:flex;flex-direction:column;justify-content:space-between;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                <div style="color:rgba(255,255,255,0.6);font-size:10px;font-weight:800;">⚡ চ্যালেঞ্জ</div>
+                <span style="font-size:10px;color:#a78bfa;font-weight:900;">${chalDone}/5</span>
+            </div>
+            <button onclick="startDailyChallenge()" style="background:${dbReady?'linear-gradient(135deg,#6366f1,#4338ca)':'#475569'};color:white;padding:5px 10px;border-radius:9px;font-weight:900;font-size:11px;border:none;cursor:pointer;margin-top:6px;">${chalDone>=5?'🏆 সম্পন্ন':dbReady?'শুরু →':'...'}</button>
+        </div>
+    </div>
+
+    <!-- WEEKLY STREAK compact -->
+    <div style="background:var(--card-bg);border-radius:14px;padding:10px 12px;margin-bottom:7px;border:1px solid rgba(0,0,0,0.05);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="font-size:12px;font-weight:900;">সাপ্তাহিক Streak</div>
+            <div style="font-size:10px;font-weight:800;color:#f59e0b;background:#fffbeb;padding:2px 9px;border-radius:20px;border:1px solid #fde68a;">🔥 ${streak.streak} দিন</div>
+        </div>
+        <div style="display:flex;gap:4px;">${weekDots}</div>
     </div>
 
   <!-- EXAM -->
@@ -3071,34 +3115,6 @@ function renderHome(container) {
 
     <!-- REVIEW -->
     ${reviewHTML}
-
-        <!-- DAILY CHALLENGE -->
-    <div style="background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:14px;padding:13px 14px;border:1px solid rgba(99,102,241,0.2);">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-            <div>
-                <div style="color:white;font-weight:900;font-size:14px;">⚡ দৈনিক চ্যালেঞ্জ</div>
-                <div style="color:rgba(255,255,255,0.5);font-size:11px;margin-top:1px;">
-                    ${chalDone>=5?'✅ আজ সম্পন্ন!':chalDone+'/5 সম্পন্ন'}
-                </div>
-            </div>
-            <button onclick="startDailyChallenge()"
-                style="background:${dbReady?'linear-gradient(135deg,#6366f1,#4338ca)':'#475569'};color:white;padding:8px 16px;border-radius:12px;font-weight:900;font-size:13px;border:none;cursor:pointer;">
-                ${chalDone>=5?'🏆':dbReady?'শুরু →':'...'}
-            </button>
-        </div>
-        <div style="background:rgba(255,255,255,0.08);border-radius:6px;height:4px;margin-top:10px;overflow:hidden;">
-            <div style="height:100%;width:${chalPct}%;background:linear-gradient(90deg,#818cf8,#a78bfa);border-radius:6px;"></div>
-        </div>
-    </div>
-
-    <!-- TYPING TEST -->
-    <div onclick="openTypingTest()" style="background:linear-gradient(135deg,#0c4a6e,#0369a1);border-radius:14px;padding:13px 14px;margin-top:10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border:1px solid rgba(56,189,248,0.25);">
-        <div>
-            <div style="color:white;font-weight:900;font-size:14px;">⌨️ Typing Test</div>
-            <div style="color:rgba(255,255,255,0.6);font-size:11px;margin-top:1px;">টাইপিং স্পিড ও নির্ভুলতা যাচাই করো</div>
-        </div>
-        <div style="background:rgba(56,189,248,0.2);border-radius:10px;padding:6px 12px;color:#7dd3fc;font-weight:900;font-size:13px;">শুরু করো ❯</div>
-    </div>
 
     </div></div>`;
 
@@ -6811,6 +6827,16 @@ function doLogin() {
             saveCurrentUser(user);
             localStorage.setItem('home_user_name', user.name || '');
             if (user.picture) localStorage.setItem('home_user_pic', user.picture);
+            // Firebase Summary prefetch — মোট সঠিক cache warm
+            (function() {
+                try {
+                    var sp = user.phone.toString().trim().replace(/[.#$\[\]\s]/g,'_');
+                    fetch(FIREBASE_URL + 'Analytics/Summary/' + sp + '.json?auth=' + SECRET_KEY)
+                        .then(function(r){ return r.json(); })
+                        .then(function(s){ if(s && s.totalCorrect>=0) localStorage.setItem('fb_summary_cache', JSON.stringify(s)); })
+                        .catch(function(){});
+                } catch(e){}
+            })();
             // Load per-user XP from Firebase into localStorage
             var _xpKey = 'user_xp_' + user.phone;
             var localXP = parseInt(localStorage.getItem(_xpKey) || '0');
@@ -7048,6 +7074,8 @@ function saveQuizResultToFirebase(result) {
             prev.name    = currentUser.name    || prev.name    || '';
             prev.picture = currentUser.picture || prev.picture || '';
             prev.lastActive = dateKey;
+            // Local cache save করো যাতে Home screen সঠিক দেখায়
+            try { localStorage.setItem('fb_summary_cache', JSON.stringify(prev)); } catch(e){}
             return fetch(FIREBASE_URL + 'Analytics/Summary/' + safePhone + '.json?auth=' + SECRET_KEY,
                 {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(prev)});
         }).catch(function(){});
