@@ -3487,13 +3487,15 @@ function ttBegin(passage, title, timeLimit) {
         </div>
     </div>
     <div style="padding:12px;">
-        <div class="tt-passage" id="tt-passage-display" onclick="ttFocusInput()"></div>
-        <div class="tt-tap-hint" id="tt-hint">👆 উপরে ক্লিক/ট্যাপ করো টাইপিং শুরু করতে</div>
+        <div class="tt-passage" id="tt-passage-display" onclick="ttFocusInput()" style="cursor:text;"></div>
+        <div class="tt-tap-hint" id="tt-hint" style="display:none;"></div>
         <button class="tt-finish-btn" onclick="ttFinish(true)">⏹ এখনই শেষ করো</button>
     </div>
     `;
 
     ttRenderPassage();
+    // Auto-focus: keyboard opens immediately when practice screen loads
+    setTimeout(function() { ttFocusInput(); }, 80);
 }
 
 function ttRenderPassage() {
@@ -3520,7 +3522,14 @@ function ttRenderPassage() {
 
 function ttFocusInput() {
     var inp = document.getElementById('tt-hidden-input');
-    if (inp) { inp.focus(); inp.click(); }
+    if (!inp) return;
+    // Android WebView reliable focus trick
+    inp.readOnly = true;
+    inp.focus();
+    inp.readOnly = false;
+    inp.focus();
+    // also try click to trigger soft keyboard on older WebViews
+    try { inp.click(); } catch(e) {}
     var hint = document.getElementById('tt-hint');
     if (hint) hint.style.display = 'none';
 }
