@@ -3170,7 +3170,7 @@ function openTypingTest() {
         .tt-topbar { background:linear-gradient(135deg,#0c4a6e,#0369a1);padding:14px 16px;padding-top:max(14px,env(safe-area-inset-top,14px));display:flex;align-items:center;gap:12px;flex-shrink:0; }
         .tt-back { background:rgba(255,255,255,0.15);border:none;border-radius:10px;color:white;font-size:18px;padding:6px 11px;cursor:pointer; }
         .tt-title { color:white;font-weight:900;font-size:16px;flex:1; }
-        .tt-body { flex:1;overflow-y:auto;padding:14px; }
+        .tt-body { flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column; }
         .tt-card { background:white;border-radius:14px;padding:14px;margin-bottom:10px;border:1px solid rgba(0,0,0,0.06);box-shadow:0 2px 8px rgba(0,0,0,0.05); }
         .tt-label { font-size:11px;font-weight:800;color:#64748b;margin-bottom:6px; }
         .tt-select { width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:13px;font-weight:700;background:white;color:#1e293b;-webkit-appearance:none;appearance:none; }
@@ -3182,15 +3182,49 @@ function openTypingTest() {
         .tt-stat-pill { background:#f1f5f9;border-radius:10px;padding:5px 10px;text-align:center; }
         .tt-stat-pill .v { font-size:15px;font-weight:900;color:#0f172a; }
         .tt-stat-pill .l { font-size:9px;font-weight:700;color:#94a3b8; }
-        .tt-passage { font-size:17px;line-height:2.1;letter-spacing:0.4px;padding:14px;background:white;border-radius:14px;border:1.5px solid #e2e8f0;margin-bottom:10px;min-height:120px;max-height:220px;word-break:break-all;overflow-wrap:break-word;white-space:pre-wrap;overflow-y:auto;position:relative;z-index:1; }
+        /* ── Passage display (উপরে, marking সহ) ── */
+        .tt-passage {
+            font-size:17px;line-height:2.2;letter-spacing:0.4px;
+            padding:14px;background:white;border-radius:14px;
+            border:1.5px solid #e2e8f0;
+            word-break:break-all;overflow-wrap:break-word;white-space:pre-wrap;
+            overflow-y:auto;             /* scrollTop JS দিয়ে control হবে */
+            position:relative;z-index:1;
+            flex:1;min-height:0;           /* flex child হিসেবে বাড়বে-কমবে */
+        }
         .tt-ch { color:#374151; }
         .tt-ch.correct { color:#16a34a; }
         .tt-ch.wrong { color:#dc2626;background:#fef2f2;border-radius:3px; }
         .tt-ch.cursor { border-left:2.5px solid #0369a1;margin-left:-1px;animation:tt-blink 1s infinite; }
         @keyframes tt-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+        /* পুরনো hidden input — এখনো keyboard trigger এর জন্য রাখা */
         .tt-input { position:fixed;top:-9999px;left:-9999px;opacity:0;pointer-events:none;width:1px;height:1px; }
-        .tt-tap-hint { text-align:center;color:#94a3b8;font-size:12px;font-weight:700;padding:8px; }
-        .tt-finish-btn { width:100%;padding:12px;background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;border:none;border-radius:12px;font-size:14px;font-weight:900;cursor:pointer; }
+        /* ── নতুন visible input box (নিচে) ── */
+        .tt-type-box-wrap {
+            flex-shrink:0;
+            background:white;
+            border-top:2px solid #e2e8f0;
+            padding:10px 12px;
+        }
+        .tt-type-box-label {
+            font-size:10px;font-weight:800;color:#94a3b8;margin-bottom:5px;letter-spacing:0.5px;
+        }
+        .tt-type-box {
+            width:100%;box-sizing:border-box;
+            padding:11px 13px;
+            border-radius:12px;
+            border:2px solid #0369a1;
+            font-size:16px;font-weight:600;
+            font-family:\"Noto Sans Bengali\",sans-serif;
+            color:#1e293b;background:#f8fafc;
+            resize:none;outline:none;
+            line-height:1.6;
+            min-height:52px;max-height:100px;
+            overflow-y:auto;
+        }
+        .tt-type-box:focus { border-color:#0369a1;background:white;box-shadow:0 0 0 3px rgba(3,105,161,0.12); }
+        .tt-finish-btn { width:100%;padding:10px;background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;border:none;border-radius:12px;font-size:14px;font-weight:900;cursor:pointer;margin-top:8px; }
+        .tt-tap-hint { text-align:center;color:#94a3b8;font-size:12px;font-weight:700;padding:4px; }
         /* Result */
         .tt-result-ring { width:110px;height:110px;margin:0 auto 16px;position:relative; }
         .tt-result-val { position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center; }
@@ -3445,32 +3479,24 @@ function ttBegin(passage, title, timeLimit) {
 
     document.getElementById('tt-mode-badge').innerText = title.slice(0,12)+(title.length>12?'…':'');
 
-    var timeLabel = timeLimit === 0 ? '∞' : ttFormatTime(timeLimit);
-    document.getElementById('tt-body').innerHTML = `
-    <div class="tt-timer-bar" style="display:flex;gap:10px;">
-        <div class="tt-stat-pill" style="flex:1;">
-            <div class="v" id="tt-timer">${timeLabel}</div>
-            <div class="l">সময়</div>
-        </div>
-        <div class="tt-stat-pill" style="flex:1;">
-            <div class="v" id="tt-wpm">0</div>
-            <div class="l">WPM</div>
-        </div>
-        <div class="tt-stat-pill" style="flex:1;">
-            <div class="v" id="tt-acc">100%</div>
-            <div class="l">নির্ভুলতা</div>
-        </div>
-        <div class="tt-stat-pill" style="flex:1;">
-            <div class="v" id="tt-chars">0</div>
-            <div class="l">অক্ষর</div>
-        </div>
-    </div>
-    <div style="padding:12px;">
-        <div class="tt-passage" id="tt-passage-display" onclick="ttFocusInput()" style="cursor:text;"></div>
-        <div class="tt-tap-hint" id="tt-hint" style="display:none;"></div>
-        <button class="tt-finish-btn" onclick="ttFinish(true)">⏹ এখনই শেষ করো</button>
-    </div>
-    `;
+    var timeLabel = timeLimit === 0 ? '\u221e' : ttFormatTime(timeLimit);
+    // tt-body কে flex column করো
+    var body = document.getElementById('tt-body');
+    body.style.cssText = 'flex:1;overflow:hidden;display:flex;flex-direction:column;padding:0;';
+    body.innerHTML = '<div class="tt-timer-bar" style="display:flex;gap:8px;padding:8px 12px;flex-shrink:0;">'
+        + '<div class="tt-stat-pill" style="flex:1;"><div class="v" id="tt-timer">' + timeLabel + '</div><div class="l">\u09b8\u09ae\u09af\u09bc</div></div>'
+        + '<div class="tt-stat-pill" style="flex:1;"><div class="v" id="tt-wpm">0</div><div class="l">WPM</div></div>'
+        + '<div class="tt-stat-pill" style="flex:1;"><div class="v" id="tt-acc">100%</div><div class="l">\u09a8\u09bf\u09b0\u09cd\u09ad\u09c1\u09b2\u09a4\u09be</div></div>'
+        + '<div class="tt-stat-pill" style="flex:1;"><div class="v" id="tt-chars">0</div><div class="l">\u0985\u0995\u09cd\u09b7\u09b0</div></div>'
+        + '</div>'
+        + '<div style="flex:1;min-height:0;padding:10px 12px 6px;display:flex;flex-direction:column;">'
+        + '<div class="tt-passage" id="tt-passage-display"></div>'
+        + '</div>'
+        + '<div class="tt-type-box-wrap">'
+        + '<div class="tt-type-box-label">\u270d\ufe0f \u098f\u0996\u09be\u09a8\u09c7 \u099f\u09be\u0987\u09aa \u0995\u09b0\u09c1\u09a8</div>'
+        + '<textarea class="tt-type-box" id="tt-visible-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="\u099f\u09be\u0987\u09aa \u09b6\u09c1\u09b0\u09c1 \u0995\u09b0\u09c1\u09a8..." oninput="ttHandleVisibleInput(this)" onkeydown="ttHandleKey(event)"></textarea>'
+        + '<button class="tt-finish-btn" onclick="ttFinish(true)">\u23f9 \u098f\u0996\u09a8\u0987 \u09b6\u09c7\u09b7 \u0995\u09b0\u09cb</button>'
+        + '</div>';
 
     ttRenderPassage();
     // Auto-focus: keyboard opens immediately when practice screen loads
@@ -3493,24 +3519,41 @@ function ttRenderPassage() {
         html += `<span class="${cls}">${ch}</span>`;
     }
     var el = document.getElementById('tt-passage-display');
-    if (el) el.innerHTML = html;
-    // scroll cursor into view
-    var cur = el && el.querySelector('.cursor');
-    if (cur) cur.scrollIntoView({block:'center', behavior:'smooth'});
+    if (!el) return;
+    el.innerHTML = html;
+
+    // ── Smart auto-scroll: cursor যে line এ আছে সেটা উপরে দেখাবে ──
+    var cur = el.querySelector('.cursor');
+    if (cur) {
+        var elRect  = el.getBoundingClientRect();
+        var curRect = cur.getBoundingClientRect();
+        // cursor যদি নিচের ৪০% অংশে চলে যায় তাহলে scroll করো
+        var relTop = curRect.top - elRect.top;
+        var threshold = elRect.height * 0.45;
+        if (relTop > threshold) {
+            // cursor কে passage এর উপরের ৩০% এ নিয়ে আসো
+            el.scrollTop += relTop - elRect.height * 0.25;
+        } else if (relTop < 20 && el.scrollTop > 0) {
+            // উপরে গেলে পিছিয়ে আসো
+            el.scrollTop = Math.max(0, el.scrollTop + relTop - elRect.height * 0.25);
+        }
+    }
 }
 
 function ttFocusInput() {
+    // নতুন visible textarea তে focus দাও
+    var vis = document.getElementById('tt-visible-input');
+    if (vis) { vis.focus(); return; }
+    // fallback: পুরনো hidden input
     var inp = document.getElementById('tt-hidden-input');
     if (!inp) return;
-    // Android WebView reliable focus trick
-    inp.readOnly = true;
-    inp.focus();
-    inp.readOnly = false;
-    inp.focus();
-    // also try click to trigger soft keyboard on older WebViews
+    inp.readOnly = true; inp.focus(); inp.readOnly = false; inp.focus();
     try { inp.click(); } catch(e) {}
-    var hint = document.getElementById('tt-hint');
-    if (hint) hint.style.display = 'none';
+}
+
+// নতুন visible input থেকে handle করার function
+function ttHandleVisibleInput(el) {
+    ttHandleInput(el.value);
 }
 
 function ttHandleInput(val) {
