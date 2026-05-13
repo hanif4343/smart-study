@@ -1809,6 +1809,7 @@
         window._selectedUserType = null;
         function selectUserType(type) {
             window._selectedUserType = type;
+
             // Button highlight
             document.querySelectorAll('[id^="utype-"]').forEach(b => {
                 b.style.background = 'rgba(255,255,255,0.1)';
@@ -1821,9 +1822,62 @@
                 btn.style.borderColor = 'white';
                 btn.style.color = '#4f46e5';
             }
-            // Student হলে class selector দেখাও
+
+            // Level section — Job বা Student হলে দেখাও, options আলাদা
             var cls = document.getElementById('class-level-section');
-            if (cls) cls.style.display = type === 'Student' ? 'block' : 'none';
+            var lbl = document.getElementById('class-level-label');
+            var sel = document.getElementById('signup-class');
+
+            // Student options
+            var studentOptions = [
+                ['', '-- শ্রেণি বেছে নিন --'],
+                ['Class 3',  '৩য় শ্রেণি'],
+                ['Class 4',  '৪র্থ শ্রেণি'],
+                ['Class 5',  '৫ম শ্রেণি'],
+                ['Class 6',  '৬ষ্ঠ শ্রেণি'],
+                ['Class 7',  '৭ম শ্রেণি'],
+                ['Class 8',  '৮ম শ্রেণি'],
+                ['Class 9',  '৯ম শ্রেণি'],
+                ['Class 10', '১০ম শ্রেণি (SSC)'],
+                ['HSC 1st',  'HSC ১ম বর্ষ'],
+                ['HSC 2nd',  'HSC ২য় বর্ষ'],
+                ['Degree 1st',  'ডিগ্রি ১ম বর্ষ'],
+                ['Degree 2nd',  'ডিগ্রি ২য় বর্ষ'],
+                ['Degree 3rd',  'ডিগ্রি ৩য় বর্ষ'],
+                ['Masters 1st', 'মাস্টার্স ১ম বর্ষ'],
+                ['Masters 2nd', 'মাস্টার্স ২য় বর্ষ'],
+            ];
+
+            // Job options (16-20th grade চাকরি)
+            var jobOptions = [
+                ['', '-- গ্রেড / পদ বেছে নিন --'],
+                ['Grade 16', '১৬তম গ্রেড'],
+                ['Grade 17', '১৭তম গ্রেড'],
+                ['Grade 18', '১৮তম গ্রেড'],
+                ['Grade 19', '১৯তম গ্রেড'],
+                ['Grade 20', '২০তম গ্রেড'],
+            ];
+
+            if (type === 'Student') {
+                if (cls) cls.style.display = 'block';
+                if (lbl) lbl.textContent = 'শ্রেণি / বর্ষ সিলেক্ট করুন';
+                if (sel) {
+                    sel.innerHTML = studentOptions.map(function(o) {
+                        return '<option value="' + o[0] + '" style="color:#1e293b;">' + o[1] + '</option>';
+                    }).join('');
+                }
+            } else if (type === 'Job') {
+                if (cls) cls.style.display = 'block';
+                if (lbl) lbl.textContent = 'চাকরির গ্রেড সিলেক্ট করুন';
+                if (sel) {
+                    sel.innerHTML = jobOptions.map(function(o) {
+                        return '<option value="' + o[0] + '" style="color:#1e293b;">' + o[1] + '</option>';
+                    }).join('');
+                }
+            } else {
+                // General — level দরকার নেই
+                if (cls) cls.style.display = 'none';
+            }
         }
 
         /* ── User-এর audience tags বের করো (filter-এ ব্যবহার হবে) ── */
@@ -1832,9 +1886,18 @@
             var uType  = (currentUser.userType  || currentUser.UserType  || '').trim();
             var uClass = (currentUser.classLevel || currentUser.ClassLevel || '').trim();
             var tags = ['General']; // General সবসময় দেখাবে
-            if (uType === 'Job')       tags.push('Job');
-            if (uType === 'Student' && uClass) tags.push(uClass);
-            if (uType === 'Admission') tags.push('Admission', 'SSC', 'HSC');
+
+            if (uType === 'Job') {
+                tags.push('Job');
+                if (uClass) tags.push(uClass); // Grade 16, Grade 17...
+            }
+            if (uType === 'Student' && uClass) {
+                tags.push(uClass); // Class 3, Masters 1st...
+                // HSC / Masters হলে Higher tag-ও দাও
+                if (uClass.indexOf('HSC') !== -1 || uClass.indexOf('Degree') !== -1 || uClass.indexOf('Masters') !== -1) {
+                    tags.push('Higher');
+                }
+            }
             return tags;
         }
 
@@ -2428,10 +2491,12 @@ function generateTableHtml(rows) {
 
         if ('serviceWorker' in navigator && !location.hostname.includes('claudeusercontent')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').then(() => {
+                navigator.serviceWorker.register('./sw.js').then((reg) => {
                     navigator.serviceWorker.addEventListener('message', event => {
                         if (event.data && event.data.type === 'SYNC_PENDING') syncPendingQueue();
                     });
+                    // ✅ SW update check — নতুন SW থাকলে activate করো
+                    reg.update();
                 }).catch(err => console.log('SW failed:', err));
             });
         }
@@ -2456,16 +2521,16 @@ function generateTableHtml(rows) {
         setTimeout(() => showOnboarding(), 1200);
     }
 
-    // ── Cache থেকে instant load ──
+    // ── Smart Load: Online হলে Firebase, Offline হলে Cache ──
     const cachedData = loadOfflineData();
     if (cachedData && (cachedData.Study || cachedData.Quiz || cachedData.QBank)) {
+        // Cache আগে দেখাও — instant UI
         fullData['Study']  = cachedData.Study  || [];
         fullData['Quiz']   = cachedData.Quiz   || [];
         fullData['QBank']  = cachedData.QBank  || [];
         fullData['Notice'] = cachedData.Notice || [];
         fullData['Typing'] = cachedData.Typing || [];
-        console.log('✅ Cache loaded:', fullData['Study'].length, 'items');
-        // Cache থেকে লোড হলে UI refresh
+        console.log('✅ Cache (instant):', fullData['Study'].length, 'items');
         try {
             const mv = document.getElementById('main-view');
             if (mv && currentMode === 'home' && typeof renderHome === 'function') {
@@ -2475,6 +2540,8 @@ function generateTableHtml(rows) {
             }
         } catch(e) {}
     }
+    // ✅ Online হলে সবসময় Firebase থেকে fresh data নাও (cache override করবে)
+    // Offline হলে cache দিয়েই চলবে — loadFirebaseData()-এ check আছে
 
     // ── Reminders ──
     try { scheduleStudyReminders(); } catch(e) {}
@@ -2488,16 +2555,19 @@ function generateTableHtml(rows) {
 }
 
 function loadFirebaseData() {
-    if (!isOnline()) {
-        updateOfflineBanner();
+    updateOfflineBanner();
+    if (!navigator.onLine) {
+        // সত্যিই offline — cache দিয়ে চলো
+        console.log('📴 Offline — using cached data');
         return;
     }
-    updateOfflineBanner();
 
     const dbDot = document.getElementById('db-loading-dot');
     if (dbDot) dbDot.style.display = 'block';
 
-    fetch(FIREBASE_URL + '.json?auth=' + SECRET_KEY)
+    // Online হলে সবসময় fresh data — SW/browser cache bypass
+    var _fbUrl = FIREBASE_URL + '.json?auth=' + SECRET_KEY + '&_t=' + Date.now();
+    fetch(_fbUrl, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store' } })
         .then(function(response) {
             if (!response.ok) throw new Error('HTTP ' + response.status);
             return response.json();
@@ -4887,15 +4957,32 @@ function fallbackShare(text) {
         function toggleSave(btn, item) { const q = getVal(item, 'question'), idx = savedQs.findIndex(s => getVal(s, 'question') === q); if(idx > -1) { savedQs.splice(idx, 1); btn.classList.remove('star-active'); } else { savedQs.push(item); btn.classList.add('star-active'); } localStorage.setItem('hs_saved', JSON.stringify(savedQs)); }
 
         function smartRefresh() {
+            if (!navigator.onLine) {
+                showToast('📴 নেট নেই — অফলাইন ক্যাশ থেকে চলছে');
+                return;
+            }
             document.getElementById('loader').classList.remove('hidden');
-            loadFirebaseData();
-            showToast('🔄 ডেটা আপডেট হচ্ছে...');
-            setTimeout(function() {
-                document.getElementById('loader').classList.add('hidden');
-                const mv = document.getElementById('main-view');
-                if (currentMode === 'home' && mv && typeof renderHome === 'function') renderHome(mv);
-                else if (typeof renderView === 'function') renderView();
-            }, 3000);
+            showToast('🔄 নতুন ডেটা আনা হচ্ছে...');
+
+            // ✅ SW cache clear করো — পুরনো response আর দেবে না
+            var clearPromise = Promise.resolve();
+            if ('caches' in window) {
+                clearPromise = caches.keys().then(function(keys) {
+                    return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+                });
+            }
+
+            clearPromise.then(function() {
+                // cache clear হলে fresh Firebase fetch
+                loadFirebaseData();
+                setTimeout(function() {
+                    document.getElementById('loader').classList.add('hidden');
+                    const mv = document.getElementById('main-view');
+                    if (currentMode === 'home' && mv && typeof renderHome === 'function') renderHome(mv);
+                    else if (typeof renderView === 'function') renderView();
+                    showToast('✅ ডেটা আপডেট সম্পন্ন!');
+                }, 2500);
+            });
         }
 
         function openMenu() { changeMode('menu'); }
@@ -6947,7 +7034,8 @@ function doSignup() {
     if (phone.length < 10)  { showAuthMsg('signup', '📱 সঠিক ফোন নম্বর দিন'); return; }
     if (pass.length < 4)    { showAuthMsg('signup', '🔒 কমপক্ষে ৪ অক্ষরের পাসওয়ার্ড দিন'); return; }
     if (!userType)          { showAuthMsg('signup', '📋 ক্যাটাগরি সিলেক্ট করুন'); return; }
-    if (userType === 'Student' && !classLevel) { showAuthMsg('signup', '🎒 শ্রেণি সিলেক্ট করুন'); return; }
+    if (userType === 'Student' && !classLevel) { showAuthMsg('signup', '🎒 শ্রেণি / বর্ষ সিলেক্ট করুন'); return; }
+    if (userType === 'Job' && !classLevel) { showAuthMsg('signup', '🏢 চাকরির গ্রেড সিলেক্ট করুন'); return; }
 
     showAuthLoading(true);
     fetch(GAS_URL, {
@@ -7809,42 +7897,30 @@ function _markReviewCorrect(wKey, qId) {
       <div style="margin-bottom:10px;">
         <div style="color:rgba(255,255,255,0.7);font-size:11px;font-weight:800;margin-bottom:6px;letter-spacing:0.5px;">আপনি কোন ক্যাটাগরির?</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;" id="usertype-grid">
+
           <button type="button" onclick="selectUserType('Job')" id="utype-Job"
             style="padding:10px 6px;border-radius:12px;border:1.5px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);color:white;font-weight:800;font-size:12px;cursor:pointer;transition:all .2s;">
             💼 চাকরিজীবী
           </button>
+
           <button type="button" onclick="selectUserType('Student')" id="utype-Student"
             style="padding:10px 6px;border-radius:12px;border:1.5px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);color:white;font-weight:800;font-size:12px;cursor:pointer;transition:all .2s;">
             🎒 শিক্ষার্থী
           </button>
-          <button type="button" onclick="selectUserType('Admission')" id="utype-Admission"
-            style="padding:10px 6px;border-radius:12px;border:1.5px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);color:white;font-weight:800;font-size:12px;cursor:pointer;transition:all .2s;">
-            🏫 ভর্তি প্রস্তুতি
-          </button>
+
           <button type="button" onclick="selectUserType('General')" id="utype-General"
-            style="padding:10px 6px;border-radius:12px;border:1.5px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);color:white;font-weight:800;font-size:12px;cursor:pointer;transition:all .2s;">
+            style="padding:10px 6px;border-radius:12px;border:1.5px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);color:white;font-weight:800;font-size:12px;cursor:pointer;transition:all .2s; grid-column: span 2;">
             📚 সাধারণ
           </button>
+
         </div>
       </div>
 
-      <!-- Class Level (Student হলে দেখাবে) -->
+      <!-- Level Section — Job বা Student হলে দেখাবে -->
       <div id="class-level-section" style="display:none;margin-bottom:10px;">
-        <div style="color:rgba(255,255,255,0.7);font-size:11px;font-weight:800;margin-bottom:6px;letter-spacing:0.5px;">শ্রেণি সিলেক্ট করুন</div>
+        <div style="color:rgba(255,255,255,0.7);font-size:11px;font-weight:800;margin-bottom:6px;letter-spacing:0.5px;" id="class-level-label">শ্রেণি / স্তর সিলেক্ট করুন</div>
         <select id="signup-class" style="width:100%;background:rgba(255,255,255,0.15);border:1.5px solid rgba(255,255,255,0.3);border-radius:12px;padding:13px 14px;color:white;font-weight:700;font-size:13px;outline:none;appearance:none;">
-          <option value="" style="color:#1e293b;">-- শ্রেণি বেছে নিন --</option>
-          <option value="Class 1" style="color:#1e293b;">১ম শ্রেণি</option>
-          <option value="Class 2" style="color:#1e293b;">২য় শ্রেণি</option>
-          <option value="Class 3" style="color:#1e293b;">৩য় শ্রেণি</option>
-          <option value="Class 4" style="color:#1e293b;">৪র্থ শ্রেণি</option>
-          <option value="Class 5" style="color:#1e293b;">৫ম শ্রেণি</option>
-          <option value="Class 6" style="color:#1e293b;">৬ষ্ঠ শ্রেণি</option>
-          <option value="Class 7" style="color:#1e293b;">৭ম শ্রেণি</option>
-          <option value="Class 8" style="color:#1e293b;">৮ম শ্রেণি</option>
-          <option value="Class 9" style="color:#1e293b;">৯ম শ্রেণি</option>
-          <option value="Class 10" style="color:#1e293b;">১০ম শ্রেণি (SSC)</option>
-          <option value="Class 11" style="color:#1e293b;">১১শ শ্রেণি</option>
-          <option value="Class 12" style="color:#1e293b;">১২শ শ্রেণি (HSC)</option>
+          <option value="" style="color:#1e293b;">-- বেছে নিন --</option>
         </select>
       </div>
 
