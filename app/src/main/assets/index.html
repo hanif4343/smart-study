@@ -1728,6 +1728,13 @@
             <span class="font-bold">AI Copy</span>
         </button>
 
+        <!-- ══ VISUAL FLASHCARD BUTTON — শুধু VisualURL থাকলে দেখাবে ══ -->
+        <button onclick="openVisualFlashcard()" id="visual-fc-btn"
+                class="hidden h-[38px] px-3 rounded-xl font-bold text-sm flex items-center gap-1 active:scale-95 transition-all"
+                style="background:#fef3c7;border:1px solid #fde68a;color:#92400e;">
+            <span>🖼</span><span class="font-black">Visual</span>
+        </button>
+
         <button onclick="changeFontSize(-1)" class="ctrl-btn">A-</button>
         <button onclick="changeFontSize(1)" class="ctrl-btn">A+</button>
     </div>
@@ -3658,17 +3665,14 @@ function ttFinish(forced) {
         if (tt.typed[ci] === tt.passage[ci]) correctChars++;
     }
     var wrongChars   = totalTyped - correctChars;
-    // Skipped characters ও denominator এ যোগ — না লিখলে সেটাও ভুল
-    var skippedChars  = Math.max(0, tt.passage.length - totalTyped);
-    var accuracyDenom = totalTyped + skippedChars;
-    var accuracy      = accuracyDenom > 0 ? Math.round((correctChars / accuracyDenom) * 100) : 0;
+    var accuracy     = totalTyped > 0 ? Math.round((correctChars / totalTyped) * 100) : 0;
 
     // ── Word stats ──
     var totalTypedWords = typedWordsArr.length;
     var correctWords    = 0;
     passWordsArr.forEach(function(w,i){ if(typedWordsArr[i]===w) correctWords++; });
     var mistakeCount    = wrongWords.length;
-    var skippedCount    = skippedChars; // character-based skipped
+    var skippedCount    = Math.max(0, passWordsArr.length - typedWordsArr.length);
 
     // ── WPM হিসাব (selftyping.com / standard) ──
     // Gross WPM (With Space) = সব typed chars ÷ 5 ÷ minutes (space সহ)
@@ -4344,6 +4348,19 @@ function toggleAllInSubject(sub, masterCheckbox) {
     if(currentMode !== 'study') startTimer(quizItems.length); 
     pushPath(st); 
     renderQuestions();
+
+    // ══ VISUAL FLASHCARD — VisualURL আছে কিনা detect করো ══
+    var _vBtn = document.getElementById('visual-fc-btn');
+    if (_vBtn) {
+        var _hasVisual = quizItems.some(function(i) {
+            return (getVal(i, 'VisualURL') || '').trim() !== '';
+        });
+        if (_hasVisual) {
+            _vBtn.classList.remove('hidden');
+        } else {
+            _vBtn.classList.add('hidden');
+        }
+    }
 }
 
 
@@ -7914,6 +7931,320 @@ function _markReviewCorrect(wKey, qId) {
     </div>
 
 </div>
+
+<!-- ══════════════════════════════════════════════
+     VISUAL FLASHCARD MODAL
+══════════════════════════════════════════════════ -->
+<div id="visual-fc-modal" style="display:none;position:fixed;inset:0;z-index:6500;background:#0e1117;flex-direction:column;font-family:inherit;">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(255,255,255,0.03);border-bottom:1px solid rgba(255,255,255,0.07);flex-shrink:0;">
+        <button onclick="closeVisualFlashcard()" style="width:36px;height:36px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:rgba(255,255,255,0.6);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;">←</button>
+        <div style="text-align:center;">
+            <div id="vfc-title" style="font-size:13px;font-weight:900;color:white;"></div>
+            <div id="vfc-subtitle" style="font-size:10px;color:rgba(255,255,255,0.4);font-weight:700;margin-top:1px;">Visual Flashcards</div>
+        </div>
+        <button onclick="openVFCSpeedSheet()" id="vfc-spd-btn" style="background:rgba(245,166,35,0.15);border:1px solid rgba(245,166,35,0.3);border-radius:10px;padding:6px 10px;font-size:10px;font-weight:900;color:#f5a623;cursor:pointer;">⏱ ৫s</button>
+    </div>
+
+    <!-- Progress -->
+    <div style="padding:8px 16px 0;flex-shrink:0;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+            <span id="vfc-count" style="font-size:10px;font-weight:800;color:rgba(255,255,255,0.4);">১ / ১</span>
+            <span id="vfc-done-lbl" style="font-size:10px;font-weight:800;color:#4ade80;">✓ ০ Done</span>
+        </div>
+        <div style="height:3px;border-radius:2px;background:rgba(255,255,255,0.06);overflow:hidden;">
+            <div id="vfc-prog" style="height:100%;border-radius:2px;background:linear-gradient(90deg,#f5a623,#f97316);width:0%;transition:width 0.5s ease;"></div>
+        </div>
+    </div>
+
+    <!-- Timer bar -->
+    <div style="height:2px;margin:5px 16px 0;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden;flex-shrink:0;">
+        <div id="vfc-timer" style="height:100%;width:100%;border-radius:2px;background:linear-gradient(90deg,#60a5fa,#a78bfa);"></div>
+    </div>
+
+    <!-- Card Stage -->
+    <div id="vfc-stage" style="flex:1;padding:10px 14px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;min-height:0;">
+        <!-- Ghost cards -->
+        <div style="position:absolute;width:calc(100% - 52px);height:calc(100% - 28px);transform:translateY(9px) scale(0.94);z-index:1;border-radius:20px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);"></div>
+        <div style="position:absolute;width:calc(100% - 32px);height:calc(100% - 16px);transform:translateY(5px) scale(0.97);z-index:2;border-radius:20px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);"></div>
+
+        <!-- Main card -->
+        <div id="vfc-card" onclick="vfcTap()" style="width:100%;height:100%;position:relative;z-index:3;border-radius:20px;overflow:hidden;background:#161b27;box-shadow:0 20px 60px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.06);cursor:pointer;display:flex;flex-direction:column;">
+
+            <!-- Image area -->
+            <div style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;background:#0e1117;position:relative;overflow:hidden;">
+                <img id="vfc-img" src="" alt="" style="width:100%;height:100%;object-fit:contain;display:block;">
+                <!-- Tap hint -->
+                <div id="vfc-hint" style="position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.55);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:5px 13px;font-size:10px;font-weight:800;color:rgba(255,255,255,0.6);white-space:nowrap;z-index:5;animation:vfcPulse 2.5s ease-in-out infinite;">👆 ট্যাপ করুন বা অপেক্ষা করুন</div>
+            </div>
+
+            <!-- Word label strip -->
+            <div id="vfc-strip" style="flex-shrink:0;display:flex;gap:6px;align-items:center;justify-content:center;padding:10px 10px 12px;background:rgba(0,0,0,0.35);border-top:1px solid rgba(255,255,255,0.06);flex-wrap:wrap;min-height:44px;"></div>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div style="display:flex;gap:8px;padding:8px 14px 14px;flex-shrink:0;">
+        <button onclick="vfcAgain()" style="flex:1;padding:13px;border-radius:14px;border:1.5px solid rgba(248,113,113,0.25);background:rgba(248,113,113,0.1);color:#f87171;font-weight:900;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;">🔁 আবার দেখব</button>
+        <button onclick="vfcPauseToggle()" id="vfc-pause-btn" style="width:44px;flex:none;border-radius:14px;border:1.5px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.6);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">⏸</button>
+        <button onclick="vfcDone()" style="flex:1;padding:13px;border-radius:14px;border:none;background:linear-gradient(135deg,#4ade80,#22c55e);color:#052e16;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 4px 18px rgba(74,222,128,0.25);display:flex;align-items:center;justify-content:center;gap:5px;">✅ জানি</button>
+    </div>
+
+    <!-- Completion screen (hidden initially) -->
+    <div id="vfc-finish" style="display:none;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:24px;text-align:center;">
+        <div style="font-size:60px;margin-bottom:14px;animation:vfcBob 0.65s ease-in-out infinite alternate;">🎉</div>
+        <h2 style="font-size:20px;font-weight:900;color:white;margin-bottom:6px;">অসাধারণ!</h2>
+        <p style="font-size:12px;color:rgba(255,255,255,0.5);font-weight:600;margin-bottom:22px;">সব Flashcard দেখা সম্পন্ন!</p>
+        <div style="display:flex;gap:10px;margin-bottom:24px;">
+            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 18px;text-align:center;min-width:72px;">
+                <div id="vfc-fin-done" style="font-size:24px;font-weight:900;color:white;">0</div>
+                <div style="font-size:9px;font-weight:900;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">জানি</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 18px;text-align:center;min-width:72px;">
+                <div id="vfc-fin-again" style="font-size:24px;font-weight:900;color:white;">0</div>
+                <div style="font-size:9px;font-weight:900;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">Review</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:12px 18px;text-align:center;min-width:72px;">
+                <div id="vfc-fin-total" style="font-size:24px;font-weight:900;color:white;">0</div>
+                <div style="font-size:9px;font-weight:900;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">মোট</div>
+            </div>
+        </div>
+        <button onclick="vfcRestart()" style="background:linear-gradient(135deg,#f5a623,#f97316);color:white;border:none;border-radius:14px;padding:14px 28px;font-size:14px;font-weight:900;cursor:pointer;box-shadow:0 6px 20px rgba(245,166,35,0.3);">🔄 আবার শুরু করো</button>
+    </div>
+
+    <!-- Speed bottom sheet -->
+    <div id="vfc-speed-overlay" onclick="closeVFCSpeedSheet()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;">
+        <div onclick="event.stopPropagation()" style="position:absolute;bottom:0;left:0;right:0;background:#1c2333;border-radius:24px 24px 0 0;padding:20px 16px 28px;border:1px solid rgba(255,255,255,0.07);">
+            <div style="font-size:13px;font-weight:900;color:white;margin-bottom:12px;">⏱ Auto-flip গতি বেছে নাও</div>
+            <div style="display:flex;gap:7px;">
+                <button onclick="vfcSetSpeed(3000,'৩s',this)" style="flex:1;padding:11px 4px;text-align:center;background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.1);border-radius:12px;color:rgba(255,255,255,0.5);font-size:10px;font-weight:900;cursor:pointer;line-height:1.6;">🐆 দ্রুত<br>৩ সেকেন্ড</button>
+                <button onclick="vfcSetSpeed(5000,'৫s',this)" id="vfc-spd-5" style="flex:1;padding:11px 4px;text-align:center;background:rgba(245,166,35,0.14);border:1.5px solid rgba(245,166,35,0.5);border-radius:12px;color:#f5a623;font-size:10px;font-weight:900;cursor:pointer;line-height:1.6;">🐢 স্বাভাবিক<br>৫ সেকেন্ড</button>
+                <button onclick="vfcSetSpeed(8000,'৮s',this)" style="flex:1;padding:11px 4px;text-align:center;background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.1);border-radius:12px;color:rgba(255,255,255,0.5);font-size:10px;font-weight:900;cursor:pointer;line-height:1.6;">🐌 ধীরে<br>৮ সেকেন্ড</button>
+                <button onclick="vfcSetSpeed(0,'✋',this)" style="flex:1;padding:11px 4px;text-align:center;background:rgba(255,255,255,0.04);border:1.5px solid rgba(255,255,255,0.1);border-radius:12px;color:rgba(255,255,255,0.5);font-size:10px;font-weight:900;cursor:pointer;line-height:1.6;">✋ Manual<br>শুধু ট্যাপ</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes vfcPulse{0%,100%{opacity:.55}50%{opacity:.95}}
+@keyframes vfcBob{to{transform:translateY(-10px)}}
+@keyframes vfcIn{from{transform:scale(.9) translateY(20px);opacity:0}to{transform:none;opacity:1}}
+@keyframes vfcExitL{to{transform:translateX(-105%) rotate(-10deg);opacity:0}}
+@keyframes vfcExitR{to{transform:translateX(105%) rotate(10deg);opacity:0}}
+#vfc-card.vfc-in{animation:vfcIn .4s cubic-bezier(.175,.885,.32,1.2) both}
+#vfc-card.vfc-xl{animation:vfcExitL .3s ease forwards}
+#vfc-card.vfc-xr{animation:vfcExitR .3s ease forwards}
+</style>
+
+<script>
+// ══════════════════════════════════════════
+// VISUAL FLASHCARD ENGINE
+// ══════════════════════════════════════════
+var _vfc = {
+    deck: [], idx: 0, doneCount: 0, againCount: 0,
+    paused: false, spd: 5000, raf: null, t0: null,
+    totalOrig: 0
+};
+
+function openVisualFlashcard() {
+    // quizItems থেকে VisualURL আছে এমন cards নাও
+    var cards = [];
+    quizItems.forEach(function(i) {
+        var url = (getVal(i, 'VisualURL') || '').trim();
+        if (!url) return;
+        cards.push({
+            url: url,
+            word: getVal(i, 'question') || '',
+            answer: getVal(i, 'correct') || ''
+        });
+    });
+    if (!cards.length) { showToast('⚠️ এই topic-এ কোনো Visual ছবি নেই'); return; }
+
+    _vfc.deck = cards.map(function(c){ return Object.assign({}, c); });
+    _vfc.idx = 0; _vfc.doneCount = 0; _vfc.againCount = 0;
+    _vfc.paused = false; _vfc.spd = 5000; _vfc.totalOrig = cards.length;
+
+    // Title
+    var topicName = path.length >= 2 ? path[path.length - 1] : (path[0] || 'Visual');
+    document.getElementById('vfc-title').textContent = '🖼 ' + topicName;
+    document.getElementById('vfc-fin-total').textContent = cards.length;
+
+    // Reset controls
+    document.getElementById('vfc-pause-btn').textContent = '⏸';
+    document.getElementById('vfc-pause-btn').style.color = '';
+    document.getElementById('vfc-spd-btn').textContent = '⏱ ৫s';
+
+    // Show modal
+    var modal = document.getElementById('visual-fc-modal');
+    modal.style.display = 'flex';
+    document.getElementById('vfc-stage').style.display = '';
+    document.getElementById('vfc-finish').style.display = 'none';
+    document.querySelector('#visual-fc-modal > div:last-of-type').style.display = '';
+
+    // Push history state so back button closes modal
+    history.pushState({view: 'visual-fc'}, '');
+
+    _vfcRender();
+}
+
+function closeVisualFlashcard() {
+    _vfcStopTimer();
+    document.getElementById('visual-fc-modal').style.display = 'none';
+}
+
+function _vfcRender() {
+    if (_vfc.idx >= _vfc.deck.length) { _vfcShowFinish(); return; }
+    var c = _vfc.deck[_vfc.idx];
+
+    // Image
+    document.getElementById('vfc-img').src = c.url;
+
+    // Word strip — question + answer
+    var strip = '';
+    if (c.word) strip += '<span style="background:rgba(99,102,241,0.18);border:1.5px solid rgba(99,102,241,0.4);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:900;color:#a5b4fc;white-space:nowrap;">' + c.word + '</span>';
+    if (c.answer) strip += '<span style="background:rgba(74,222,128,0.15);border:1.5px solid rgba(74,222,128,0.35);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:900;color:#86efac;white-space:nowrap;">→ ' + c.answer + '</span>';
+    document.getElementById('vfc-strip').innerHTML = strip || '';
+
+    // Progress
+    var total = _vfc.deck.length;
+    var pct = Math.round((_vfc.idx / total) * 100);
+    document.getElementById('vfc-prog').style.width = pct + '%';
+    document.getElementById('vfc-count').textContent = (_vfc.idx + 1) + ' / ' + total;
+    document.getElementById('vfc-done-lbl').textContent = '✓ ' + _vfc.doneCount + ' Done';
+
+    // Animate card in
+    var card = document.getElementById('vfc-card');
+    card.classList.remove('vfc-in','vfc-xl','vfc-xr');
+    void card.offsetWidth;
+    card.classList.add('vfc-in');
+
+    _vfcStartTimer();
+}
+
+function _vfcStartTimer() {
+    _vfcStopTimer();
+    if (_vfc.spd === 0 || _vfc.paused) { _vfcSetTimerBar(1); return; }
+    _vfc.t0 = performance.now();
+    (function tick(now) {
+        if (_vfc.paused) return;
+        var r = Math.max(0, 1 - (now - _vfc.t0) / _vfc.spd);
+        _vfcSetTimerBar(r);
+        if (r <= 0) { _vfcAdvance('auto'); return; }
+        _vfc.raf = requestAnimationFrame(tick);
+    })(_vfc.t0);
+}
+function _vfcStopTimer() {
+    if (_vfc.raf) { cancelAnimationFrame(_vfc.raf); _vfc.raf = null; }
+}
+function _vfcSetTimerBar(r) {
+    var el = document.getElementById('vfc-timer');
+    if (el) el.style.width = (r * 100) + '%';
+}
+
+function _vfcAdvance(why) {
+    _vfcStopTimer();
+    var card = document.getElementById('vfc-card');
+    var cls = (why === 'done') ? 'vfc-xr' : 'vfc-xl';
+    card.classList.add(cls);
+    setTimeout(function() {
+        card.classList.remove(cls);
+        if (why === 'again') {
+            var c = _vfc.deck.splice(_vfc.idx, 1)[0];
+            _vfc.deck.push(c);
+            if (_vfc.idx >= _vfc.deck.length) _vfc.idx = _vfc.deck.length - 1;
+        } else {
+            _vfc.idx++;
+        }
+        _vfcRender();
+    }, 280);
+}
+
+function vfcTap()  { _vfcStopTimer(); _vfcAdvance('tap'); }
+function vfcDone() { _vfc.doneCount++; _vfcFlashDone(); _vfcAdvance('done'); }
+function vfcAgain(){ _vfc.againCount++; _vfcAdvance('again'); }
+
+function _vfcFlashDone() {
+    var el = document.createElement('div');
+    el.style.cssText = 'position:absolute;inset:0;z-index:20;border-radius:20px;background:rgba(74,222,128,0.15);border:2px solid rgba(74,222,128,0.45);display:flex;align-items:center;justify-content:center;pointer-events:none;animation:vfcIn .5s ease forwards;';
+    el.innerHTML = '<span style="font-size:56px;">✅</span>';
+    document.getElementById('vfc-stage').appendChild(el);
+    setTimeout(function(){ el.remove(); }, 500);
+}
+
+function vfcPauseToggle() {
+    _vfc.paused = !_vfc.paused;
+    var btn = document.getElementById('vfc-pause-btn');
+    var hint = document.getElementById('vfc-hint');
+    if (_vfc.paused) {
+        _vfcStopTimer();
+        btn.textContent = '▶'; btn.style.color = '#4ade80';
+        hint.textContent = '⏸ বিরতি — ▶ চাপুন চালাতে';
+    } else {
+        btn.textContent = '⏸'; btn.style.color = '';
+        hint.textContent = '👆 ট্যাপ করুন বা অপেক্ষা করুন';
+        _vfcStartTimer();
+    }
+}
+
+function openVFCSpeedSheet()  {
+    _vfc.paused = true; _vfcStopTimer();
+    document.getElementById('vfc-speed-overlay').style.display = 'block';
+}
+function closeVFCSpeedSheet() { document.getElementById('vfc-speed-overlay').style.display = 'none'; }
+
+function vfcSetSpeed(ms, lbl, el) {
+    _vfc.spd = ms;
+    document.getElementById('vfc-spd-btn').textContent = '⏱ ' + lbl;
+    document.querySelectorAll('#vfc-speed-overlay button').forEach(function(b){
+        b.style.background = 'rgba(255,255,255,0.04)';
+        b.style.borderColor = 'rgba(255,255,255,0.1)';
+        b.style.color = 'rgba(255,255,255,0.5)';
+    });
+    el.style.background = 'rgba(245,166,35,0.14)';
+    el.style.borderColor = 'rgba(245,166,35,0.5)';
+    el.style.color = '#f5a623';
+    closeVFCSpeedSheet();
+    _vfc.paused = false;
+    document.getElementById('vfc-pause-btn').textContent = '⏸';
+    document.getElementById('vfc-pause-btn').style.color = '';
+    var hint = document.getElementById('vfc-hint');
+    hint.textContent = ms === 0 ? '👆 ট্যাপ করলে পরেরটা আসবে' : '👆 ট্যাপ করুন বা অপেক্ষা করুন';
+    if (ms === 0) _vfcSetTimerBar(0); else _vfcStartTimer();
+}
+
+function _vfcShowFinish() {
+    _vfcStopTimer();
+    document.getElementById('vfc-stage').style.display = 'none';
+    // Hide bottom controls
+    var ctrls = document.querySelector('#visual-fc-modal > div:nth-last-child(3)');
+    if (ctrls) ctrls.style.display = 'none';
+    document.querySelector('.vfc-timer-row') && (document.querySelector('.vfc-timer-row').style.display = 'none');
+    document.getElementById('vfc-finish').style.display = 'flex';
+    document.getElementById('vfc-fin-done').textContent = _vfc.doneCount;
+    document.getElementById('vfc-fin-again').textContent = _vfc.againCount;
+}
+
+function vfcRestart() {
+    // rebuild deck from original quizItems
+    var cards = [];
+    quizItems.forEach(function(i) {
+        var url = (getVal(i, 'VisualURL') || '').trim();
+        if (!url) return;
+        cards.push({ url: url, word: getVal(i, 'question') || '', answer: getVal(i, 'correct') || '' });
+    });
+    _vfc.deck = cards;
+    _vfc.idx = 0; _vfc.doneCount = 0; _vfc.againCount = 0; _vfc.paused = false;
+    document.getElementById('vfc-finish').style.display = 'none';
+    document.getElementById('vfc-stage').style.display = '';
+    var ctrls = document.querySelector('#visual-fc-modal > div:nth-last-child(3)');
+    if (ctrls) ctrls.style.display = '';
+    document.getElementById('vfc-pause-btn').textContent = '⏸';
+    document.getElementById('vfc-pause-btn').style.color = '';
+    _vfcRender();
+}
+</script>
 
 </body>
 </html>
