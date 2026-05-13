@@ -3658,14 +3658,17 @@ function ttFinish(forced) {
         if (tt.typed[ci] === tt.passage[ci]) correctChars++;
     }
     var wrongChars   = totalTyped - correctChars;
-    var accuracy     = totalTyped > 0 ? Math.round((correctChars / totalTyped) * 100) : 0;
+    // Skipped characters ও denominator এ যোগ — না লিখলে সেটাও ভুল
+    var skippedChars  = Math.max(0, tt.passage.length - totalTyped);
+    var accuracyDenom = totalTyped + skippedChars;
+    var accuracy      = accuracyDenom > 0 ? Math.round((correctChars / accuracyDenom) * 100) : 0;
 
     // ── Word stats ──
     var totalTypedWords = typedWordsArr.length;
     var correctWords    = 0;
     passWordsArr.forEach(function(w,i){ if(typedWordsArr[i]===w) correctWords++; });
     var mistakeCount    = wrongWords.length;
-    var skippedCount    = Math.max(0, passWordsArr.length - typedWordsArr.length);
+    var skippedCount    = skippedChars; // character-based skipped
 
     // ── WPM হিসাব (selftyping.com / standard) ──
     // Gross WPM (With Space) = সব typed chars ÷ 5 ÷ minutes (space সহ)
