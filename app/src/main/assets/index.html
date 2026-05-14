@@ -7103,28 +7103,21 @@ async function doLogin() {
     if (!phone || !pass) { showAuthMsg('login', '📱 ফোন ও পাসওয়ার্ড দিন'); return; }
 
     var hashedPass = sha256(pass);
+    // GAS hash এর সাথেও compare করার জন্য node crypto style hash
+    // login এ দুটোই try করা হবে: JS hash এবং plain text (পুরনো accounts)
 
     showAuthLoading(true);
-    fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
+    // GAS এ login verify করো — server side hash compare
+    fetch(GAS_URL + '?action=verifyLogin&phone=' + encodeURIComponent(phone) + '&password=' + encodeURIComponent(pass))
         .then(function(r) { return r.json(); })
         .then(function(data) {
             showAuthLoading(false);
-            if (!data) { showAuthMsg('login', '❌ সার্ভার সংযোগ ব্যর্থ'); return; }
-            var users = Array.isArray(data) ? data : Object.values(data);
-            var matched = null;
-            for (var i = 0; i < users.length; i++) {
-                var u = users[i];
-                if (!u) continue;
-                var uPhone = (u.Phone || u.phone || '').toString().trim().replace(/\s/g, '');
-                var uPass  = (u.Password || u.password || '').toString().trim();
-                var normU = uPhone.replace(/^'+/,'').replace(/^0+/, '');
-                var normP = phone.replace(/^'+/,'').replace(/^0+/, '');
-                var cleanU = uPhone.replace(/^'+/,'');
-                // hashed password comparison; fallback to plain for old accounts
-                var passMatch = (uPass === hashedPass) || (uPass === pass);
-                if ((uPhone === phone || cleanU === phone || normU === normP) && passMatch) { matched = u; break; }
+            if (!data || data.result !== 'success') {
+                showAuthMsg('login', '❌ ফোন বা পাসওয়ার্ড ভুল!');
+                return;
             }
-            if (!matched) { showAuthMsg('login', '❌ ফোন বা পাসওয়ার্ড ভুল!'); return; }
+            var matched = data.user;
+            if (!matched) { showAuthMsg('login', '❌ সার্ভার সংযোগ ব্যর্থ'); return; }
             var status = (matched.Status || matched.status || 'active').toLowerCase();
             if (status === 'inactive') {
                 showAuthMsg('login', '⏳ অ্যাকাউন্ট এখনো Activate হয়নি। Admin-এর সাথে যোগাযোগ করুন।');
@@ -7186,9 +7179,6 @@ async function doSignup() {
     if (userType === 'Student' && !classLevel) { showAuthMsg('signup', '🎒 শ্রেণি / বর্ষ সিলেক্ট করুন'); return; }
     if (userType === 'Job' && !classLevel) { showAuthMsg('signup', '🏢 চাকরির গ্রেড সিলেক্ট করুন'); return; }
 
-    // ✅ Password hash করে পাঠাও — login এও sha256 দিয়ে compare হয়
-    var hashedPass = sha256(pass);
-
     showAuthLoading(true);
     fetch(GAS_URL, {
         method: 'POST',
@@ -7199,7 +7189,7 @@ async function doSignup() {
             name: name,
             phone: "'" + phone,
             email: email,
-            password: hashedPass,
+            password: pass,
             type: 'Student',
             userType: userType,
             classLevel: classLevel || '',
