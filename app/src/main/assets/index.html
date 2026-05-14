@@ -7164,6 +7164,56 @@ async function doLogin() {
         });
 }
 
+// ── Signup Photo Preview ──
+function previewSignupPhoto(input) {
+    if (!input.files || !input.files[0]) return;
+    var file = input.files[0];
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var img = document.getElementById('signup-photo-img');
+        var icon = document.getElementById('signup-photo-icon');
+        if (img && icon) {
+            img.src = e.target.result;
+            img.style.display = 'block';
+            icon.style.display = 'none';
+        }
+        document.getElementById('signup-upload-status').textContent = '✅ ছবি নির্বাচন হয়েছে';
+    };
+    reader.readAsDataURL(file);
+}
+
+// ── imgbb Upload ──
+async function uploadToImgbb(file) {
+    var apiKey = typeof IMGBB_API_KEY !== 'undefined' ? IMGBB_API_KEY : '';
+    if (!apiKey) {
+        // GAS থেকে key আনো
+        try {
+            var r = await fetch(GAS_URL + '?action=getImgbbKey');
+            var d = await r.json();
+            apiKey = d.key || '';
+        } catch(e) {}
+    }
+    if (!apiKey || !file) return '';
+    return new Promise(function(resolve) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var base64 = e.target.result.split(',')[1];
+            var formData = new FormData();
+            formData.append('image', base64);
+            fetch('https://api.imgbb.com/1/upload?key=' + apiKey, {
+                method: 'POST',
+                body: formData
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                resolve(data && data.data && data.data.url ? data.data.url : '');
+            })
+            .catch(function() { resolve(''); });
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
 async function doSignup() {
     var name      = (document.getElementById('signup-name')  || {value:''}).value.trim();
     var phone     = (document.getElementById('signup-phone') || {value:''}).value.trim().replace(/\s/g, '');
@@ -7180,6 +7230,17 @@ async function doSignup() {
     if (userType === 'Job' && !classLevel) { showAuthMsg('signup', '🏢 চাকরির গ্রেড সিলেক্ট করুন'); return; }
 
     showAuthLoading(true);
+    document.getElementById('signup-upload-status').textContent = '';
+
+    // Photo upload — file থাকলে imgbb তে upload করো
+    var pictureUrl = '';
+    var photoInput = document.getElementById('signup-photo-input');
+    if (photoInput && photoInput.files && photoInput.files[0]) {
+        document.getElementById('signup-upload-status').textContent = '⏳ ছবি upload হচ্ছে...';
+        pictureUrl = await uploadToImgbb(photoInput.files[0]);
+        document.getElementById('signup-upload-status').textContent = pictureUrl ? '✅ ছবি upload সফল' : '⚠️ ছবি upload ব্যর্থ';
+    }
+
     fetch(GAS_URL, {
         method: 'POST',
         mode: 'no-cors',
@@ -7193,6 +7254,7 @@ async function doSignup() {
             type: 'Student',
             userType: userType,
             classLevel: classLevel || '',
+            picture: pictureUrl,
             timestamp: new Date().toLocaleString('en-BD')
         })
     }).then(function() {
@@ -7201,6 +7263,10 @@ async function doSignup() {
         document.getElementById('signup-phone').value = '';
         document.getElementById('signup-email').value = '';
         document.getElementById('signup-pass').value  = '';
+        var pi = document.getElementById('signup-photo-input'); if(pi) pi.value = '';
+        var img = document.getElementById('signup-photo-img'); if(img){img.src='';img.style.display='none';}
+        var icon = document.getElementById('signup-photo-icon'); if(icon) icon.style.display='block';
+        document.getElementById('signup-upload-status').textContent = '';
         if (document.getElementById('signup-class')) document.getElementById('signup-class').value = '';
         window._selectedUserType = null;
         document.querySelectorAll('[id^="utype-"]').forEach(b => {
@@ -8018,6 +8084,18 @@ function _markReviewCorrect(wKey, qId) {
 
     <!-- SIGNUP FORM -->
     <div id="auth-signup-form" style="display:none;width:100%;max-width:320px;">
+
+      <!-- Profile Photo Upload -->
+      <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:14px;">
+        <div id="signup-photo-preview" onclick="document.getElementById('signup-photo-input').click()"
+          style="width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.2);border:2.5px dashed rgba(255,255,255,0.5);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;position:relative;">
+          <span id="signup-photo-icon" style="font-size:28px;">📷</span>
+          <img id="signup-photo-img" src="" style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;border-radius:50%;">
+        </div>
+        <div style="color:rgba(255,255,255,0.6);font-size:10px;margin-top:5px;">প্রোফাইল ছবি (ঐচ্ছিক)</div>
+        <input type="file" id="signup-photo-input" accept="image/*" style="display:none;" onchange="previewSignupPhoto(this)">
+        <div id="signup-upload-status" style="font-size:10px;color:rgba(255,255,255,0.7);margin-top:3px;"></div>
+      </div>
       <div style="background:rgba(255,255,255,0.15);border-radius:14px;margin-bottom:10px;display:flex;align-items:center;padding:0 14px;">
         <span style="color:rgba(255,255,255,0.7);font-size:16px;margin-right:8px;">👤</span>
         <input id="signup-name" type="text" placeholder="পূর্ণ নাম" style="flex:1;background:transparent;border:none;outline:none;padding:14px 0;color:white;font-weight:700;font-size:14px;">
