@@ -2550,6 +2550,9 @@ function generateTableHtml(rows) {
     // ── Admin notification listener ──
     setTimeout(() => startNotificationPolling(), 3000);
 
+    // ── Session timer — app usage tracking ──
+    try { startSessionTimer(); } catch(e) {}
+
     // ── Firebase fetch — পুরোপুরি non-blocking ──
     loadFirebaseData();
 }
@@ -5679,16 +5682,26 @@ function saveFCMTokenToFirebase(token) {
         }).catch(function() {});
 }
 
-// Login এর পরে token save করো (login হওয়ার পর currentUser set হয়)
+// Login এর পরে token save করো
 function postLoginFCMSetup() {
     var token = localStorage.getItem('fcm_token') || '';
     if (!token) {
         try { token = AndroidBridge.getFCMToken(); } catch(e) {}
     }
-    if (token && token.length > 10) {
+    if (token && token.length > 10 && currentUser && currentUser.phone) {
+        // Firebase FCMTokens node এ save (GAS sendFCMToPhone এখান থেকে পড়ে)
+        fetch(GAS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'save_fcm_token',
+                phone: currentUser.phone,
+                token: token
+            })
+        }).catch(function() {});
+        // Users node এও save
         saveFCMTokenToFirebase(token);
     }
-    // Topic subscribe করো
     try { AndroidBridge.subscribeToTopic('all_users'); } catch(e) {}
 }
 
@@ -5926,6 +5939,19 @@ function startSessionTimer() {
         }
     }, 60000);
 }
+
+// App background/foreground হলে timer pause/resume
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        clearInterval(_sessionTimer);
+        _sessionTimer = null;
+    } else {
+        if (currentUser && currentUser.phone) {
+            _sessionStart = Date.now();
+            startSessionTimer();
+        }
+    }
+});
 
 function getTodayStudyTime() {
     const key = 'time_' + new Date().toDateString();
@@ -7241,9 +7267,12 @@ async function doSignup() {
         document.getElementById('signup-upload-status').textContent = pictureUrl ? '✅ ছবি upload সফল' : '⚠️ ছবি upload ব্যর্থ';
     }
 
+    // Submit button loading state
+    var submitBtn = document.querySelector('#auth-signup-form button[onclick="doSignup()"]');
+    if (submitBtn) { submitBtn.textContent = '⏳ তৈরি হচ্ছে...'; submitBtn.disabled = true; }
+
     fetch(GAS_URL, {
         method: 'POST',
-        mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             targetTab: 'Users',
@@ -7257,8 +7286,21 @@ async function doSignup() {
             picture: pictureUrl,
             timestamp: new Date().toLocaleString('en-BD')
         })
-    }).then(function() {
+    }).then(function(r) { return r.json(); })
+    .then(function(res) {
         showAuthLoading(false);
+        if (submitBtn) { submitBtn.textContent = 'অ্যাকাউন্ট তৈরি করুন 🚀'; submitBtn.disabled = false; }
+
+        if (res && res.result === 'duplicate') {
+            showAuthMsg('signup', '⚠️ এই ফোন নম্বর দিয়ে আগেই অ্যাকাউন্ট আছে!');
+            return;
+        }
+        if (res && res.result !== 'success') {
+            showAuthMsg('signup', '❌ সমস্যা হয়েছে: ' + (res.error || 'আবার চেষ্টা করুন'));
+            return;
+        }
+
+        // ✅ Success
         document.getElementById('signup-name').value  = '';
         document.getElementById('signup-phone').value = '';
         document.getElementById('signup-email').value = '';
@@ -7274,10 +7316,14 @@ async function doSignup() {
             b.style.borderColor = 'rgba(255,255,255,0.3)';
         });
         if (document.getElementById('class-level-section')) document.getElementById('class-level-section').style.display = 'none';
-        switchAuthTab('login');
-        showAuthMsg('login', '✅ রেজিস্ট্রেশন সফল! Admin Activate করলে লগইন করুন।');
+
+        // Success popup দেখাও তারপর login এ যাও
+        showAuthMsg('signup', '✅ অ্যাকাউন্ট তৈরি সফল! এখনই লগইন করুন।');
+        setTimeout(function() { switchAuthTab('login'); }, 1800);
+
     }).catch(function() {
         showAuthLoading(false);
+        if (submitBtn) { submitBtn.textContent = 'অ্যাকাউন্ট তৈরি করুন 🚀'; submitBtn.disabled = false; }
         showAuthMsg('signup', '❌ সংযোগ সমস্যা। আবার চেষ্টা করুন।');
     });
 }
