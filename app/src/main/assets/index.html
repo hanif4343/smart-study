@@ -2567,7 +2567,7 @@ function loadFirebaseData() {
 
     // Online হলে সবসময় fresh data — SW/browser cache bypass
     var _fbUrl = FIREBASE_URL + '.json?auth=' + SECRET_KEY + '&_t=' + Date.now();
-    fetch(_fbUrl, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store' } })
+    fetch(_fbUrl, { cache: 'no-cache' })
         .then(function(response) {
             if (!response.ok) throw new Error('HTTP ' + response.status);
             return response.json();
@@ -4962,27 +4962,22 @@ function fallbackShare(text) {
                 return;
             }
             document.getElementById('loader').classList.remove('hidden');
-            showToast('🔄 নতুন ডেটা আনা হচ্ছে...');
-
-            // ✅ SW cache clear করো — পুরনো response আর দেবে না
-            var clearPromise = Promise.resolve();
+            // ✅ Immediately start Firebase fetch — cache clear এর জন্য অপেক্ষা না করে
+            loadFirebaseData();
+            showToast('🔄 ডেটা আপডেট হচ্ছে...');
+            // SW cache clear in background (non-blocking)
             if ('caches' in window) {
-                clearPromise = caches.keys().then(function(keys) {
+                caches.keys().then(function(keys) {
                     return Promise.all(keys.map(function(k) { return caches.delete(k); }));
-                });
+                }).catch(function() {});
             }
-
-            clearPromise.then(function() {
-                // cache clear হলে fresh Firebase fetch
-                loadFirebaseData();
-                setTimeout(function() {
-                    document.getElementById('loader').classList.add('hidden');
-                    const mv = document.getElementById('main-view');
-                    if (currentMode === 'home' && mv && typeof renderHome === 'function') renderHome(mv);
-                    else if (typeof renderView === 'function') renderView();
-                    showToast('✅ ডেটা আপডেট সম্পন্ন!');
-                }, 2500);
-            });
+            setTimeout(function() {
+                document.getElementById('loader').classList.add('hidden');
+                const mv = document.getElementById('main-view');
+                if (currentMode === 'home' && mv && typeof renderHome === 'function') renderHome(mv);
+                else if (typeof renderView === 'function') renderView();
+                showToast('✅ ডেটা আপডেট সম্পন্ন!');
+            }, 3000);
         }
 
         function openMenu() { changeMode('menu'); }
