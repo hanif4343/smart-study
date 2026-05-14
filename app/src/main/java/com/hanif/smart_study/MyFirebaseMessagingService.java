@@ -27,6 +27,16 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
     public void onNewToken(String token) {
         super.onNewToken(token);
         Log.d(TAG, "নতুন FCM Token: " + token);
+        // নতুন token SharedPreferences এ save করো
+        getSharedPreferences("FCM", MODE_PRIVATE)
+            .edit().putString("token", token).apply();
+        // WebView কে জানাও যদি চালু থাকে
+        if (MainActivity.webViewInstance != null) {
+            String js = "javascript:if(typeof onFCMTokenReceived === 'function') { onFCMTokenReceived('" + token + "'); }";
+            MainActivity.webViewInstance.post(() ->
+                MainActivity.webViewInstance.loadUrl(js)
+            );
+        }
     }
 
     @Override
