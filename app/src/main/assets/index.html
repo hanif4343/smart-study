@@ -7115,7 +7115,7 @@ async function doLogin() {
         });
 }
 
-function doSignup() {
+async function doSignup() {
     var name      = (document.getElementById('signup-name')  || {value:''}).value.trim();
     var phone     = (document.getElementById('signup-phone') || {value:''}).value.trim().replace(/\s/g, '');
     var email     = (document.getElementById('signup-email') || {value:''}).value.trim();
@@ -7130,6 +7130,9 @@ function doSignup() {
     if (userType === 'Student' && !classLevel) { showAuthMsg('signup', '🎒 শ্রেণি / বর্ষ সিলেক্ট করুন'); return; }
     if (userType === 'Job' && !classLevel) { showAuthMsg('signup', '🏢 চাকরির গ্রেড সিলেক্ট করুন'); return; }
 
+    // ✅ Password hash করে পাঠাও — login এও sha256 দিয়ে compare হয়
+    var hashedPass = await sha256(pass);
+
     showAuthLoading(true);
     fetch(GAS_URL, {
         method: 'POST',
@@ -7140,7 +7143,7 @@ function doSignup() {
             name: name,
             phone: "'" + phone,
             email: email,
-            password: pass,
+            password: hashedPass,
             type: 'Student',
             userType: userType,
             classLevel: classLevel || '',
