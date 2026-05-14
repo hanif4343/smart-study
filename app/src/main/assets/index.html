@@ -5632,8 +5632,119 @@ function finishOnboarding() {
 }
 
 // ====================================================
-// ⚡ XP & LEVEL SYSTEM
+// 🔔 FCM BRIDGE — Android → JavaScript
 // ====================================================
+
+// Android থেকে FCM token পাওয়ার পর call হয়
+function onFCMTokenReceived(token) {
+    if (!token || token.length < 10) return;
+    // SharedPreferences এ আছে, JS এও রাখো
+    localStorage.setItem('fcm_token', token);
+    // User logged in থাকলে Firebase এ save করো
+    if (currentUser && currentUser.phone) {
+        saveFCMTokenToFirebase(token);
+    }
+}
+
+// FCM notification এলে app foreground এ থাকলে in-app banner দেখাও
+function onFCMNotification(title, body, url) {
+    showInAppBanner(title || 'Smart Study', body || '', '🔔');
+    // url থাকলে navigate করো
+    if (url && url.length > 3) {
+        setTimeout(function() {
+            try { AndroidBridge.navigateTo && AndroidBridge.navigateTo(url); } catch(e) {}
+        }, 500);
+    }
+}
+
+// Firebase Users node এ FCM token save করো
+function saveFCMTokenToFirebase(token) {
+    if (!currentUser || !currentUser.phone || !FIREBASE_URL) return;
+    fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data) return;
+            var keys = Object.keys(data);
+            var normP = currentUser.phone.toString().trim().replace(/^0+/, '');
+            for (var i = 0; i < keys.length; i++) {
+                var u = data[keys[i]];
+                if (!u) continue;
+                var uPhone = (u.Phone || u.phone || '').toString().trim().replace(/['\s]/g, '');
+                var normU = uPhone.replace(/^0+/, '');
+                if (uPhone === currentUser.phone.toString().trim() || normU === normP) {
+                    // শুধু FCMToken field PATCH করো
+                    fetch(FIREBASE_URL + 'Users/' + keys[i] + '/FCMToken.json?auth=' + SECRET_KEY, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(token)
+                    }).catch(function() {});
+                    break;
+                }
+            }
+        }).catch(function() {});
+}
+
+// Login এর পরে token save করো (login হওয়ার পর currentUser set হয়)
+function postLoginFCMSetup() {
+    var token = localStorage.getItem('fcm_token') || '';
+    if (!token) {
+        try { token = AndroidBridge.getFCMToken(); } catch(e) {}
+    }
+    if (token && token.length > 10) {
+        saveFCMTokenToFirebase(token);
+    }
+    // Topic subscribe করো
+    try { AndroidBridge.subscribeToTopic('all_users'); } catch(e) {}
+}
+
+// ====================================================
+// ⚡ XP UPDATE — race condition fix
+// ====================================================
+// XP update queue — একসাথে অনেক XP award হলে batch করে পাঠাও
+var _xpUpdateTimer = null;
+var _xpPendingSync = false;
+
+function awardXP(amount) {
+    var prevInfo = getXPInfo();
+    var prevLevel = prevInfo.level;
+    var _xpKey = currentUser && currentUser.phone ? 'user_xp_' + currentUser.phone : 'user_xp';
+    var curXP = parseInt(localStorage.getItem(_xpKey) || '0');
+    var newXP = curXP + amount;
+    localStorage.setItem(_xpKey, newXP);
+    // currentUser এও update রাখো
+    if (currentUser) { currentUser.xp = newXP; saveCurrentUser(currentUser); }
+
+    var newInfo = getXPInfo();
+    if (newInfo.level > prevLevel) {
+        showAchievement(newInfo.levelEmoji, 'Level Up! ' + newInfo.levelName, 'তুমি Level ' + newInfo.level + '-এ পৌঁছেছ!');
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
+    }
+    checkAchievements(newXP);
+
+    // Debounce sync — ৩ সেকেন্ড পর একবার পাঠাও, বারবার না
+    if (_xpUpdateTimer) clearTimeout(_xpUpdateTimer);
+    _xpUpdateTimer = setTimeout(function() {
+        _syncXPNow(newXP);
+    }, 3000);
+}
+
+function _syncXPNow(xp) {
+    if (!currentUser || !currentUser.phone || _xpPendingSync) return;
+    _xpPendingSync = true;
+    var phone = currentUser.phone;
+
+    // GAS Sheet update
+    fetch(GAS_URL, {
+        method: 'POST', mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'update_xp', phone: phone, xp: xp })
+    }).catch(function() {});
+
+    // Firebase PATCH — শুধু XP field
+    syncXPToFirebase(phone, xp);
+
+    setTimeout(function() { _xpPendingSync = false; }, 5000);
+}
 const XP_LEVELS = [
     { level:1,  name:'নতুন শিক্ষার্থী', emoji:'🌱', minXP:0 },
     { level:2,  name:'অনুসন্ধানী',       emoji:'🔍', minXP:100 },
@@ -5665,31 +5776,7 @@ function getXPInfo() {
     return { xp, level: currentLevel.level, levelName: currentLevel.name, levelEmoji: currentLevel.emoji, nextXP: nextLevel.minXP - xp, pct };
 }
 
-function awardXP(amount) {
-    var prevInfo = getXPInfo();
-    var prevLevel = prevInfo.level;
-    var _xpKey = currentUser && currentUser.phone ? 'user_xp_' + currentUser.phone : 'user_xp';
-    var curXP = parseInt(localStorage.getItem(_xpKey) || '0');
-    var newXP = curXP + amount;
-    localStorage.setItem(_xpKey, newXP);
-    var newInfo = getXPInfo();
-    if (newInfo.level > prevLevel) {
-        showAchievement(newInfo.levelEmoji, 'Level Up! ' + newInfo.levelName, 'তুমি Level ' + newInfo.level + '-এ পৌঁছেছ!');
-        if (navigator.vibrate) navigator.vibrate([100,50,100,50,200]);
-    }
-    checkAchievements(newXP);
-    // Sync XP to Sheet (GAS) + Firebase on every award
-    if (currentUser && currentUser.phone) {
-        // Sheet update via GAS — every award
-        fetch(GAS_URL, {
-            method: 'POST', mode: 'no-cors',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({type:'update_xp', phone: currentUser.phone, xp: newXP})
-        }).catch(function(){});
-        // Firebase direct update
-        syncXPToFirebase(currentUser.phone, newXP);
-    }
-}
+// XP_LEVELS এবং getXPInfo নিচে define করা আছে
 
 // ====================================================
 // 🏅 ACHIEVEMENTS
@@ -6951,10 +7038,20 @@ function showAuthMsg(formType, msg) {
     el._t = setTimeout(function() { el.style.display = 'none'; }, 5000);
 }
 
-function doLogin() {
+// ── SHA-256 password hash (Web Crypto API) ──
+async function sha256(message) {
+    var msgBuffer = new TextEncoder().encode(message);
+    var hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    var hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(function(b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+}
+
+async function doLogin() {
     var phone = (document.getElementById('login-phone') || {value:''}).value.trim().replace(/\s/g, '');
     var pass  = (document.getElementById('login-pass')  || {value:''}).value.trim();
     if (!phone || !pass) { showAuthMsg('login', '📱 ফোন ও পাসওয়ার্ড দিন'); return; }
+
+    var hashedPass = await sha256(pass);
 
     showAuthLoading(true);
     fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
@@ -6969,12 +7066,12 @@ function doLogin() {
                 if (!u) continue;
                 var uPhone = (u.Phone || u.phone || '').toString().trim().replace(/\s/g, '');
                 var uPass  = (u.Password || u.password || '').toString().trim();
-                // Normalize: handle Google Sheet dropping leading zero (017 -> 17)
-                // Strip apostrophe prefix (from Sheet text-force trick) and leading zeros
                 var normU = uPhone.replace(/^'+/,'').replace(/^0+/, '');
                 var normP = phone.replace(/^'+/,'').replace(/^0+/, '');
                 var cleanU = uPhone.replace(/^'+/,'');
-                if ((uPhone === phone || cleanU === phone || normU === normP) && uPass === pass) { matched = u; break; }
+                // hashed password comparison; fallback to plain for old accounts
+                var passMatch = (uPass === hashedPass) || (uPass === pass);
+                if ((uPhone === phone || cleanU === phone || normU === normP) && passMatch) { matched = u; break; }
             }
             if (!matched) { showAuthMsg('login', '❌ ফোন বা পাসওয়ার্ড ভুল!'); return; }
             var status = (matched.Status || matched.status || 'active').toLowerCase();
@@ -7010,9 +7107,10 @@ function doLogin() {
             var _xpKey = 'user_xp_' + user.phone;
             var localXP = parseInt(localStorage.getItem(_xpKey) || '0');
             var fireXP  = user.xp || 0;
-            // Use whichever is higher (offline XP might be ahead)
             localStorage.setItem(_xpKey, Math.max(localXP, fireXP));
             hideAuthScreen();
+            // FCM token Firebase এ save করো + topic subscribe
+            setTimeout(postLoginFCMSetup, 1000);
             try { initApp(); } catch(e) { console.error('initApp after login:', e); }
             setTimeout(applyAdminVisibility, 200);
         })
@@ -7362,32 +7460,32 @@ function showAdminNotification(notif) {
     }
 }
 
-// ── Sync XP to Firebase Users node directly ──
+// ── Sync XP to Firebase Users node — PATCH শুধু XP field ──
 function syncXPToFirebase(phone, xp) {
-    if (!phone) return;
+    if (!phone || !FIREBASE_URL || FIREBASE_URL.length < 10) return;
+    // Firebase Users array এ user-এর index খুঁজো, তারপর শুধু XP field PATCH করো
     fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!data) return;
-            var users = Array.isArray(data) ? data : Object.values(data);
-            var changed = false;
-            for (var i = 0; i < users.length; i++) {
-                var u = users[i];
+            var keys = Object.keys(data);
+            var foundKey = null;
+            var normP = phone.toString().trim().replace(/^0+/,'');
+            for (var i = 0; i < keys.length; i++) {
+                var u = data[keys[i]];
                 if (!u) continue;
-                var uPhone = (u.Phone || u.phone || '').toString().trim().replace(/^'+/,'').replace(/\s/g,'');
+                var uPhone = (u.Phone || u.phone || '').toString().trim().replace(/['\s]/g,'');
                 var normU  = uPhone.replace(/^0+/,'');
-                var normP  = phone.toString().trim().replace(/^0+/,'');
-                if (uPhone === phone || normU === normP) {
-                    users[i].XP = xp;
-                    changed = true;
-                    break;
+                if (uPhone === phone.toString().trim() || normU === normP) {
+                    foundKey = keys[i]; break;
                 }
             }
-            if (!changed) return;
-            return fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY, {
+            if (foundKey === null) return;
+            // শুধু XP field PATCH — বাকি সব data অপরিবর্তিত থাকবে
+            return fetch(FIREBASE_URL + 'Users/' + foundKey + '/XP.json?auth=' + SECRET_KEY, {
                 method: 'PUT',
-                headers: {'Content-Type':'application/json'},
-                body: JSON.stringify(users)
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(xp)
             });
         })
         .catch(function(){});
