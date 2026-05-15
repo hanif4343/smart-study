@@ -1458,6 +1458,41 @@
 
     <div id="toast-container"></div>
 
+    <!-- Admin View Switcher Bar -->
+    <div id="admin-view-bar" style="display:none;position:fixed;bottom:72px;left:50%;transform:translateX(-50%);z-index:7000;background:rgba(15,23,42,0.92);backdrop-filter:blur(12px);border-radius:20px;padding:8px 12px;box-shadow:0 4px 24px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);min-width:300px;max-width:90vw;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="color:rgba(255,255,255,0.5);font-size:10px;font-weight:800;white-space:nowrap;">👁 VIEW AS</span>
+            <select id="admin-view-type" onchange="adminViewTypeChanged()" style="background:rgba(255,255,255,0.1);color:white;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:4px 8px;font-size:11px;font-weight:800;outline:none;cursor:pointer;">
+                <option value="">🌐 সবাই (General)</option>
+                <option value="Student">🎓 Student</option>
+                <option value="Job">💼 Job</option>
+            </select>
+            <select id="admin-view-class" onchange="adminViewClassChanged()" style="display:none;background:rgba(255,255,255,0.1);color:white;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:4px 8px;font-size:11px;font-weight:800;outline:none;cursor:pointer;">
+                <option value="">-- শ্রেণি --</option>
+                <option value="Class 4">৪র্থ শ্রেণি</option>
+                <option value="Class 5">৫ম শ্রেণি</option>
+                <option value="Class 6">৬ষ্ঠ শ্রেণি</option>
+                <option value="Class 7">৭ম শ্রেণি</option>
+                <option value="Class 8">৮ম শ্রেণি</option>
+                <option value="Class 9">৯ম শ্রেণি</option>
+                <option value="Class 10">SSC / ১০ম</option>
+                <option value="HSC 1st">HSC ১ম বর্ষ</option>
+                <option value="HSC 2nd">HSC ২য় বর্ষ</option>
+                <option value="Degree 1st">ডিগ্রি ১ম বর্ষ</option>
+                <option value="Degree 2nd">ডিগ্রি ২য় বর্ষ</option>
+                <option value="Degree 3rd">ডিগ্রি ৩য় বর্ষ</option>
+                <option value="Masters 1st">মাস্টার্স ১ম বর্ষ</option>
+                <option value="Masters 2nd">মাস্টার্স ২য় বর্ষ</option>
+                <option value="Grade 16">১৬তম গ্রেড</option>
+                <option value="Grade 17">১৭তম গ্রেড</option>
+                <option value="Grade 18">১৮তম গ্রেড</option>
+                <option value="Grade 19">১৯তম গ্রেড</option>
+                <option value="Grade 20">২০তম গ্রেড</option>
+            </select>
+            <div id="admin-view-badge" style="display:none;background:rgba(99,102,241,0.3);border:1px solid rgba(99,102,241,0.5);border-radius:8px;padding:3px 8px;font-size:10px;color:#a5b4fc;font-weight:800;align-items:center;gap:4px;"></div>
+        </div>
+    </div>
+
     <!-- ===== ONBOARDING OVERLAY ===== -->
     <div id="onboarding-overlay" class="hidden">
         <div class="ob-slide active" id="ob-0">
@@ -1881,10 +1916,55 @@
         }
 
         /* ── User-এর audience tags বের করো (filter-এ ব্যবহার হবে) ── */
+        // ══════════════════════════════════════════
+        // Admin View Override — logout ছাড়াই যেকোনো mode-এ preview
+        // ══════════════════════════════════════════
+        var _adminViewOverride = null; // null = নিজের real mode, otherwise {userType, classLevel}
+
+        function setAdminView(userType, classLevel) {
+            if (!isAdmin()) return;
+            if (!userType) {
+                _adminViewOverride = null;
+                showToast('✅ নিজের view-এ ফিরে এসেছ');
+            } else {
+                _adminViewOverride = { userType: userType, classLevel: classLevel || '' };
+                var label = classLevel ? classLevel : userType;
+                showToast('👁 Preview: ' + label);
+            }
+            // Re-render current view
+            if (typeof renderView === 'function') renderView();
+            renderAdminViewBadge();
+        }
+
+        function getEffectiveUser() {
+            if (_adminViewOverride && isAdmin()) {
+                return Object.assign({}, currentUser, {
+                    userType:   _adminViewOverride.userType,
+                    UserType:   _adminViewOverride.userType,
+                    classLevel: _adminViewOverride.classLevel,
+                    ClassLevel: _adminViewOverride.classLevel
+                });
+            }
+            return currentUser;
+        }
+
+        function renderAdminViewBadge() {
+            var badge = document.getElementById('admin-view-badge');
+            if (!badge) return;
+            if (_adminViewOverride && isAdmin()) {
+                var label = _adminViewOverride.classLevel || _adminViewOverride.userType || 'সবাই';
+                badge.style.display = 'flex';
+                badge.innerHTML = '👁 <strong style="margin:0 4px;">' + label + '</strong> <span onclick="setAdminView(null)" style="cursor:pointer;opacity:0.8;font-size:11px;">✕ নিজের view</span>';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
         function getUserAudienceTags() {
-            if (!currentUser) return ['General'];
-            var uType  = (currentUser.userType  || currentUser.UserType  || '').trim();
-            var uClass = (currentUser.classLevel || currentUser.ClassLevel || '').trim();
+            var _eu = getEffectiveUser();
+            if (!_eu) return ['General'];
+            var uType  = (_eu.userType  || _eu.UserType  || '').trim();
+            var uClass = (_eu.classLevel || _eu.ClassLevel || '').trim();
             var tags = [];
 
             if (uType === 'Job') {
@@ -1903,9 +1983,10 @@
 
         /* ── Strict audience user কিনা (Job / Masters / Degree / HSC) ── */
         function isStrictAudienceUser() {
-            if (!currentUser) return false;
-            var uType  = (currentUser.userType  || currentUser.UserType  || '').trim();
-            var uClass = (currentUser.classLevel || currentUser.ClassLevel || '').trim();
+            var _eu = getEffectiveUser();
+            if (!_eu) return false;
+            var uType  = (_eu.userType  || _eu.UserType  || '').trim();
+            var uClass = (_eu.classLevel || _eu.ClassLevel || '').trim();
             if (uType === 'Job') return true;
             if (uType === 'Student' && uClass) {
                 return uClass.indexOf('Masters') !== -1 ||
@@ -2301,11 +2382,19 @@ function generateTableHtml(rows) {
         }
 
         function openEditModal(id, field, text) {
-            if (!isAdmin() && field === 'correct') { showToast('⛔ Admin only — সঠিক উত্তর edit করা যাবে না!'); return; }
+            // Non-admin: correct ও question edit করতে পারবে না
+            if (!isAdmin() && (field === 'correct' || field === 'question' || field.startsWith('opt'))) {
+                showToast('⛔ Admin only — এই field edit করা যাবে না!'); return;
+            }
             selectedQId = id; editingField = field;
-            document.getElementById('field-label').innerText = field.toUpperCase();
-            document.getElementById('edit-q-id').innerText = `ID: ${id}`;
-            document.getElementById('edit-input').value = text;
+            var fieldLabels = {
+                question:'প্রশ্ন', correct:'সঠিক উত্তর', explanation:'ব্যাখ্যা', technique:'টেকনিক',
+                opt1:'অপশন ক', opt2:'অপশন খ', opt3:'অপশন গ', opt4:'অপশন ঘ',
+                option1:'অপশন ক', option2:'অপশন খ', option3:'অপশন গ', option4:'অপশন ঘ'
+            };
+            document.getElementById('field-label').innerText = fieldLabels[field] || field.toUpperCase();
+            document.getElementById('edit-q-id').innerText = 'ID: ' + id;
+            document.getElementById('edit-input').value = text || '';
             document.getElementById('edit-modal').style.display = 'flex';
         }
 
@@ -4487,6 +4576,42 @@ function toggleAllInSubject(sub, masterCheckbox) {
 }
 
 
+
+// Admin inline edit bar — safe version
+function adminEditBar(item, mode) {
+    if (!isAdmin()) return '';
+    var id  = getVal(item, 'id') || '';
+
+    function safeVal(v) {
+        return v.toString().replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ').replace(/"/g, '&quot;');
+    }
+
+    var q   = safeVal(getVal(item,'question')  || getVal(item,'explanation') || '');
+    var o1  = safeVal(getVal(item,'option1')   || getVal(item,'opt1')  || '');
+    var o2  = safeVal(getVal(item,'option2')   || getVal(item,'opt2')  || '');
+    var o3  = safeVal(getVal(item,'option3')   || getVal(item,'opt3')  || '');
+    var o4  = safeVal(getVal(item,'option4')   || getVal(item,'opt4')  || '');
+    var cor = safeVal(getVal(item,'correct')   || '');
+
+    function btn(label, field, val, bg, color, border) {
+        return '<button onclick="openEditModal(\'' + id + '\',\'' + field + '\',\'' + val + '\')" style="font-size:10px;background:' + bg + ';color:' + color + ';border:1px solid ' + border + ';border-radius:6px;padding:2px 7px;cursor:pointer;white-space:nowrap;">' + label + '</button>';
+    }
+
+    var html = '<div style="display:flex;gap:4px;flex-wrap:wrap;margin:4px 0 6px 0;">';
+    html += btn('✎ প্রশ্ন', 'question', q, '#eff6ff', '#1d4ed8', '#bfdbfe');
+    if (mode === 'mcq') {
+        html += btn('✎ ক', 'opt1', o1, '#f0fdf4', '#15803d', '#bbf7d0');
+        html += btn('✎ খ', 'opt2', o2, '#f0fdf4', '#15803d', '#bbf7d0');
+        html += btn('✎ গ', 'opt3', o3, '#f0fdf4', '#15803d', '#bbf7d0');
+        html += btn('✎ ঘ', 'opt4', o4, '#f0fdf4', '#15803d', '#bbf7d0');
+        html += btn('✎ উত্তর', 'correct', cor, '#fef2f2', '#dc2626', '#fecaca');
+    } else if (mode === 'written') {
+        html += btn('✎ উত্তর', 'correct', cor, '#fef2f2', '#dc2626', '#fecaca');
+    }
+    html += '</div>';
+    return html;
+}
+
 function renderQuestions() {
     const container = document.getElementById('main-view');
     
@@ -4580,7 +4705,8 @@ function renderQuestions() {
                                 <span onclick='copyQuestionId("${getVal(i, 'id')}")' class="copy-id-btn">📋</span>
                             </div>
                         </div>
-                        <div class="question-text">${q}</div> 
+                        <div class="question-text">${q}</div>
+                        ${adminEditBar(i,"study")}
                         ${correctUI}
                         ${explanationUI}
                         ${techUI}
@@ -4622,6 +4748,7 @@ function renderQuestions() {
                                 </div>
                             </div>
                             <div class="question-text">${q}</div>
+                        ${adminEditBar(i,"written")}
                         </div>
                         <div style="padding: 0 0 4px 0;">
                         ${inputAreaHTML}
@@ -4646,7 +4773,8 @@ function renderQuestions() {
                                 <span onclick='copyQuestionId("${getVal(i, 'id')}")' class="copy-id-btn">📋</span>
                             </div>
                         </div>
-                        <div class="question-text">${q}</div> 
+                        <div class="question-text">${q}</div>
+                        ${adminEditBar(i,"mcq")}
                         <div class="options-container">
                             ${[1,2,3,4].map(n => {
                                 let optText = getVal(i, 'option'+n);
@@ -7243,6 +7371,7 @@ async function doLogin() {
             saveCurrentUser(user);
             localStorage.setItem('home_user_name', user.name || '');
             if (user.picture) localStorage.setItem('home_user_pic', user.picture);
+            setTimeout(initAdminViewBar, 500); // Admin view bar show/hide
             // Firebase Summary prefetch — মোট সঠিক cache warm
             (function() {
                 try {
@@ -7424,6 +7553,42 @@ function doLogout() {
 // =====================================================
 // LEADERBOARD FUNCTIONS
 // =====================================================
+
+// ══════════════════════════════════════════════════════
+// ADMIN VIEW SWITCHER
+// ══════════════════════════════════════════════════════
+function initAdminViewBar() {
+    var bar = document.getElementById('admin-view-bar');
+    if (!bar) return;
+    bar.style.display = isAdmin() ? 'block' : 'none';
+}
+
+function adminViewTypeChanged() {
+    var typeEl  = document.getElementById('admin-view-type');
+    var classEl = document.getElementById('admin-view-class');
+    var val = typeEl ? typeEl.value : '';
+
+    if (!val) {
+        if (classEl) classEl.style.display = 'none';
+        setAdminView(null);
+        return;
+    }
+    if (val === 'Student') {
+        if (classEl) { classEl.style.display = 'inline-block'; classEl.value = ''; }
+        setAdminView('Student', '');
+    } else if (val === 'Job') {
+        if (classEl) { classEl.style.display = 'inline-block'; classEl.value = ''; }
+        setAdminView('Job', '');
+    }
+}
+
+function adminViewClassChanged() {
+    var typeEl  = document.getElementById('admin-view-type');
+    var classEl = document.getElementById('admin-view-class');
+    var uType   = typeEl  ? typeEl.value  : 'Student';
+    var uClass  = classEl ? classEl.value : '';
+    setAdminView(uType, uClass);
+}
 
 function openLeaderboard() {
     var modal = document.getElementById('leaderboard-modal');
