@@ -4534,26 +4534,56 @@ function toggleAllInSubject(sub, masterCheckbox) {
     quizItems = data.filter(i => getVal(i, 'subject') === path[0] && getVal(i, 'sub_topic') === st && isQuestionRelevant(getVal(i, 'AudienceTags') || getVal(i, 'audiencetags') || '')); 
     
     var correctHistory = JSON.parse(localStorage.getItem('correct_history') || '[]');
-    var wrongHistory2  = JSON.parse(localStorage.getItem('wrong_history')   || '{}');
     var wrongQIds2     = JSON.parse(localStorage.getItem('wrong_q_ids')     || '[]');
-    quizItems.sort(function(a,b){
-        var aId = String(getVal(a,'id')||'');
-        var bId = String(getVal(b,'id')||'');
-        // 1. Wrong questions first (in wrong_q_ids)
-        var aWrong = wrongQIds2.includes(aId) ? 0 : 1;
-        var bWrong = wrongQIds2.includes(bId) ? 0 : 1;
-        if (aWrong !== bWrong) return aWrong - bWrong;
-        // 2. Unanswered before correct
-        var aCorrect = correctHistory.includes(aId) ? 1 : 0;
-        var bCorrect = correctHistory.includes(bId) ? 1 : 0;
-        if (aCorrect !== bCorrect) return aCorrect - bCorrect;
-        // 3. Higher wrong-count topic first
-        var aTopic = getVal(a,'sub_topic')||getVal(a,'subject')||'';
-        var bTopic = getVal(b,'sub_topic')||getVal(b,'subject')||'';
-        return (wrongHistory2[bTopic]||0) - (wrongHistory2[aTopic]||0);
+    var modePrefix     = currentMode === 'qbank' ? 'qbank' : 'quiz';
+
+    // 3 buckets: wrong, unattempted, correct
+    var wrongItems       = [];
+    var unattemptedItems = [];
+    var correctItems     = [];
+
+    quizItems.forEach(function(item) {
+        var rawId = String(getVal(item,'id') || '');
+        var sid   = modePrefix + ':' + rawId;
+        var isCorrect = correctHistory.includes(sid) || correctHistory.includes(rawId);
+        var isWrong   = wrongQIds2.includes(sid) || wrongQIds2.includes(rawId);
+        if (isCorrect) {
+            correctItems.push(item);
+        } else if (isWrong) {
+            wrongItems.push(item);
+        } else {
+            unattemptedItems.push(item);
+        }
     });
 
-    // কোনো লিমিট ছাড়া সব প্রশ্ন দেখানোর জন্য:
+    // Wrong items: higher wrong count first
+    var wrongQCount = JSON.parse(localStorage.getItem('wrong_q_count') || '{}');
+    wrongItems.sort(function(a, b) {
+        var aSid = modePrefix + ':' + String(getVal(a,'id')||'');
+        var bSid = modePrefix + ':' + String(getVal(b,'id')||'');
+        return (wrongQCount[bSid]||0) - (wrongQCount[aSid]||0);
+    });
+
+    // Interleave: প্রতি 5টি unattempted এর পর 1টি wrong আসবে
+    var INTERVAL = 5;
+    var merged = [];
+    var uIdx = 0, wIdx = 0;
+    while (uIdx < unattemptedItems.length || wIdx < wrongItems.length) {
+        var chunk = Math.min(INTERVAL, unattemptedItems.length - uIdx);
+        for (var k = 0; k < chunk; k++) merged.push(unattemptedItems[uIdx++]);
+        if (wIdx < wrongItems.length) {
+            merged.push(wrongItems[wIdx++]);
+        } else if (uIdx >= unattemptedItems.length) {
+            break;
+        }
+    }
+    // remaining wrong (if unattempted exhausted first)
+    while (wIdx < wrongItems.length) merged.push(wrongItems[wIdx++]);
+    // correct সব শেষে
+    merged = merged.concat(correctItems);
+    quizItems = merged;
+
+    // কোনো লিমিট ছাড়া সব প্রশ্ন দেখানোর জন্য:
     displayLimit = quizItems.length; 
 
     window._correctStreak = 0; // reset streak
@@ -6412,7 +6442,11 @@ function getSubjectProgress(subject, mode) {
     const items = data.filter(i => getVal(i,'subject') === subject);
     if (!items.length) return { done:0, total:0, pct:0 };
     const correctHistory = JSON.parse(localStorage.getItem('correct_history') || '[]');
-    const done = items.filter(i => correctHistory.includes(getVal(i,'id'))).length;
+    const modePrefix = mode === 'qbank' ? 'qbank' : 'quiz';
+    const done = items.filter(i => {
+        var rawId = String(getVal(i,'id') || '');
+        return correctHistory.includes(modePrefix + ':' + rawId) || correctHistory.includes(rawId);
+    }).length;
     return { done, total: items.length, pct: Math.round((done/items.length)*100) };
 }
 
@@ -6422,7 +6456,11 @@ function getSubTopicProgress(subject, subTopic, mode) {
     const items = data.filter(i => getVal(i,'subject') === subject && getVal(i,'sub_topic') === subTopic);
     if (!items.length) return { done:0, total:0, pct:0 };
     const correctHistory = JSON.parse(localStorage.getItem('correct_history') || '[]');
-    const done = items.filter(i => correctHistory.includes(getVal(i,'id'))).length;
+    const modePrefix = mode === 'qbank' ? 'qbank' : 'quiz';
+    const done = items.filter(i => {
+        var rawId = String(getVal(i,'id') || '');
+        return correctHistory.includes(modePrefix + ':' + rawId) || correctHistory.includes(rawId);
+    }).length;
     return { done, total: items.length, pct: Math.round((done/items.length)*100) };
 }
 
