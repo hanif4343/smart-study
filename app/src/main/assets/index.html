@@ -7664,12 +7664,12 @@ function closeLeaderboard() {
 function renderLeaderboard() {
     var body = document.getElementById('leaderboard-body');
     if (!body) return;
-    body.innerHTML = '<div style="text-align:center;padding:40px 0;"><div style="width:36px;height:36px;border:4px solid #e0e7ff;border-top-color:#6366f1;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px;"></div><div style="color:#94a3b8;font-weight:700;font-size:13px;">লোড হচ্ছে...</div></div>';
+    body.innerHTML = '<div style="text-align:center;padding:50px 0;"><div style="width:40px;height:40px;border:4px solid rgba(99,102,241,0.2);border-top-color:#818cf8;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px;"></div><div style="color:#6366f1;font-weight:800;font-size:13px;">লোড হচ্ছে...</div></div>';
 
     fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
         .then(function(r) { return r.json(); })
         .then(function(data) {
-            if (!data) { body.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-weight:700;">ডেটা পাওয়া যায়নি</div>'; return; }
+            if (!data) { body.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b;font-weight:700;">ডেটা পাওয়া যায়নি</div>'; return; }
             var users = Array.isArray(data) ? data : Object.values(data);
 
             var ranked = [];
@@ -7678,75 +7678,160 @@ function renderLeaderboard() {
                 if (!u || !(u.Name || u.name)) continue;
                 var uPhone = (u.Phone || u.phone || '').toString().trim();
                 var xpVal  = parseInt(u.XP || u.xp || 0) || 0;
-                if (currentUser && currentUser.phone === uPhone) {
-                    var localXP = parseInt(localStorage.getItem('user_xp') || '0');
-                    if (localXP > xpVal) xpVal = localXP;
+                // Use latest local XP if this is current user
+                if (currentUser && currentUser.phone) {
+                    var myNorm = currentUser.phone.toString().trim().replace(/^0+/,'');
+                    var uNorm  = uPhone.replace(/^0+/,'');
+                    if (myNorm === uNorm || currentUser.phone === uPhone) {
+                        var localXP = parseInt(localStorage.getItem('user_xp_' + currentUser.phone) || localStorage.getItem('user_xp') || '0');
+                        if (localXP > xpVal) xpVal = localXP;
+                        // also use currentUser.xp if bigger
+                        if ((currentUser.xp||0) > xpVal) xpVal = currentUser.xp;
+                    }
                 }
                 var picVal = u.Picture || u.picture || '';
-                // Firebase sometimes stores as nested object — flatten
                 if (typeof picVal === 'object') picVal = '';
                 ranked.push({
                     name:    u.Name    || u.name    || '—',
                     phone:   uPhone,
                     role:    u.Role    || u.role    || 'User',
                     status:  u.Status  || u.status  || 'Active',
-                    picture: picVal,
+                    picture: picVal.trim ? picVal.trim() : picVal,
                     xp:      xpVal
                 });
             }
             ranked.sort(function(a, b) { return b.xp - a.xp; });
 
             if (ranked.length === 0) {
-                body.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-weight:700;">কোনো ব্যবহারকারী নেই</div>';
+                body.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b;font-weight:700;">কোনো ব্যবহারকারী নেই</div>';
                 return;
             }
 
-            var medals = ['🥇', '🥈', '🥉'];
-            var podiumBg = [
-                'background:linear-gradient(135deg,#fef9c3,#fde68a);border:2px solid #fbbf24;',
-                'background:linear-gradient(135deg,#f1f5f9,#e2e8f0);border:2px solid #94a3b8;',
-                'background:linear-gradient(135deg,#fff7ed,#fed7aa);border:2px solid #f97316;'
-            ];
-
-            var out = '<div style="display:flex;flex-direction:column;gap:10px;">';
-            for (var j = 0; j < ranked.length; j++) {
-                var ru      = ranked[j];
-                var isMe    = currentUser && currentUser.phone === ru.phone;
-                var isAdm   = ru.role.toLowerCase() === 'admin';
-                var xpI     = lbCalcXP(ru.xp);
-                var cardSt  = j < 3 ? podiumBg[j] : 'background:#f8fafc;border:1px solid #e2e8f0;';
-                var meSt    = isMe ? 'box-shadow:0 0 0 3px #6366f1;' : '';
-                var rankStr = j < 3 ? medals[j] : ('#' + (j + 1));
-
-                var picEl;
-                var _pic = (ru.picture && typeof ru.picture === 'string' && ru.picture.trim().length > 10) ? ru.picture.trim() : '';
-                if (_pic) {
-                    picEl = '<img src="' + _pic + '" style="width:42px;height:42px;border-radius:50%;object-fit:cover;background:#e0e7ff;flex-shrink:0;" onerror="this.style.display=\'none\'" loading="lazy">';
-                } else {
-                    picEl = '<div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#818cf8,#6366f1);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;color:white;font-weight:900;">' + (ru.name ? ru.name.charAt(0).toUpperCase() : '?') + '</div>';
+            // Find current user rank
+            var myRankIdx = -1;
+            if (currentUser && currentUser.phone) {
+                var myN = currentUser.phone.toString().trim().replace(/^0+/,'');
+                for (var mi = 0; mi < ranked.length; mi++) {
+                    if (ranked[mi].phone.replace(/^0+/,'') === myN) { myRankIdx = mi; break; }
                 }
-
-                out += '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;' + cardSt + meSt + '">';
-                out += '<div style="font-size:20px;width:26px;text-align:center;font-weight:900;">' + rankStr + '</div>';
-                out += picEl;
-                out += '<div style="flex:1;min-width:0;">';
-                out += '<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">';
-                out += '<span style="font-weight:900;font-size:13px;color:#1e293b;">' + ru.name + '</span>';
-                if (isMe)  out += '<span style="font-size:9px;background:#6366f1;color:white;padding:1px 6px;border-radius:8px;font-weight:900;">আপনি</span>';
-                if (isAdm) out += '<span style="font-size:9px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:8px;font-weight:900;">Admin</span>';
-                out += '</div>';
-                out += '<div style="font-size:10px;color:#64748b;font-weight:700;margin-top:2px;">' + xpI.emoji + ' Lv.' + xpI.level + ' · ' + xpI.name + '</div>';
-                out += '</div>';
-                out += '<div style="text-align:right;flex-shrink:0;">';
-                out += '<div style="font-size:16px;font-weight:900;color:#6366f1;">' + ru.xp + '</div>';
-                out += '<div style="font-size:9px;color:#94a3b8;font-weight:700;">XP</div>';
-                out += '</div></div>';
             }
-            out += '</div>';
-            body.innerHTML = out;
+
+            function makeAvatar(ru, size, fontSize) {
+                var _pic = (ru.picture && typeof ru.picture === 'string' && ru.picture.length > 10) ? ru.picture : '';
+                var sz = size || 44;
+                var fs = fontSize || 18;
+                if (_pic) {
+                    return '<img src="' + _pic + '" style="width:' + sz + 'px;height:' + sz + 'px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid rgba(255,255,255,0.25);display:block;" onerror="this.outerHTML='<div style=\"width:' + sz + 'px;height:' + sz + 'px;border-radius:50%;background:linear-gradient(135deg,#818cf8,#6366f1);display:flex;align-items:center;justify-content:center;font-size:' + fs + 'px;font-weight:900;color:white;flex-shrink:0;border:2px solid rgba(255,255,255,0.2);\">' + (ru.name ? ru.name.charAt(0).toUpperCase() : '?') + '</div>'" loading="lazy">';
+                } else {
+                    // gradient initial avatar
+                    var colors = [
+                        ['#818cf8','#6366f1'],['#34d399','#059669'],['#f472b6','#db2777'],
+                        ['#fb923c','#ea580c'],['#60a5fa','#2563eb'],['#a78bfa','#7c3aed']
+                    ];
+                    var ci = ru.name ? (ru.name.charCodeAt(0) % colors.length) : 0;
+                    var c1 = colors[ci][0], c2 = colors[ci][1];
+                    return '<div style="width:' + sz + 'px;height:' + sz + 'px;border-radius:50%;background:linear-gradient(135deg,' + c1 + ',' + c2 + ');display:flex;align-items:center;justify-content:center;font-size:' + fs + 'px;font-weight:900;color:white;flex-shrink:0;border:2px solid rgba(255,255,255,0.2);">' + (ru.name ? ru.name.charAt(0).toUpperCase() : '?') + '</div>';
+                }
+            }
+
+            var out = '';
+
+            // ── TOP 3 PODIUM ──
+            if (ranked.length >= 1) {
+                // Podium order: 2nd | 1st | 3rd
+                var podiumOrder = ranked.length >= 3 ? [ranked[1], ranked[0], ranked[2]] : ranked.length === 2 ? [null, ranked[0], ranked[1]] : [null, ranked[0], null];
+                var podiumPos   = ranked.length >= 3 ? [1, 0, 2] : ranked.length === 2 ? [-1, 0, 1] : [-1, 0, -1];
+                var podiumH     = ['72px', '96px', '60px'];
+                var crownClr    = ['#94a3b8','#fbbf24','#f97316'];
+                var medalEmoji  = ['🥈','🥇','🥉'];
+                var podiumBg    = [
+                    'background:linear-gradient(180deg,#1e293b,#0f172a);border:1px solid rgba(148,163,184,0.25);',
+                    'background:linear-gradient(180deg,#3b1d8a,#1e1048);border:2px solid rgba(251,191,36,0.5);',
+                    'background:linear-gradient(180deg,#1c1109,#0f0a00);border:1px solid rgba(249,115,22,0.3);'
+                ];
+
+                out += '<div style="display:flex;align-items:flex-end;justify-content:center;gap:10px;margin-bottom:20px;padding:16px 8px 0;">';
+                for (var pi = 0; pi < 3; pi++) {
+                    var pu = podiumOrder[pi];
+                    var origIdx = podiumPos[pi];
+                    if (!pu) { out += '<div style="flex:1;"></div>'; continue; }
+                    var isMe2 = currentUser && currentUser.phone && pu.phone.replace(/^0+/,'') === currentUser.phone.toString().replace(/^0+/,'');
+                    var xpI2 = lbCalcXP(pu.xp);
+                    var glowSt = pi === 1 ? 'box-shadow:0 0 30px rgba(251,191,36,0.35),0 8px 32px rgba(0,0,0,0.5);' : pi === 0 ? 'box-shadow:0 0 20px rgba(148,163,184,0.2);' : 'box-shadow:0 0 20px rgba(249,115,22,0.2);';
+                    var meBorder = isMe2 ? 'outline:3px solid #818cf8;outline-offset:2px;' : '';
+                    var avatarSz = pi === 1 ? 58 : 46;
+                    var avFontSz = pi === 1 ? 24 : 18;
+
+                    out += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;">';
+                    // Crown/medal above avatar for 1st
+                    if (pi === 1) out += '<div style="font-size:20px;filter:drop-shadow(0 0 6px rgba(251,191,36,0.7));">👑</div>';
+                    else out += '<div style="font-size:16px;">' + medalEmoji[pi] + '</div>';
+                    // Avatar with ring
+                    out += '<div style="' + (isMe2 ? 'outline:3px solid #818cf8;outline-offset:2px;' : '') + 'border-radius:50%;">' + makeAvatar(pu, avatarSz, avFontSz) + '</div>';
+                    // Name
+                    out += '<div style="font-size:11px;font-weight:900;color:white;text-align:center;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + pu.name + '</div>';
+                    if (isMe2) out += '<div style="font-size:9px;background:#6366f1;color:white;padding:1px 6px;border-radius:6px;font-weight:900;">আপনি</div>';
+                    // XP
+                    out += '<div style="font-size:12px;font-weight:900;color:' + crownClr[pi] + ';">' + pu.xp + ' XP</div>';
+                    // Podium block
+                    out += '<div style="width:100%;' + podiumBg[pi] + 'border-radius:10px 10px 0 0;height:' + podiumH[pi] + ';display:flex;align-items:center;justify-content:center;' + glowSt + '">';
+                    out += '<span style="font-size:' + (pi===1?'28px':'22px') + ';font-weight:900;color:' + crownClr[pi] + ';">' + (origIdx + 1) + '</span>';
+                    out += '</div>';
+                    out += '</div>';
+                }
+                out += '</div>';
+            }
+
+            // ── REST OF RANKINGS (4th onwards) ──
+            if (ranked.length > 3) {
+                out += '<div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">';
+                for (var j = 3; j < ranked.length; j++) {
+                    var ru = ranked[j];
+                    var isMe = currentUser && currentUser.phone && ru.phone.replace(/^0+/,'') === currentUser.phone.toString().replace(/^0+/,'');
+                    var isAdm = ru.role.toLowerCase() === 'admin';
+                    var xpI = lbCalcXP(ru.xp);
+                    var cardBg = isMe
+                        ? 'background:linear-gradient(135deg,rgba(99,102,241,0.18),rgba(139,92,246,0.12));border:1.5px solid rgba(99,102,241,0.4);'
+                        : 'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);';
+                    var meShadow = isMe ? 'box-shadow:0 0 16px rgba(99,102,241,0.25);' : '';
+
+                    out += '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;' + cardBg + meShadow + '">';
+                    out += '<div style="font-size:13px;width:24px;text-align:center;font-weight:900;color:rgba(255,255,255,0.4);">#' + (j+1) + '</div>';
+                    out += makeAvatar(ru, 40, 16);
+                    out += '<div style="flex:1;min-width:0;">';
+                    out += '<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">';
+                    out += '<span style="font-weight:900;font-size:13px;color:' + (isMe ? '#a5b4fc' : 'rgba(255,255,255,0.9)') + ';">' + ru.name + '</span>';
+                    if (isMe)  out += '<span style="font-size:9px;background:#6366f1;color:white;padding:1px 6px;border-radius:6px;font-weight:900;">আপনি</span>';
+                    if (isAdm) out += '<span style="font-size:9px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:6px;font-weight:900;">Admin</span>';
+                    out += '</div>';
+                    out += '<div style="font-size:10px;color:rgba(255,255,255,0.35);font-weight:700;margin-top:1px;">' + xpI.emoji + ' Lv.' + xpI.level + ' · ' + xpI.name + '</div>';
+                    out += '</div>';
+                    out += '<div style="text-align:right;flex-shrink:0;">';
+                    out += '<div style="font-size:15px;font-weight:900;color:#818cf8;">' + ru.xp + '</div>';
+                    out += '<div style="font-size:9px;color:rgba(255,255,255,0.3);font-weight:700;">XP</div>';
+                    out += '</div></div>';
+                }
+                out += '</div>';
+            }
+
+            // ── MY RANK STICKY (if not in top visible) ──
+            if (myRankIdx > 3 || (myRankIdx === -1 && currentUser)) {
+                // Already shown above if myRankIdx >= 4 — but add sticky footer hint
+            }
+
+            body.innerHTML = out || '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.4);font-weight:700;">কোনো ব্যবহারকারী নেই</div>';
+
+            // Scroll to current user if they exist
+            if (myRankIdx >= 0) {
+                setTimeout(function() {
+                    var cards = body.querySelectorAll('[data-me]');
+                    // no specific scroll needed — user is visible in podium or list
+                }, 200);
+            }
         })
-        .catch(function() {
-            body.innerHTML = '<div style="text-align:center;padding:40px;color:#f87171;font-weight:700;">❌ ডেটা লোড ব্যর্থ। ইন্টারনেট চেক করুন।</div>';
+        .catch(function(e) {
+            console.error('LB error:', e);
+            body.innerHTML = '<div style="text-align:center;padding:40px;color:#f87171;font-weight:700;">❌ ডেটা লোড ব্যর্থ<br><span style="font-size:12px;color:rgba(255,255,255,0.4);">ইন্টারনেট চেক করুন</span></div>';
         });
 }
 
@@ -8504,18 +8589,20 @@ function _markReviewCorrect(wKey, qId) {
 </div>
 
 <!-- ===== LEADERBOARD MODAL ===== -->
-<div id="leaderboard-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:8000;display:none;align-items:flex-end;justify-content:center;">
-  <div style="background:white;width:100%;max-width:480px;border-radius:24px 24px 0 0;max-height:88vh;overflow-y:auto;">
-    <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:20px;border-radius:24px 24px 0 0;">
+<div id="leaderboard-modal" style="display:none;position:fixed;inset:0;background:rgba(15,10,40,0.75);z-index:8000;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);">
+  <div style="background:#0f0a28;width:100%;max-width:480px;border-radius:28px 28px 0 0;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#1e1048 0%,#3b1d8a 50%,#5b21b6 100%);padding:20px 20px 16px;position:relative;flex-shrink:0;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div>
-          <div style="color:white;font-size:18px;font-weight:900;">🏆 Leaderboard</div>
-          <div style="color:rgba(255,255,255,0.65);font-size:11px;font-weight:700;margin-top:2px;">সেরা শিক্ষার্থীদের র‍্যাংকিং</div>
+          <div style="color:white;font-size:20px;font-weight:900;letter-spacing:-0.3px;">🏆 Leaderboard</div>
+          <div style="color:rgba(255,255,255,0.5);font-size:11px;font-weight:700;margin-top:3px;">সেরা শিক্ষার্থীদের র‍্যাংকিং</div>
         </div>
-        <button onclick="closeLeaderboard()" style="width:36px;height:36px;background:rgba(255,255,255,0.2);border:none;border-radius:50%;color:white;font-size:18px;font-weight:900;cursor:pointer;">✕</button>
+        <button onclick="closeLeaderboard()" style="width:36px;height:36px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.15);border-radius:50%;color:white;font-size:16px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
       </div>
     </div>
-    <div id="leaderboard-body" style="padding:16px;">
+    <!-- Scrollable body -->
+    <div id="leaderboard-body" style="overflow-y:auto;flex:1;padding:16px 14px 30px;">
       <div style="text-align:center;padding:40px 0;color:#94a3b8;font-weight:700;">লোড হচ্ছে...</div>
     </div>
   </div>
