@@ -7720,18 +7720,20 @@ function renderLeaderboard() {
                 var _pic = (ru.picture && typeof ru.picture === 'string' && ru.picture.length > 10) ? ru.picture : '';
                 var sz = size || 44;
                 var fs = fontSize || 18;
+                var initial = ru.name ? ru.name.charAt(0).toUpperCase() : '?';
+                var colors = [
+                    ['#818cf8','#6366f1'],['#34d399','#059669'],['#f472b6','#db2777'],
+                    ['#fb923c','#ea580c'],['#60a5fa','#2563eb'],['#a78bfa','#7c3aed']
+                ];
+                var ci = ru.name ? (ru.name.charCodeAt(0) % colors.length) : 0;
+                var c1 = colors[ci][0], c2 = colors[ci][1];
+                var divSt = 'width:' + sz + 'px;height:' + sz + 'px;border-radius:50%;background:linear-gradient(135deg,' + c1 + ',' + c2 + ');display:flex;align-items:center;justify-content:center;font-size:' + fs + 'px;font-weight:900;color:white;flex-shrink:0;border:2px solid rgba(255,255,255,0.2);';
+                var fallbackHtml = '<div style="' + divSt + '">' + initial + '</div>';
                 if (_pic) {
-                    return '<img src="' + _pic + '" style="width:' + sz + 'px;height:' + sz + 'px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid rgba(255,255,255,0.25);display:block;" onerror="this.outerHTML='<div style=\"width:' + sz + 'px;height:' + sz + 'px;border-radius:50%;background:linear-gradient(135deg,#818cf8,#6366f1);display:flex;align-items:center;justify-content:center;font-size:' + fs + 'px;font-weight:900;color:white;flex-shrink:0;border:2px solid rgba(255,255,255,0.2);\">' + (ru.name ? ru.name.charAt(0).toUpperCase() : '?') + '</div>'" loading="lazy">';
-                } else {
-                    // gradient initial avatar
-                    var colors = [
-                        ['#818cf8','#6366f1'],['#34d399','#059669'],['#f472b6','#db2777'],
-                        ['#fb923c','#ea580c'],['#60a5fa','#2563eb'],['#a78bfa','#7c3aed']
-                    ];
-                    var ci = ru.name ? (ru.name.charCodeAt(0) % colors.length) : 0;
-                    var c1 = colors[ci][0], c2 = colors[ci][1];
-                    return '<div style="width:' + sz + 'px;height:' + sz + 'px;border-radius:50%;background:linear-gradient(135deg,' + c1 + ',' + c2 + ');display:flex;align-items:center;justify-content:center;font-size:' + fs + 'px;font-weight:900;color:white;flex-shrink:0;border:2px solid rgba(255,255,255,0.2);">' + (ru.name ? ru.name.charAt(0).toUpperCase() : '?') + '</div>';
+                    var imgSt = 'width:' + sz + 'px;height:' + sz + 'px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid rgba(255,255,255,0.25);display:block;';
+                    return '<img src="' + _pic + '" style="' + imgSt + '" loading="lazy">';
                 }
+                return fallbackHtml;
             }
 
             var out = '';
