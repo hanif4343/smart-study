@@ -6156,9 +6156,33 @@ function closeNotifModal() {
 
 function saveNotifSettings() {
     const morning = document.getElementById('morning-time').value;
-    const night = document.getElementById('night-time').value;
+    const night   = document.getElementById('night-time').value;
     localStorage.setItem('morning_reminder', morning);
-    localStorage.setItem('night_reminder', night);
+    localStorage.setItem('night_reminder',   night);
+
+    // ── Native Android AlarmManager (app বন্ধ থাকলেও কাজ করে) ──
+    if (window.AndroidBridge && typeof AndroidBridge.scheduleReminder === 'function') {
+        try {
+            // Android 12+ এ exact alarm permission check
+            if (typeof AndroidBridge.canScheduleExactAlarms === 'function' && !AndroidBridge.canScheduleExactAlarms()) {
+                if (typeof AndroidBridge.openAlarmPermissionSettings === 'function') {
+                    AndroidBridge.openAlarmPermissionSettings();
+                    showToast('⚠️ Settings থেকে "Alarms & Reminders" Allow করো, তারপর আবার save করো');
+                    return;
+                }
+            }
+            AndroidBridge.scheduleReminder(morning, '📚 পড়ার সময় হয়েছে!', 'Smart Study খুলে আজকের লক্ষ্য পূরণ করো 🎯', 1001);
+            AndroidBridge.scheduleReminder(night,   '🌙 রাতের Reminder',    'ঘুমানোর আগে পড়ার অভ্যাস ধরে রাখো 🔥',      1002);
+            showToast('✅ Reminder সেট হয়েছে! (app বন্ধ থাকলেও আসবে)');
+            closeNotifModal();
+            if (currentMode === 'menu') renderView();
+            return;
+        } catch(e) {
+            console.warn('AndroidBridge.scheduleReminder failed, fallback to web:', e);
+        }
+    }
+
+    // ── Fallback: Web Notification API (app open থাকলে কাজ করে) ──
     requestNotificationPermission().then(() => {
         scheduleStudyReminders();
         showToast('✅ Reminder সেট হয়েছে!');
@@ -6168,13 +6192,19 @@ function saveNotifSettings() {
 }
 
 function getNotifStatus() {
+    const m = localStorage.getItem('morning_reminder');
+    const n = localStorage.getItem('night_reminder');
+    // Android native bridge আছে কিনা দেখো
+    if (window.AndroidBridge && typeof AndroidBridge.scheduleReminder === 'function') {
+        if (m && n) return `✅ চালু আছে · সকাল ${m}, রাত ${n}`;
+        return 'এখনো চালু হয়নি — সেট করো';
+    }
     if (!('Notification' in window)) return 'এই ডিভাইসে সাপোর্ট নেই';
     if (Notification.permission === 'granted') {
-        const m = localStorage.getItem('morning_reminder') || '07:00';
-        const n = localStorage.getItem('night_reminder') || '21:00';
-        return `✅ চালু আছে · সকাল ${m}, রাত ${n}`;
+        if (m && n) return `✅ চালু আছে · সকাল ${m}, রাত ${n}`;
+        return 'এখনো চালু হয়নি — সেট করো';
     }
-    if (Notification.permission === 'denied') return '❌ Permission দেওয়া হয়নি — Browser Settings থেকে চালু করো';
+    if (Notification.permission === 'denied') return '❌ Permission নেই — Settings থেকে চালু করো';
     return 'এখনো চালু হয়নি — সেট করো';
 }
 
