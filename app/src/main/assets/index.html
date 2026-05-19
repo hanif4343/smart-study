@@ -3285,8 +3285,13 @@ function renderHome(container) {
                 </div>
             </div>
             <div class="home-xp-right">
-                <div class="home-xp-number">${xpInfo.xp}</div>
-                <div class="home-xp-label">XP</div>
+                <div style="display:flex;align-items:center;gap:4px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:12px;padding:6px 10px;">
+                    <span style="font-size:16px;">⭐</span>
+                    <div>
+                        <div style="font-size:16px;font-weight:900;color:white;line-height:1;">${xpInfo.xp}</div>
+                        <div style="font-size:8px;color:rgba(255,255,255,0.8);font-weight:800;letter-spacing:0.5px;">XP</div>
+                    </div>
+                </div>
             </div>
         </div>
         <!-- XP Bar -->
@@ -3301,24 +3306,7 @@ function renderHome(container) {
 
     <div style="padding:0 12px;">
 
-    <!-- STATS -->
-    <div class="home-stats-3">
-        <div class="hstat">
-            <div class="hi">${streak.streak>0?'🔥':'💤'}</div>
-            <div class="hv" style="color:${streak.streak>0?'#f59e0b':'#94a3b8'};">${streak.streak}</div>
-            <div class="hl">Streak</div>
-        </div>
-        <div class="hstat">
-            <div class="hi">✅</div>
-            <div class="hv" style="color:#10b981;">${correctCount}</div>
-            <div class="hl">মোট সঠিক</div>
-        </div>
-        <div class="hstat">
-            <div class="hi">⭐</div>
-            <div class="hv" style="color:#6366f1;">${xpInfo.xp}</div>
-            <div class="hl">XP</div>
-        </div>
-    </div>
+
 
     <!-- COMPACT STATS CARD — home -->
     <div onclick="showStatsPage()" style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:14px;padding:12px 14px;margin-bottom:7px;border:1px solid rgba(99,102,241,0.3);cursor:pointer;">
@@ -3328,7 +3316,7 @@ function renderHome(container) {
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
             <div style="background:rgba(255,255,255,0.08);border-radius:10px;padding:8px 4px;text-align:center;">
-                <div style="font-size:16px;font-weight:900;color:#4ade80;">${(function(){var s=JSON.parse(localStorage.getItem('fb_summary_cache')||'{}');return s.totalCorrect>0?s.totalCorrect:JSON.parse(localStorage.getItem('correct_history')||'[]').length;}())}</div>
+                <div style="font-size:16px;font-weight:900;color:#4ade80;">${JSON.parse(localStorage.getItem('correct_history')||'[]').length}</div>
                 <div style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.5);margin-top:2px;">সঠিক</div>
             </div>
             <div style="background:rgba(255,255,255,0.08);border-radius:10px;padding:8px 4px;text-align:center;">
@@ -4920,7 +4908,7 @@ function check(btn, sel, corRaw, qId) {
         if (card) { card.classList.add('flash-correct'); setTimeout(() => card.classList.remove('flash-correct'), 600); }
         playSound('correct');
         // XP Award
-        awardXP(10);
+        awardXP(5);
         // Streak tracking
         window._correctStreak = (window._correctStreak || 0) + 1;
         if (window._correctStreak > 0 && window._correctStreak % 5 === 0) {
@@ -8336,7 +8324,7 @@ function _checkReviewMCQ(qId, chosen, correct, expl, allOpts, selectedOi, wKey) 
             (expl ? '<div style="color:#166534;font-size:12px;margin-top:4px;line-height:1.5;">💡 ' + expl + '</div>' : '') +
             '</div>';
         _markReviewCorrect(wKey, qId);
-        awardXP(10);
+        awardXP(5);
     } else {
         var wrongCount = JSON.parse(localStorage.getItem('wrong_q_count') || '{}');
         wrongCount[wKey] = (wrongCount[wKey] || 1) + 1;
@@ -8379,7 +8367,7 @@ function _checkReviewWritten(qId, correct, btn, wKey) {
             '<div style="background:#dcfce7;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:12px;color:#166534;font-weight:700;">সঠিক উত্তর:<br>' + correct + '</div>' +
             '</div>';
         _markReviewCorrect(wKey || qId, qId);
-        awardXP(10);
+        awardXP(5);
     } else {
         resDiv.innerHTML =
             '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;margin-top:6px;">' +
