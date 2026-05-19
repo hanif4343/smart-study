@@ -6902,8 +6902,6 @@ function checkSubWrittenAnswer(btn) {
         const ansDiv = ansBox.querySelector('.ans-box, [style*="f0fdf4"]');
         if (ansDiv) correctRaw = ansDiv.innerText || ansDiv.textContent;
     }
-        if (ansDiv) correctRaw = ansDiv.innerText || ansDiv.textContent;
-    }
     correctRaw = correctRaw.replace(/^(উত্তর|উ|ans|answer|Solution)\s*[:।-]\s*/i, '').trim();
     
     // উত্তরকেও সাব-প্রশ্নে ভাগ করি
