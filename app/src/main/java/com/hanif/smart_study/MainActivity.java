@@ -314,6 +314,74 @@ public class MainActivity extends AppCompatActivity {
             FirebaseMessaging.getInstance().unsubscribeFromTopic(topic)
                 .addOnCompleteListener(task -> Log.d(TAG, "Unsubscribe '" + topic + "': " + task.isSuccessful()));
         }
+
+        /**
+         * Daily reminder schedule করো।
+         * JS থেকে: AndroidBridge.scheduleReminder("07:00", "সকালের Reminder", "পড়ার সময়!", 1001)
+         * @param timeStr  "HH:MM" format
+         * @param title    Notification title
+         * @param body     Notification body
+         * @param notifId  Unique ID — morning=1001, night=1002
+         */
+        @JavascriptInterface
+        public void scheduleReminder(String timeStr, String title, String body, int notifId) {
+            // SharedPreferences এ save করো — boot এর পর reschedule এর জন্য
+            getSharedPreferences("reminders", MODE_PRIVATE).edit()
+                .putString(notifId == 1001 ? "morning_time" : "night_time", timeStr)
+                .putString(notifId == 1001 ? "morning_title" : "night_title", title)
+                .putString(notifId == 1001 ? "morning_body"  : "night_body",  body)
+                .apply();
+
+            ReminderHelper.scheduleDaily(MainActivity.this, timeStr, title, body, notifId);
+            Log.d(TAG, "Reminder scheduled: " + timeStr + " (id=" + notifId + ")");
+        }
+
+        /**
+         * Reminder cancel করো।
+         * JS থেকে: AndroidBridge.cancelReminder(1001)
+         */
+        @JavascriptInterface
+        public void cancelReminder(int notifId) {
+            ReminderHelper.cancel(MainActivity.this, notifId);
+            // SharedPreferences থেকেও মুছো
+            getSharedPreferences("reminders", MODE_PRIVATE).edit()
+                .remove(notifId == 1001 ? "morning_time" : "night_time")
+                .apply();
+            Log.d(TAG, "Reminder cancelled: id=" + notifId);
+        }
+
+        /**
+         * Android 12+ এ exact alarm permission আছে কিনা চেক করো।
+         * JS থেকে: AndroidBridge.canScheduleExactAlarms()
+         * Returns true/false
+         */
+        @JavascriptInterface
+        public boolean canScheduleExactAlarms() {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                android.app.AlarmManager am = (android.app.AlarmManager) getSystemService(ALARM_SERVICE);
+                return am != null && am.canScheduleExactAlarms();
+            }
+            return true; // Android 11 এর নিচে সবসময় true
+        }
+
+        /**
+         * Android 12+ এ exact alarm permission settings page খোলো।
+         * JS থেকে: AndroidBridge.openAlarmPermissionSettings()
+         */
+        @JavascriptInterface
+        public void openAlarmPermissionSettings() {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                runOnUiThread(() -> {
+                    try {
+                        android.content.Intent i = new android.content.Intent(
+                            android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
+                        startActivity(i);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Cannot open alarm settings", e);
+                    }
+                });
+            }
+        }
     }
 
     @Override
