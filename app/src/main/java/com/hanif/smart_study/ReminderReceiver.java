@@ -6,6 +6,8 @@ import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Build;
 import androidx.core.app.NotificationCompat;
 
@@ -23,7 +25,6 @@ public class ReminderReceiver extends BroadcastReceiver {
         if (title == null) title = "📚 পড়ার সময় হয়েছে!";
         if (body  == null) body  = "Smart Study খুলে আজকের লক্ষ্য পূরণ করো 🎯";
 
-        // Notification দেখাও
         createChannel(context);
 
         Intent openIntent = new Intent(context, MainActivity.class);
@@ -33,8 +34,12 @@ public class ReminderReceiver extends BroadcastReceiver {
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
+        // Large icon — full color app logo
+        Bitmap largeIcon = BitmapFactory.decodeResource(context.getResources(), R.mipmap.ic_launcher);
+
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)   // status bar: white silhouette
+            .setLargeIcon(largeIcon)                     // notification body: full color logo
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
@@ -42,13 +47,14 @@ public class ReminderReceiver extends BroadcastReceiver {
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(true)
             .setContentIntent(pi)
-            .setVibrate(new long[]{0, 300, 200, 300});
+            .setVibrate(new long[]{0, 300, 200, 300})
+            .setColor(0xFF4F46E5);  // accent color for notification LED & icon tint
 
         NotificationManager nm = (NotificationManager)
             context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm != null) nm.notify(notifId, builder.build());
 
-        // পরের দিনের জন্য reschedule করো (daily repeat)
+        // পরের দিনের জন্য reschedule
         if (timeStr != null && !timeStr.isEmpty()) {
             ReminderHelper.scheduleDaily(context, timeStr, title, body, notifId);
         }
@@ -64,6 +70,8 @@ public class ReminderReceiver extends BroadcastReceiver {
             ch.setDescription("পড়ার সময়সূচি reminder");
             ch.enableVibration(true);
             ch.setShowBadge(true);
+            ch.enableLights(true);
+            ch.setLightColor(0xFF4F46E5);
             NotificationManager nm = (NotificationManager)
                 context.getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm != null) nm.createNotificationChannel(ch);
