@@ -6884,15 +6884,24 @@ function checkSubWrittenAnswer(btn) {
     textareas.forEach(ta => { if (!ta.value.trim()) allFilled = false; });
     if (!allFilled) { showToast('⚠️ সব অংশের উত্তর লিখো!'); return; }
     
-    // সঠিক উত্তর খুঁজি — সবসময় quizItems থেকে নাও (raw data, DOM-এর মতো format নেই)
+    // সঠিক উত্তর খুঁজি — qId দিয়ে item খুঁজি (idx wrong হতে পারে filtered list-এ)
     let correctRaw = '';
-    if (idx < quizItems.length) {
+    const qItem = quizItems.find(function(it) {
+        return String(getVal(it,'id')||getVal(it,'sl')||getVal(it,'#')||'') === String(qId) ||
+               String(quizItems.indexOf(it)) === String(idx);
+    });
+    if (qItem) {
+        correctRaw = getVal(qItem, 'correct') || getVal(qItem, 'answer') || '';
+    }
+    if (!correctRaw && idx < quizItems.length) {
         correctRaw = getVal(quizItems[idx], 'correct') || getVal(quizItems[idx], 'answer') || '';
     }
     // fallback: DOM থেকে নাও
     const ansBox = document.getElementById('wans-' + qId);
     if (!correctRaw && ansBox) {
         const ansDiv = ansBox.querySelector('.ans-box, [style*="f0fdf4"]');
+        if (ansDiv) correctRaw = ansDiv.innerText || ansDiv.textContent;
+    }
         if (ansDiv) correctRaw = ansDiv.innerText || ansDiv.textContent;
     }
     correctRaw = correctRaw.replace(/^(উত্তর|উ|ans|answer|Solution)\s*[:।-]\s*/i, '').trim();
@@ -7147,6 +7156,17 @@ function localMatchAnswer(userAns, correctAns) {
 
     if (userWords.join(' ') === correctWords.join(' ')) {
         return { pct:100, grade:'A+', feedback:'🌟 অসাধারণ! উত্তর নির্ভুল।', correct_points: correctWords.slice(0,5), missing_points:[] };
+    }
+
+    // Smart check: user answer যদি ছোট হয় (1-2 words) এবং correct-এর যেকোনো একটা word-এর সাথে 100% মিলে
+    // তাহলে ধরে নেবো এটা সঠিক part-এর উত্তর (parseSubQuestions fail হলেও কাজ করবে)
+    // Smart check: user-এর সব word যদি correct-এ থাকে তাহলে সঠিক ধরো
+    // fill-in-the-blank বা single-word answer এর জন্য দরকার
+    if (userWords.length >= 1 && userWords.every(function(w){ return correctWords.indexOf(w) !== -1; })) {
+        var coverRatio = userWords.length / correctWords.length;
+        if (coverRatio >= 0.4) {
+            return { pct:100, grade:'A+', feedback:'🌟 অসাধারণ! উত্তর নির্ভুল।', correct_points: userWords, missing_points:[] };
+        }
     }
 
     var matched = 0;
