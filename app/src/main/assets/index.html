@@ -6884,15 +6884,16 @@ function checkSubWrittenAnswer(btn) {
     textareas.forEach(ta => { if (!ta.value.trim()) allFilled = false; });
     if (!allFilled) { showToast('⚠️ সব অংশের উত্তর লিখো!'); return; }
     
-    // সঠিক উত্তর খুঁজি
+    // সঠিক উত্তর খুঁজি — সবসময় quizItems থেকে নাও (raw data, DOM-এর মতো format নেই)
     let correctRaw = '';
+    if (idx < quizItems.length) {
+        correctRaw = getVal(quizItems[idx], 'correct') || getVal(quizItems[idx], 'answer') || '';
+    }
+    // fallback: DOM থেকে নাও
     const ansBox = document.getElementById('wans-' + qId);
-    if (ansBox) {
+    if (!correctRaw && ansBox) {
         const ansDiv = ansBox.querySelector('.ans-box, [style*="f0fdf4"]');
         if (ansDiv) correctRaw = ansDiv.innerText || ansDiv.textContent;
-    }
-    if (!correctRaw && idx < quizItems.length) {
-        correctRaw = getVal(quizItems[idx], 'correct') || getVal(quizItems[idx], 'answer') || '';
     }
     correctRaw = correctRaw.replace(/^(উত্তর|উ|ans|answer|Solution)\s*[:।-]\s*/i, '').trim();
     
@@ -7126,8 +7127,10 @@ function localMatchAnswer(userAns, correctAns) {
         return toBnNum(text)
             // prefix বাদ
             .replace(/^(উত্তর|উ|ans|answer|solution)\s*[:।\-]\s*/i, '')
-            // সাব-label বাদ (লাইনের শুরুতে ক. খ. / a. b. / ১. ২.)
-            .replace(/(?:^|\n)\s*(?:[কখগঘঙচছজঝঞটঠডঢণতথদধনপফবভমযরলশষসহ]|[a-hA-H]|[0-9])\s*[\.)।]\s*/g, ' ')
+            // zero-width characters বাদ
+            .replace(/[\u200b\u200c\u200d\ufeff]/g, '')
+            // সাব-label বাদ (লাইনের শুরুতে বা inline-এও)
+            .replace(/(?:^|[\n\r\s])(?:[কখগঘঙচছজঝঞটঠডঢণতথদধনপফবভমযরলশষসহ]|[a-hA-H]|[0-9])\s*[.)।]\s*/g, ' ')
             .toLowerCase()
             // সব চিহ্ন, punctuation, space সহ remove — শুধু শব্দ/সংখ্যা থাকবে
             .replace(/[^\u0980-\u09FFa-z0-9]/g, ' ')
