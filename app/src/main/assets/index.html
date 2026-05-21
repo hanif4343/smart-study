@@ -7957,6 +7957,70 @@ function doLogout() {
         } catch(e) { location.reload(); }
     });
 }
+// ── Google Sign-in ──
+function googleSignIn() {
+    if (typeof AndroidBridge !== 'undefined') {
+        AndroidBridge.startGoogleSignIn();
+    } else {
+        showAuthMsg('login', '❌ Google Sign-in শুধু App-এ কাজ করে');
+    }
+}
+
+function onGoogleSignInResult(success, idToken, email, name, photoUrl) {
+    if (!success) {
+        showAuthMsg('login', '❌ Google Sign-in বাতিল হয়েছে');
+        return;
+    }
+    showAuthLoading(true);
+    var credential = firebase.auth.GoogleAuthProvider.credential(idToken);
+    firebase.auth().signInWithCredential(credential)
+        .then(function(result) {
+            // GAS এ user আছে কিনা check করো
+            var gPhone = result.user.phoneNumber || email;
+            return fetch(GAS_URL + '?action=verifyLogin&phone=' + encodeURIComponent(email) + '&password=GOOGLE_AUTH')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    showAuthLoading(false);
+                    if (data && data.result === 'success' && data.user) {
+                        // Existing user — normal login flow
+                        var matched = data.user;
+                        var user = {
+                            name:       matched.Name    || name,
+                            phone:      matched.Phone   || email,
+                            email:      matched.Email   || email,
+                            role:       matched.Role    || 'User',
+                            status:     matched.Status  || 'Active',
+                            picture:    matched.Picture || photoUrl,
+                            xp:         parseInt(matched.XP || 0) || 0,
+                            userType:   matched.UserType  || 'General',
+                            classLevel: matched.ClassLevel || ''
+                        };
+                        saveCurrentUser(user);
+                        localStorage.setItem('home_user_name', user.name);
+                        if (user.picture) localStorage.setItem('home_user_pic', user.picture);
+                        hideAuthScreen();
+                        setTimeout(postLoginFCMSetup, 1000);
+                        try { initApp(); } catch(e) {}
+                        setTimeout(applyAdminVisibility, 200);
+                    } else {
+                        // নতুন user — signup form এ email/name বসিয়ে দাও
+                        showAuthLoading(false);
+                        switchAuthTab('signup');
+                        var nameEl = document.getElementById('signup-name');
+                        var emailEl = document.getElementById('signup-email');
+                        if (nameEl) nameEl.value = name;
+                        if (emailEl) emailEl.value = email;
+                        // Picture save রাখো signup এ
+                        window._googlePhotoUrl = photoUrl;
+                        showAuthMsg('signup', '✅ Google থেকে তথ্য আনা হয়েছে। বাকি তথ্য পূরণ করুন।');
+                    }
+                });
+        })
+        .catch(function(err) {
+            showAuthLoading(false);
+            showAuthMsg('login', '❌ Google Sign-in ব্যর্থ: ' + (err.message || ''));
+        });
+}
 
 // =====================================================
 // LEADERBOARD FUNCTIONS
@@ -9308,6 +9372,10 @@ function _markReviewCorrect(wKey, qId) {
       </div>
       <div id="login-error" style="display:none;background:rgba(239,68,68,0.2);color:#fecaca;font-size:12px;font-weight:700;text-align:center;padding:8px 14px;border-radius:10px;margin-bottom:10px;"></div>
       <button onclick="doLogin()" style="width:100%;padding:15px;background:white;color:#4f46e5;border:none;border-radius:14px;font-size:15px;font-weight:900;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.2);">লগইন করুন ✨</button>
+      <button onclick="googleSignIn()" style="width:100%;padding:12px;margin-top:10px;background:white;color:#444;border:1px solid #ddd;border-radius:10px;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:20px;height:20px;">
+    Google দিয়ে লগইন
+</button>
       <p style="color:rgba(255,255,255,0.5);font-size:11px;font-weight:700;text-align:center;margin-top:12px;">অ্যাকাউন্ট নেই? উপরে "নতুন অ্যাকাউন্ট" চাপুন</p>
     </div>
 
