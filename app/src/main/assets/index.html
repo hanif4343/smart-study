@@ -6132,12 +6132,14 @@ function obEnableNotif() {
 function obFollowFacebook() {
     var btn = document.getElementById('ob-fb-btn');
     var url = 'https://www.facebook.com/profile.php?id=61590421432898';
-    // Android WebView-এ external browser-এ open করো
-    if (window.AndroidBridge && window.AndroidBridge.openUrl) {
-        window.AndroidBridge.openUrl(url);
+
+    // AndroidBridge.openFacebook দিয়ে Facebook app বা browser এ open করো
+    if (window.AndroidBridge && window.AndroidBridge.openFacebook) {
+        window.AndroidBridge.openFacebook(url);
     } else {
         window.open(url, '_blank');
     }
+
     // Button feedback
     if (btn) {
         btn.textContent = '✅ ধন্যবাদ!';
