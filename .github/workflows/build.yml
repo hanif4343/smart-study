@@ -39,6 +39,13 @@ jobs:
       - name: Decode Keystore from secret
         run: echo '${{ secrets.KEYSTORE_BASE64 }}' | base64 -d > app/smartstudy.jks
 
+      # ── Auto increment versionCode using GitHub run number ──
+      - name: Auto increment versionCode
+        run: |
+          RUN=${{ github.run_number }}
+          sed -i "s/versionCode [0-9]*/versionCode $RUN/" app/build.gradle
+          echo "versionCode set to: $RUN"
+
       - name: Inject API keys into index.html
         run: |
           sed -i "s|%%FIREBASE_URL%%|${{ secrets.FIREBASE_URL }}|g" app/src/main/assets/index.html
@@ -80,3 +87,38 @@ jobs:
           name: Smart-Study-Release-SIGNED
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+
+      # ── Auto GitHub Release ──────────────────────────────
+      - name: Get version info
+        id: version
+        run: |
+          VERSION=$(grep "versionName" app/build.gradle | sed 's/.*"\(.*\)".*/\1/' | tr -d '[:space:]')
+          BUILD=${{ github.run_number }}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "build=$BUILD" >> $GITHUB_OUTPUT
+          echo "tag=v${VERSION}-build${BUILD}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release with APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "Smart Study BD v${{ steps.version.outputs.version }} (Build ${{ steps.version.outputs.build }})"
+          body: |
+            ## 📚 Smart Study BD v${{ steps.version.outputs.version }}
+
+            ### ডাউনলোড করো
+            নিচের **app-release.apk** ফাইলে ক্লিক করো।
+
+            ### ইনস্টল করার নিয়ম
+            1. APK download করো
+            2. ফোনে **Unknown sources** চালু করো
+            3. APK install করো
+
+            ---
+            🔨 Build: #${{ steps.version.outputs.build }}
+            📅 ${{ github.event.head_commit.timestamp }}
+            💬 ${{ github.event.head_commit.message }}
+          files: app/build/outputs/apk/release/app-release.apk
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
