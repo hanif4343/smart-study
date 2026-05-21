@@ -6,6 +6,7 @@ import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Build;
@@ -55,8 +56,24 @@ public class ReminderReceiver extends BroadcastReceiver {
         if (nm != null) nm.notify(notifId, builder.build());
 
         // পরের দিনের জন্য reschedule
-        if (timeStr != null && !timeStr.isEmpty()) {
-            ReminderHelper.scheduleDaily(context, timeStr, title, body, notifId);
+        // Intent extra হারিয়ে যেতে পারে — SharedPreferences থেকে নিরাপদে পড়ো
+        SharedPreferences prefs = context.getSharedPreferences("reminders", Context.MODE_PRIVATE);
+        String savedTime;
+        String savedTitle;
+        String savedBody;
+
+        if (notifId == 1001) {
+            savedTime  = prefs.getString("morning_time",  timeStr != null ? timeStr : "");
+            savedTitle = prefs.getString("morning_title", "📚 পড়ার সময় হয়েছে!");
+            savedBody  = prefs.getString("morning_body",  "Smart Study খুলে আজকের লক্ষ্য পূরণ করো 🎯");
+        } else {
+            savedTime  = prefs.getString("night_time",  timeStr != null ? timeStr : "");
+            savedTitle = prefs.getString("night_title", "🌙 রাতের Reminder");
+            savedBody  = prefs.getString("night_body",  "ঘুমানোর আগে পড়ার অভ্যাস ধরে রাখো 🔥");
+        }
+
+        if (savedTime != null && !savedTime.isEmpty()) {
+            ReminderHelper.scheduleDaily(context, savedTime, savedTitle, savedBody, notifId);
         }
     }
 
