@@ -7749,17 +7749,24 @@ async function doLogin() {
     // login এ দুটোই try করা হবে: JS hash এবং plain text (পুরনো accounts)
 
     showAuthLoading(true);
-    // GAS এ login verify করো — server side hash compare
-    fetch(GAS_URL + '?action=verifyLogin&phone=' + encodeURIComponent(phone) + '&password=' + encodeURIComponent(pass))
+    // Firebase থেকে সরাসরি Users verify করো — GAS ছাড়া
+    fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
         .then(function(r) { return r.json(); })
         .then(function(data) {
             showAuthLoading(false);
-            if (!data || data.result !== 'success') {
-                showAuthMsg('login', '❌ ফোন বা পাসওয়ার্ড ভুল!');
-                return;
-            }
-            var matched = data.user;
-            if (!matched) { showAuthMsg('login', '❌ সার্ভার সংযোগ ব্যর্থ'); return; }
+            if (!data) { showAuthMsg('login', '❌ সংযোগ সমস্যা। আবার চেষ্টা করুন।'); return; }
+            var users = Array.isArray(data) ? data : Object.values(data);
+            var normPhone = phone.replace(/^0+/, '');
+            var matched = users.find(function(u) {
+                if (!u) return false;
+                var uPhone = (u.Phone || u.phone || '').toString().trim().replace(/[\s']/g, '');
+                var uNorm  = uPhone.replace(/^0+/, '');
+                var phoneMatch = uPhone === phone || uNorm === normPhone;
+                if (!phoneMatch) return false;
+                var uPass = (u.Password || u.password || '').toString().trim();
+                return uPass === pass || uPass === sha256(pass);
+            });
+            if (!matched) { showAuthMsg('login', '❌ ফোন বা পাসওয়ার্ড ভুল!'); return; }
             var status = (matched.Status || matched.status || 'active').toLowerCase();
             if (status === 'inactive') {
                 showAuthMsg('login', '⏳ অ্যাকাউন্ট এখনো Activate হয়নি। Admin-এর সাথে যোগাযোগ করুন।');
@@ -7973,25 +7980,39 @@ function onGoogleSignInResult(success, idToken, email, name, photoUrl) {
     }
     showAuthLoading(true);
 
-    // Firebase JS SDK ছাড়াই সরাসরি GAS-এ verify করো
-    // Android থেকে পাওয়া idToken এবং email দিয়ে GAS check
-    fetch(GAS_URL + '?action=verifyLogin&phone=' + encodeURIComponent(email) + '&password=GOOGLE_AUTH')
+    // Firebase থেকে সরাসরি email দিয়ে user খোঁজো
+    fetch(FIREBASE_URL + 'Users.json?auth=' + SECRET_KEY)
         .then(function(r) { return r.json(); })
         .then(function(data) {
             showAuthLoading(false);
-            if (data && data.result === 'success' && data.user) {
-                // Existing user — normal login flow
-                var matched = data.user;
+            if (!data) { showAuthMsg('login', '❌ সংযোগ সমস্যা। আবার চেষ্টা করুন।'); return; }
+            var users = Array.isArray(data) ? data : Object.values(data);
+            var normEmail = email.toString().trim().toLowerCase();
+
+            // Email দিয়ে match করো
+            var matched = users.find(function(u) {
+                if (!u) return false;
+                var uEmail = (u.Email || u.email || '').toString().trim().toLowerCase();
+                return uEmail === normEmail;
+            });
+
+            if (matched) {
+                // ✅ Existing user — সরাসরি login করো
+                var status = (matched.Status || matched.status || 'active').toLowerCase();
+                if (status === 'inactive') {
+                    showAuthMsg('login', '⏳ অ্যাকাউন্ট এখনো Activate হয়নি। Admin-এর সাথে যোগাযোগ করুন।');
+                    return;
+                }
                 var user = {
-                    name:       matched.Name       || name,
-                    phone:      matched.Phone      || email,
-                    email:      matched.Email      || email,
-                    role:       matched.Role       || 'User',
-                    status:     matched.Status     || 'Active',
-                    picture:    matched.Picture    || photoUrl,
-                    xp:         parseInt(matched.XP || 0) || 0,
-                    userType:   matched.UserType   || 'General',
-                    classLevel: matched.ClassLevel || ''
+                    name:       matched.Name       || matched.name       || name,
+                    phone:      matched.Phone      || matched.phone      || email,
+                    email:      matched.Email      || matched.email      || email,
+                    role:       matched.Role       || matched.role       || 'User',
+                    status:     matched.Status     || matched.status     || 'Active',
+                    picture:    matched.Picture    || matched.picture    || photoUrl,
+                    xp:         parseInt(matched.XP || matched.xp || 0) || 0,
+                    userType:   matched.UserType   || matched.userType   || 'General',
+                    classLevel: matched.ClassLevel || matched.classLevel || ''
                 };
                 saveCurrentUser(user);
                 localStorage.setItem('home_user_name', user.name);
@@ -8001,14 +8022,14 @@ function onGoogleSignInResult(success, idToken, email, name, photoUrl) {
                 try { initApp(); } catch(e) {}
                 setTimeout(applyAdminVisibility, 200);
             } else {
-                // নতুন user — signup form এ email/name বসিয়ে দাও
+                // 🆕 নতুন user — signup form এ email/name বসিয়ে দাও
                 switchAuthTab('signup');
-                var nameEl = document.getElementById('signup-name');
+                var nameEl  = document.getElementById('signup-name');
                 var emailEl = document.getElementById('signup-email');
-                if (nameEl) nameEl.value = name;
+                if (nameEl)  nameEl.value  = name;
                 if (emailEl) emailEl.value = email;
                 window._googlePhotoUrl = photoUrl;
-                showAuthMsg('signup', '✅ Google থেকে তথ্য আনা হয়েছে। বাকি তথ্য পূরণ করুন।');
+                showAuthMsg('signup', '✅ Google থেকে তথ্য আনা হয়েছে। ফোন নম্বর ও বাকি তথ্য পূরণ করুন।');
             }
         })
         .catch(function(err) {
