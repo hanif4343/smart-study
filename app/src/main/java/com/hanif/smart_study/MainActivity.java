@@ -138,7 +138,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 if (url.startsWith("http://") || url.startsWith("https://")) {
                     if (!url.contains("file://") && !url.contains("smartentrydb") &&
-                        !url.contains("googleapis.com") && !url.contains("script.google.com")) {
+                        !url.contains("script.google.com")) {
                         startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
                         return true;
                     }
