@@ -743,9 +743,12 @@
         @keyframes obFade { from{opacity:0; transform:translateY(20px)} to{opacity:1; transform:translateY(0)} }
         .ob-emoji { font-size:80px; margin-bottom:24px; animation: obBounce 1s ease infinite alternate; }
         @keyframes obBounce { from{transform:scale(1)} to{transform:scale(1.08)} }
+        @keyframes obShake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(6px)} }
         .ob-dots { display:flex; gap:8px; margin-top:32px; }
         .ob-dot { width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,0.35); transition:0.3s; }
         .ob-dot.active { background:white; width:24px; border-radius:4px; }
+        .ob-class-btn { background:rgba(255,255,255,0.1); border:2px solid rgba(255,255,255,0.15); border-radius:14px; padding:12px 16px; color:white; font-weight:800; font-size:13px; text-align:left; transition:0.2s; width:100%; }
+        .ob-class-btn.selected, .ob-type-selected { background:rgba(255,255,255,0.25) !important; border-color:white !important; }
 
         /* ===== XP / LEVEL ===== */
         .xp-bar-wrap { background:rgba(255,255,255,0.2); border-radius:20px; height:10px; overflow:hidden; margin-top:6px; }
@@ -1495,37 +1498,141 @@
 
     <!-- ===== ONBOARDING OVERLAY ===== -->
     <div id="onboarding-overlay" class="hidden">
+
+        <!-- Slide 0: Welcome -->
         <div class="ob-slide active" id="ob-0">
             <div class="ob-emoji">📚</div>
             <h1 class="text-white text-3xl font-black mb-3">Smart Study-তে স্বাগতম!</h1>
-            <p class="text-white/80 text-base font-bold leading-relaxed">পড়াশোনাকে মজাদার ও কার্যকর করার সেরা অ্যাপ। Quiz, Study, QBank সব এক জায়গায়।</p>
+            <p class="text-white/80 text-base font-bold leading-relaxed">পড়াশোনাকে মজাদার ও কার্যকর করার সেরা অ্যাপ। Quiz, QBank, Study সব এক জায়গায়।</p>
+            <div style="margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;">
+                <div style="background:rgba(255,255,255,0.12);border-radius:14px;padding:12px;text-align:center;">
+                    <div style="font-size:24px;">🎯</div>
+                    <div style="color:white;font-weight:800;font-size:11px;margin-top:4px;">Daily Quiz</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.12);border-radius:14px;padding:12px;text-align:center;">
+                    <div style="font-size:24px;">🧠</div>
+                    <div style="color:white;font-weight:800;font-size:11px;margin-top:4px;">Smart Review</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.12);border-radius:14px;padding:12px;text-align:center;">
+                    <div style="font-size:24px;">📊</div>
+                    <div style="color:white;font-weight:800;font-size:11px;margin-top:4px;">Progress Track</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.12);border-radius:14px;padding:12px;text-align:center;">
+                    <div style="font-size:24px;">🏆</div>
+                    <div style="color:white;font-weight:800;font-size:11px;margin-top:4px;">XP & Level</div>
+                </div>
+            </div>
         </div>
+
+        <!-- Slide 1: User type selection -->
         <div class="ob-slide" id="ob-1">
-            <div class="ob-emoji">🎯</div>
-            <h1 class="text-white text-3xl font-black mb-3">দৈনিক লক্ষ্য রাখো</h1>
-            <p class="text-white/80 text-base font-bold leading-relaxed">প্রতিদিন নির্দিষ্ট সংখ্যক প্রশ্ন করো। Streak ধরে রাখো। পরীক্ষায় এগিয়ে থাকো!</p>
+            <div class="ob-emoji">👤</div>
+            <h1 class="text-white text-2xl font-black mb-2">তুমি কে?</h1>
+            <p class="text-white/70 text-sm font-bold mb-6">তোমার ধরন অনুযায়ী content দেখাবো</p>
+            <div style="display:flex;flex-direction:column;gap:10px;width:100%;">
+                <button onclick="obSelectType('Student')" id="ob-type-Student" style="background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);border-radius:16px;padding:14px 20px;color:white;font-weight:900;font-size:14px;text-align:left;display:flex;align-items:center;gap:12px;transition:0.2s;">
+                    <span style="font-size:28px;">🎓</span>
+                    <div><div>ছাত্র/ছাত্রী</div><div style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.6);">School, College, University</div></div>
+                </button>
+                <button onclick="obSelectType('Job')" id="ob-type-Job" style="background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);border-radius:16px;padding:14px 20px;color:white;font-weight:900;font-size:14px;text-align:left;display:flex;align-items:center;gap:12px;transition:0.2s;">
+                    <span style="font-size:28px;">💼</span>
+                    <div><div>চাকরি প্রস্তুতি</div><div style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.6);">BCS, Bank, Government Job</div></div>
+                </button>
+            </div>
         </div>
+
+        <!-- Slide 2: Class selection (Student only) -->
         <div class="ob-slide" id="ob-2">
-            <div class="ob-emoji">🏆</div>
-            <h1 class="text-white text-3xl font-black mb-3">XP অর্জন করো</h1>
-            <p class="text-white/80 text-base font-bold leading-relaxed">প্রতিটি সঠিক উত্তরে XP পাবে। Level up হবে। Achievement badge জিতবে!</p>
+            <div class="ob-emoji">📖</div>
+            <h1 class="text-white text-2xl font-black mb-2">কোন শ্রেণিতে পড়ো?</h1>
+            <p class="text-white/70 text-sm font-bold mb-4">তোমার শ্রেণির উপযোগী content দেখাবো</p>
+            <div style="width:100%;max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;" id="ob-class-list">
+                <button onclick="obSelectClass('Class 6')" class="ob-class-btn">৬ষ্ঠ শ্রেণি</button>
+                <button onclick="obSelectClass('Class 7')" class="ob-class-btn">৭ম শ্রেণি</button>
+                <button onclick="obSelectClass('Class 8')" class="ob-class-btn">৮ম শ্রেণি</button>
+                <button onclick="obSelectClass('Class 9')" class="ob-class-btn">৯ম শ্রেণি</button>
+                <button onclick="obSelectClass('Class 10')" class="ob-class-btn">SSC / ১০ম শ্রেণি</button>
+                <button onclick="obSelectClass('HSC 1st')" class="ob-class-btn">HSC ১ম বর্ষ</button>
+                <button onclick="obSelectClass('HSC 2nd')" class="ob-class-btn">HSC ২য় বর্ষ</button>
+                <button onclick="obSelectClass('Degree 1st')" class="ob-class-btn">ডিগ্রি ১ম বর্ষ</button>
+                <button onclick="obSelectClass('Degree 2nd')" class="ob-class-btn">ডিগ্রি ২য় বর্ষ</button>
+                <button onclick="obSelectClass('Degree 3rd')" class="ob-class-btn">ডিগ্রি ৩য় বর্ষ</button>
+                <button onclick="obSelectClass('Masters 1st')" class="ob-class-btn">মাস্টার্স ১ম বর্ষ</button>
+                <button onclick="obSelectClass('Masters 2nd')" class="ob-class-btn">মাস্টার্স ২য় বর্ষ</button>
+            </div>
         </div>
+
+        <!-- Slide 3: Daily goal -->
         <div class="ob-slide" id="ob-3">
-            <div class="ob-emoji">🔔</div>
-            <h1 class="text-white text-3xl font-black mb-3">Reminder চালু করো</h1>
-            <p class="text-white/80 text-base font-bold leading-relaxed">পড়ার সময় হলে notification পাবে। Streak ভাঙার আগে সতর্ক করবে।</p>
+            <div class="ob-emoji">🎯</div>
+            <h1 class="text-white text-2xl font-black mb-2">দৈনিক লক্ষ্য</h1>
+            <p class="text-white/70 text-sm font-bold mb-6">প্রতিদিন কতটি প্রশ্ন করতে চাও?</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;">
+                <button onclick="obSelectGoal(20)" id="ob-goal-20" style="background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);border-radius:16px;padding:16px;color:white;font-weight:900;">
+                    <div style="font-size:24px;font-weight:900;">20</div>
+                    <div style="font-size:10px;color:rgba(255,255,255,0.6);margin-top:2px;">সহজ শুরু 😊</div>
+                </button>
+                <button onclick="obSelectGoal(50)" id="ob-goal-50" style="background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);border-radius:16px;padding:16px;color:white;font-weight:900;">
+                    <div style="font-size:24px;font-weight:900;">50</div>
+                    <div style="font-size:10px;color:rgba(255,255,255,0.6);margin-top:2px;">মাঝারি 🔥</div>
+                </button>
+                <button onclick="obSelectGoal(100)" id="ob-goal-100" style="background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);border-radius:16px;padding:16px;color:white;font-weight:900;">
+                    <div style="font-size:24px;font-weight:900;">100</div>
+                    <div style="font-size:10px;color:rgba(255,255,255,0.6);margin-top:2px;">চ্যালেঞ্জ 💪</div>
+                </button>
+                <button onclick="obSelectGoal(200)" id="ob-goal-200" style="background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);border-radius:16px;padding:16px;color:white;font-weight:900;">
+                    <div style="font-size:24px;font-weight:900;">200</div>
+                    <div style="font-size:10px;color:rgba(255,255,255,0.6);margin-top:2px;">চ্যাম্পিয়ন 🏆</div>
+                </button>
+            </div>
         </div>
+
+        <!-- Slide 4: Notification -->
+        <div class="ob-slide" id="ob-4">
+            <div class="ob-emoji">🔔</div>
+            <h1 class="text-white text-2xl font-black mb-2">Reminder চালু করো</h1>
+            <p class="text-white/70 text-sm font-bold mb-6">পড়ার সময় মনে করিয়ে দেবো। Streak ভুললে সতর্ক করবো।</p>
+            <div style="width:100%;display:flex;flex-direction:column;gap:10px;">
+                <button onclick="obEnableNotif()" style="background:white;border-radius:16px;padding:16px;color:#4338ca;font-weight:900;font-size:15px;border:none;width:100%;">
+                    🔔 Notification চালু করো
+                </button>
+                <button onclick="nextObSlide()" style="background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2);border-radius:16px;padding:14px;color:rgba(255,255,255,0.7);font-weight:700;font-size:13px;border:none;width:100%;">
+                    এখন নয়
+                </button>
+            </div>
+        </div>
+
+        <!-- Slide 5: Ready -->
+        <div class="ob-slide" id="ob-5">
+            <div style="font-size:64px;animation:obBounce 1s ease infinite alternate;">🚀</div>
+            <h1 class="text-white text-2xl font-black mb-2" style="margin-top:16px;">সব ঠিকঠাক!</h1>
+            <p class="text-white/70 text-sm font-bold mb-4">তোমার profile তৈরি হয়েছে।</p>
+            <div id="ob-summary" style="width:100%;background:rgba(255,255,255,0.10);border-radius:14px;padding:12px 14px;text-align:left;margin-bottom:14px;"></div>
+            <div style="width:100%;background:white;border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:12px;">
+                <div style="width:46px;height:46px;border-radius:12px;background:#1877f2;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                </div>
+                <div style="flex:1;">
+                    <div style="font-weight:900;color:#1e293b;font-size:12px;">Smart Study BD</div>
+                    <div style="font-weight:700;color:#64748b;font-size:10px;margin-top:2px;">নতুন প্রশ্ন, tips ও আপডেট পেতে Follow করো</div>
+                </div>
+                <button onclick="obFollowFacebook()" id="ob-fb-btn" style="background:#1877f2;color:white;border:none;border-radius:10px;padding:8px 14px;font-weight:900;font-size:12px;white-space:nowrap;cursor:pointer;">👍 Follow</button>
+            </div>
+        </div>
+
         <!-- dots -->
         <div class="ob-dots" id="ob-dots">
             <div class="ob-dot active"></div>
             <div class="ob-dot"></div>
             <div class="ob-dot"></div>
             <div class="ob-dot"></div>
+            <div class="ob-dot"></div>
+            <div class="ob-dot"></div>
         </div>
         <!-- buttons -->
-        <div class="flex gap-3 mt-6 w-full px-6">
-            <button id="ob-skip" onclick="finishOnboarding()" class="flex-1 py-3 rounded-2xl font-bold text-white/70 bg-white/10">এড়িয়ে যাও</button>
-            <button id="ob-next" onclick="nextObSlide()" class="flex-1 py-3 rounded-2xl font-black text-indigo-700 bg-white shadow-lg">পরবর্তী →</button>
+        <div class="flex gap-3 mt-6 w-full" style="padding:0 24px;">
+            <button id="ob-skip" onclick="finishOnboarding()" style="flex:1;padding:14px;border-radius:16px;font-weight:700;color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.08);border:none;">এড়িয়ে যাও</button>
+            <button id="ob-next" onclick="nextObSlide()" style="flex:1;padding:14px;border-radius:16px;font-weight:900;color:#4338ca;background:white;border:none;box-shadow:0 4px 20px rgba(0,0,0,0.2);">পরবর্তী →</button>
         </div>
     </div>
 
@@ -2632,6 +2739,9 @@ function generateTableHtml(rows) {
         setTimeout(() => showOnboarding(), 1200);
     }
 
+    // ── Daily Active Tracking ──
+    setTimeout(function(){ try{ trackDailyActive(); }catch(e){} }, 3000);
+
     // ── Smart Load: Online হলে Firebase, Offline হলে Cache ──
     const cachedData = loadOfflineData();
     if (cachedData && (cachedData.Study || cachedData.Quiz || cachedData.QBank)) {
@@ -3307,6 +3417,17 @@ function renderHome(container) {
     <div style="padding:0 12px;">
 
 
+
+    <!-- SR: আজকের Revision card -->
+    <div id="sr-revision-card" onclick="startRevisionMode()" style="display:none;background:linear-gradient(135deg,#7c3aed,#4f46e5);border-radius:14px;padding:12px 14px;margin-bottom:7px;cursor:pointer;border:1px solid rgba(139,92,246,0.4);">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <div style="color:white;font-weight:900;font-size:13px;">🔁 আজকের Revision</div>
+                <div style="color:rgba(255,255,255,0.7);font-size:11px;font-weight:700;margin-top:2px;" id="sr-due-label">লোড হচ্ছে...</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.2);border-radius:10px;padding:6px 12px;color:white;font-weight:900;font-size:18px;" id="sr-due-count">0</div>
+        </div>
+    </div>
 
     <!-- COMPACT STATS CARD — home -->
     <div onclick="showStatsPage()" style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:14px;padding:12px 14px;margin-bottom:7px;border:1px solid rgba(99,102,241,0.3);cursor:pointer;">
@@ -4078,7 +4199,7 @@ function goTodayTopic(topic, mode) {
     });
     const items = allData.filter(i => (getVal(i,'sub_topic')||'') === topic);
     if(items.length === 0) { showToast('⚠️ প্রশ্ন পাওয়া যায়নি'); changeMode(mode); return; }
-    quizItems = items;
+    quizItems = (typeof srSortItems === 'function') ? srSortItems(items) : items;
     displayLimit = items.length;
     currentMode = mode;
     updateUIMode(mode);
@@ -4184,12 +4305,18 @@ function renderView() {
 
 
         <!-- Stats Card -->
-        <div onclick="showStatsPage()" class="card flex justify-between items-center mb-2" style="background:linear-gradient(135deg,#eef2ff,#f5f3ff); border-color:#c7d2fe;">
-            <div>
-                <span class="font-black text-indigo-700">📊 আমার পরিসংখ্যান</span>
-                <p class="text-[10px] text-gray-400 font-bold mt-0.5">বিস্তারিত রিপোর্ট দেখুন</p>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <div onclick="showStatsPage()" class="card flex-1 flex justify-between items-center" style="background:linear-gradient(135deg,#eef2ff,#f5f3ff); border-color:#c7d2fe;margin-bottom:0;">
+                <div>
+                    <span class="font-black text-indigo-700">📊 পরিসংখ্যান</span>
+                    <p class="text-[10px] text-gray-400 font-bold mt-0.5">সারসংক্ষেপ</p>
+                </div>
+                <span class="text-indigo-400 font-black text-lg">❯</span>
             </div>
-            <span class="text-indigo-400 font-black text-lg">❯</span>
+            <div onclick="showProgressReport()" style="background:linear-gradient(135deg,#0f172a,#1e1b4b);border:1px solid rgba(99,102,241,0.3);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;justify-content:center;align-items:center;min-width:80px;cursor:pointer;">
+                <span style="font-size:18px;">📈</span>
+                <span style="color:white;font-size:9px;font-weight:900;margin-top:4px;text-align:center;">পূর্ণ রিপোর্ট</span>
+            </div>
         </div>
         
   <!-- Notification Card -->
@@ -4843,6 +4970,7 @@ function renderQuestions() {
     document.getElementById('reading-progress-bar').classList.remove('hidden');
     document.getElementById('q-counter-badge').style.display = 'block';
     updateReadingProgress();
+    try { srUpdateHomeCard(); } catch(e) {}
 
     // Scroll-based question counter
     if (window._scrollListener) window.removeEventListener('scroll', window._scrollListener);
@@ -4919,6 +5047,25 @@ function markAsCorrect(id) {
         correctHistory.push(sid);
         localStorage.setItem('correct_history', JSON.stringify(correctHistory));
     }
+    try { srMarkCorrect(sid); } catch(e) {}
+    // Subject-wise tracking
+    try {
+        var _cItem = null;
+        ['QBank','Study','Quiz'].forEach(function(sh){ if(fullData[sh]) fullData[sh].forEach(function(it){ if(String(getVal(it,'id')||getVal(it,'sl')||'')=== String(rawId)) _cItem=it; }); });
+        if(_cItem) {
+            var _subj = getVal(_cItem,'subject') || 'অন্যান্য';
+            var _chap = getVal(_cItem,'sub_topic') || '';
+            var _subjData = JSON.parse(localStorage.getItem('subj_stats')||'{}');
+            if(!_subjData[_subj]) _subjData[_subj]={correct:0,wrong:0,chapters:{}};
+            if(!_subjData[_subj].chapters) _subjData[_subj].chapters={};
+            _subjData[_subj].correct++;
+            if(_chap){
+                if(!_subjData[_subj].chapters[_chap]) _subjData[_subj].chapters[_chap]={correct:0,wrong:0};
+                _subjData[_subj].chapters[_chap].correct++;
+            }
+            localStorage.setItem('subj_stats', JSON.stringify(_subjData));
+        }
+    } catch(e) {}
     // Remove from wrong_q_ids
     var wrongIds = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
     var widx = wrongIds.indexOf(sid);
@@ -4972,6 +5119,7 @@ function check(btn, sel, corRaw, qId) {
     } 
     
     updateReadingProgress();
+    try { srUpdateHomeCard(); } catch(e) {}
     
     const exp = p.parentElement.querySelector('.exp-box'); 
     if(exp) { 
@@ -5517,6 +5665,26 @@ function trackWrongAnswer(topic, qId) {
         var wrongCount = JSON.parse(localStorage.getItem('wrong_q_count') || '{}');
         wrongCount[sid] = (wrongCount[sid] || 0) + 1;
         localStorage.setItem('wrong_q_count', JSON.stringify(wrongCount));
+        try { srMarkWrong(sid); } catch(e) {}
+        // Subject-wise wrong tracking
+        try {
+            var _wItem = null;
+            var _wId = String(qId);
+            ['QBank','Study','Quiz'].forEach(function(sh){ if(fullData[sh]) fullData[sh].forEach(function(it){ if(String(getVal(it,'id')||getVal(it,'sl')||'')=== _wId) _wItem=it; }); });
+            if(_wItem) {
+                var _wSubj = getVal(_wItem,'subject') || 'অন্যান্য';
+                var _wChap = getVal(_wItem,'sub_topic') || '';
+                var _wData = JSON.parse(localStorage.getItem('subj_stats')||'{}');
+                if(!_wData[_wSubj]) _wData[_wSubj]={correct:0,wrong:0,chapters:{}};
+                if(!_wData[_wSubj].chapters) _wData[_wSubj].chapters={};
+                _wData[_wSubj].wrong++;
+                if(_wChap){
+                    if(!_wData[_wSubj].chapters[_wChap]) _wData[_wSubj].chapters[_wChap]={correct:0,wrong:0};
+                    _wData[_wSubj].chapters[_wChap].wrong++;
+                }
+                localStorage.setItem('subj_stats', JSON.stringify(_wData));
+            }
+        } catch(e) {}
     }
 }
 
@@ -5781,6 +5949,67 @@ function showStatsPage() {
         statsHTML += '<div class="card mb-20 text-center text-gray-400 font-bold py-6">\uD83D\uDC4F \u098F\u0996\u09A8\u09CB \u0995\u09CB\u09A8\u09CB \u09A6\u09C1\u09B0\u09CD\u09AC\u09B2 \u0985\u09A7\u09CD\u09AF\u09BE\u09AF\u09BC \u09A8\u09C7\u0987!</div>';
     }
 
+
+    // ── Subject-wise Progress Report ──
+    var subjData = JSON.parse(localStorage.getItem('subj_stats') || '{}');
+    var subjKeys = Object.keys(subjData).filter(function(k){ return subjData[k].correct + subjData[k].wrong > 0; });
+    subjKeys.sort(function(a,b){
+        var pa = subjData[a].correct/(subjData[a].correct+subjData[a].wrong);
+        var pb = subjData[b].correct/(subjData[b].correct+subjData[b].wrong);
+        return pa - pb; // দুর্বল বিষয় আগে
+    });
+
+    if (subjKeys.length > 0) {
+        statsHTML = statsHTML.replace('</div>', ''); // remove last mb-20 closing — we'll reclose
+        statsHTML += '<div class="card mb-3">';
+        statsHTML += '<p class="font-black text-gray-700 mb-4" style="font-size:13px;">📚 বিষয়ভিত্তিক অগ্রগতি</p>';
+        subjKeys.forEach(function(subj) {
+            var c = subjData[subj].correct || 0;
+            var w = subjData[subj].wrong || 0;
+            var t = c + w;
+            var pct = t > 0 ? Math.round(c/t*100) : 0;
+            var barColor = pct >= 80 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#ef4444';
+            var grade = pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B' : pct >= 60 ? 'C' : pct >= 50 ? 'D' : 'F';
+            var gradeColor = pct >= 70 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#ef4444';
+            statsHTML += '<div style="margin-bottom:12px;">';
+            statsHTML += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">';
+            statsHTML += '<span style="font-size:11px;font-weight:800;color:#374151;flex:1;margin-right:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+subj+'</span>';
+            statsHTML += '<span style="font-size:10px;font-weight:900;color:'+gradeColor+';background:'+(pct>=70?'#d1fae5':pct>=50?'#fef3c7':'#fee2e2')+';padding:1px 7px;border-radius:8px;">'+grade+'</span>';
+            statsHTML += '</div>';
+            statsHTML += '<div style="display:flex;align-items:center;gap:8px;">';
+            statsHTML += '<div style="flex:1;background:#f1f5f9;border-radius:6px;height:8px;overflow:hidden;">';
+            statsHTML += '<div style="width:'+pct+'%;background:'+barColor+';height:100%;border-radius:6px;transition:width 0.6s ease;"></div>';
+            statsHTML += '</div>';
+            statsHTML += '<span style="font-size:10px;font-weight:900;color:#6b7280;min-width:60px;text-align:right;">'+c+'/'+t+' ('+pct+'%)</span>';
+            statsHTML += '</div>';
+            statsHTML += '</div>';
+        });
+        statsHTML += '</div>';
+    }
+
+    // ── SR Summary card ──
+    var srData = srGetData ? srGetData() : {};
+    var srTotal = Object.keys(srData).length;
+    var srDue = typeof srGetDueCount === 'function' ? srGetDueCount() : 0;
+    var srMastered = Object.values(srData).filter(function(c){ return c.reps >= 3 && c.ease >= 2.5; }).length;
+    if (srTotal > 0) {
+        statsHTML += '<div class="card mb-20" style="background:linear-gradient(135deg,#1e1b4b,#312e81);">';
+        statsHTML += '<p class="font-black text-white mb-3" style="font-size:13px;">🧠 Spaced Repetition</p>';
+        statsHTML += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">';
+        statsHTML += '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center;">';
+        statsHTML += '<div style="font-size:20px;font-weight:900;color:#4ade80;">'+srMastered+'</div>';
+        statsHTML += '<div style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.5);margin-top:2px;">আয়ত্ত</div></div>';
+        statsHTML += '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center;">';
+        statsHTML += '<div style="font-size:20px;font-weight:900;color:#fbbf24;">'+srDue+'</div>';
+        statsHTML += '<div style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.5);margin-top:2px;">Review বাকি</div></div>';
+        statsHTML += '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center;">';
+        statsHTML += '<div style="font-size:20px;font-weight:900;color:#a78bfa;">'+srTotal+'</div>';
+        statsHTML += '<div style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.5);margin-top:2px;">মোট Cards</div></div>';
+        statsHTML += '</div></div>';
+    } else {
+        statsHTML += '<div style="height:60px;"></div>'; // bottom padding
+    }
+
     container.innerHTML = statsHTML;
     document.getElementById('back-and-ctrls').classList.remove('hidden');
     path = ['Stats'];
@@ -5849,6 +6078,9 @@ function showStatsPage() {
 let _obCurrent = 0;
 const _obTotal = 4;
 
+var _obSelected = { type: '', classLevel: '', goal: 20 };
+var _obTotalSlides = 6;
+
 function showOnboarding() {
     document.getElementById('onboarding-overlay').classList.remove('hidden');
     _obCurrent = 0;
@@ -5856,20 +6088,36 @@ function showOnboarding() {
 }
 
 function updateObSlide() {
-    document.querySelectorAll('.ob-slide').forEach((s,i) => {
+    document.querySelectorAll('.ob-slide').forEach(function(s, i) {
         s.classList.toggle('active', i === _obCurrent);
     });
-    document.querySelectorAll('.ob-dot').forEach((d,i) => {
+    document.querySelectorAll('.ob-dot').forEach(function(d, i) {
         d.classList.toggle('active', i === _obCurrent);
     });
-    const nextBtn = document.getElementById('ob-next');
+    var nextBtn = document.getElementById('ob-next');
+    var skipBtn = document.getElementById('ob-skip');
     if (nextBtn) {
-        nextBtn.textContent = _obCurrent === _obTotal - 1 ? 'শুরু করো 🚀' : 'পরবর্তী →';
+        nextBtn.textContent = _obCurrent === _obTotalSlides - 1 ? 'পড়া শুরু করো 🚀' : 'পরবর্তী →';
     }
+    // Hide skip on last slide
+    if (skipBtn) skipBtn.style.display = _obCurrent === _obTotalSlides - 1 ? 'none' : '';
+
+    // Slide 2 (class) — skip if Job type
+    if (_obCurrent === 2 && _obSelected.type === 'Job') {
+        _obCurrent = 3; updateObSlide(); return;
+    }
+    // Slide 5 (ready) — populate summary
+    if (_obCurrent === 5) obShowSummary();
 }
 
 function nextObSlide() {
-    if (_obCurrent < _obTotal - 1) {
+    // Validate required selections
+    if (_obCurrent === 1 && !_obSelected.type) {
+        obShake('ob-1'); return;
+    }
+    if (_obCurrent === 3 && !_obSelected.goal) _obSelected.goal = 20;
+
+    if (_obCurrent < _obTotalSlides - 1) {
         _obCurrent++;
         updateObSlide();
     } else {
@@ -5877,11 +6125,88 @@ function nextObSlide() {
     }
 }
 
+function obSelectType(type) {
+    _obSelected.type = type;
+    document.querySelectorAll('[id^="ob-type-"]').forEach(function(b) {
+        b.style.background = 'rgba(255,255,255,0.1)';
+        b.style.borderColor = 'rgba(255,255,255,0.2)';
+    });
+    var sel = document.getElementById('ob-type-' + type);
+    if (sel) { sel.style.background = 'rgba(255,255,255,0.25)'; sel.style.borderColor = 'white'; }
+    setTimeout(function(){ nextObSlide(); }, 300);
+}
+
+function obSelectClass(cls) {
+    _obSelected.classLevel = cls;
+    document.querySelectorAll('.ob-class-btn').forEach(function(b) { b.classList.remove('selected'); });
+    event.target.classList.add('selected');
+    setTimeout(function(){ nextObSlide(); }, 300);
+}
+
+function obSelectGoal(g) {
+    _obSelected.goal = g;
+    localStorage.setItem('daily_goal', g);
+    [20,50,100,200].forEach(function(v) {
+        var el = document.getElementById('ob-goal-'+v);
+        if (el) { el.style.background = v===g ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)'; el.style.borderColor = v===g ? 'white' : 'rgba(255,255,255,0.2)'; }
+    });
+    setTimeout(function(){ nextObSlide(); }, 300);
+}
+
+function obEnableNotif() {
+    if (typeof requestNotificationPermission === 'function') requestNotificationPermission();
+    nextObSlide();
+}
+
+function obFollowFacebook() {
+    var btn = document.getElementById('ob-fb-btn');
+    var url = 'https://www.facebook.com/profile.php?id=61590421432898';
+    // Android WebView-এ external browser-এ open করো
+    if (window.AndroidBridge && window.AndroidBridge.openUrl) {
+        window.AndroidBridge.openUrl(url);
+    } else {
+        window.open(url, '_blank');
+    }
+    // Button feedback
+    if (btn) {
+        btn.textContent = '✅ ধন্যবাদ!';
+        btn.style.background = '#10b981';
+        btn.disabled = true;
+    }
+    localStorage.setItem('fb_followed', '1');
+}
+
+function obShowSummary() {
+    var el = document.getElementById('ob-summary');
+    if (!el) return;
+    var typeLabel = _obSelected.type === 'Job' ? '💼 চাকরি প্রস্তুতি' : '🎓 ছাত্র/ছাত্রী';
+    var classLabel = _obSelected.classLevel ? ' — ' + _obSelected.classLevel : '';
+    el.innerHTML =
+        '<div style="color:white;font-size:12px;font-weight:700;line-height:1.8;">' +
+        '👤 ' + typeLabel + classLabel + '<br>' +
+        '🎯 দৈনিক লক্ষ্য: ' + _obSelected.goal + ' প্রশ্ন<br>' +
+        '🧠 Smart Review: চালু<br>' +
+        '📊 Progress Track: চালু' +
+        '</div>';
+}
+
+function obShake(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.style.animation = 'none';
+    setTimeout(function(){ el.style.animation = 'obShake 0.4s ease'; }, 10);
+}
+
 function finishOnboarding() {
     localStorage.setItem('ob_done', '1');
+    // Save user preferences from onboarding
+    if (_obSelected.type) {
+        localStorage.setItem('ob_user_type', _obSelected.type);
+        if (_obSelected.classLevel) localStorage.setItem('ob_class_level', _obSelected.classLevel);
+    }
+    if (_obSelected.goal) localStorage.setItem('daily_goal', _obSelected.goal);
     document.getElementById('onboarding-overlay').classList.add('hidden');
-    // Ask for notification permission after onboarding
-    setTimeout(() => requestNotificationPermission(), 1000);
+    setTimeout(function(){ requestNotificationPermission(); }, 800);
 }
 
 // ====================================================
@@ -7014,6 +7339,7 @@ function checkSubWrittenAnswer(btn) {
         }
     }
     if (typeof updateReadingProgress === 'function') updateReadingProgress();
+    try { srUpdateHomeCard(); } catch(e) {}
 }
 
 function retrySubWrittenAnswer(btn) {
@@ -7062,6 +7388,7 @@ function selfAssess(btn, result, qId) {
         answeredCount++;
         updateScore();
         updateReadingProgress();
+    try { srUpdateHomeCard(); } catch(e) {}
         // Track in score
         var card = btn.closest('.card');
         if (card) { card.classList.add('flash-correct'); setTimeout(function(){ card.classList.remove('flash-correct'); }, 600); }
@@ -7071,6 +7398,7 @@ function selfAssess(btn, result, qId) {
         answeredCount++;
         updateScore();
         updateReadingProgress();
+    try { srUpdateHomeCard(); } catch(e) {}
         var wrongCard = btn.closest('.card');
         if (wrongCard) { wrongCard.classList.add('flash-wrong'); setTimeout(function(){ wrongCard.classList.remove('flash-wrong'); }, 600); }
         // Track weak topic
@@ -7304,6 +7632,7 @@ function renderMatchResult(btn, result, qId, itemIdx) {
     // UI আপডেট
     if (typeof updateScore === "function") updateScore();
     if (typeof updateReadingProgress === "function") updateReadingProgress();
+    try { srUpdateHomeCard(); } catch(e) {}
 }
 
 
@@ -7940,6 +8269,422 @@ function lbCalcXP(xp) {
 // ════════════════════════════════════════════
 // 📊 ANALYTICS — Firebase এ save
 // ════════════════════════════════════════════
+
+// ============================================================
+// 🧠 SPACED REPETITION ENGINE — Phase 1
+// Algorithm: SM-2 simplified
+// SR data per question: { ease, interval, due, reps }
+// ============================================================
+
+function srGetData() {
+    try { return JSON.parse(localStorage.getItem('sr_data') || '{}'); } catch(e) { return {}; }
+}
+
+function srSaveData(data) {
+    localStorage.setItem('sr_data', JSON.stringify(data));
+}
+
+// quality: 5=perfect, 4=correct easy, 3=correct hard, 2=wrong easy, 1=wrong, 0=blackout
+function srUpdateCard(qId, quality) {
+    var data = srGetData();
+    var card = data[qId] || { ease: 2.5, interval: 1, reps: 0, due: 0 };
+
+    if (quality >= 3) {
+        if (card.reps === 0) card.interval = 1;
+        else if (card.reps === 1) card.interval = 3;
+        else card.interval = Math.round(card.interval * card.ease);
+        card.reps += 1;
+        card.ease = Math.max(1.3, card.ease + 0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
+    } else {
+        // ভুল হলে reset
+        card.reps = 0;
+        card.interval = 1;
+        card.ease = Math.max(1.3, card.ease - 0.2);
+    }
+
+    var now = Date.now();
+    card.due = now + card.interval * 24 * 60 * 60 * 1000;
+    card.lastReview = now;
+    card.lastQuality = quality;
+    data[qId] = card;
+    srSaveData(data);
+    return card;
+}
+
+function srGetDueCount() {
+    var data = srGetData();
+    var now = Date.now();
+    return Object.values(data).filter(function(c) { return c.due <= now; }).length;
+}
+
+function srGetDueIds() {
+    var data = srGetData();
+    var now = Date.now();
+    return Object.keys(data).filter(function(id) { return data[id].due <= now; });
+}
+
+// question-এর SR priority score — বেশি হলে আগে আসবে
+function srGetPriority(qId) {
+    var data = srGetData();
+    var card = data[qId];
+    if (!card) return 50; // নতুন প্রশ্ন — মাঝারি priority
+    var now = Date.now();
+    if (card.due <= now) return 100; // overdue — সবচেয়ে আগে
+    var daysLeft = (card.due - now) / (24 * 60 * 60 * 1000);
+    if (card.lastQuality !== undefined && card.lastQuality < 3) return 80; // সম্প্রতি ভুল
+    return Math.max(10, 50 - daysLeft * 5);
+}
+
+// Quiz items SR অনুযায়ী sort করো
+function srSortItems(items) {
+    return items.slice().sort(function(a, b) {
+        var pa = srGetPriority(getVal(a,'id') || getVal(a,'sl') || '');
+        var pb = srGetPriority(getVal(b,'id') || getVal(b,'sl') || '');
+        if (pb !== pa) return pb - pa;
+        return Math.random() - 0.5; // same priority → shuffle
+    });
+}
+
+// Quiz সঠিক হলে SR update করো
+function srMarkCorrect(qId) {
+    srUpdateCard(qId, 4);
+}
+
+// Quiz ভুল হলে SR update করো
+function srMarkWrong(qId) {
+    srUpdateCard(qId, 1);
+}
+
+// SR due count Firebase-এ sync করো
+
+// ============================================================
+// 🔁 REVISION MODE — SR due questions
+// ============================================================
+function startRevisionMode() {
+    var dueIds = srGetDueIds();
+    if (dueIds.length === 0) { showToast('✅ আজকের সব revision শেষ!'); return; }
+    // Find matching items from fullData
+    var allItems = [];
+    ['QBank','Study','Quiz'].forEach(function(sheet) {
+        if (fullData[sheet]) allItems = allItems.concat(fullData[sheet]);
+    });
+    var dueSet = new Set(dueIds);
+    var dueItems = allItems.filter(function(item) {
+        var id = getVal(item,'id') || getVal(item,'sl') || '';
+        return dueSet.has(String(id)) || dueSet.has('quiz:'+id) || dueSet.has('qbank:'+id);
+    });
+    // Deduplicate
+    var seen = new Set();
+    dueItems = dueItems.filter(function(item) {
+        var id = getVal(item,'id')||getVal(item,'sl')||'';
+        if (seen.has(id)) return false;
+        seen.add(id); return true;
+    });
+    if (dueItems.length === 0) { showToast('⚠️ Revision প্রশ্ন লোড হয়নি'); return; }
+    quizItems = dueItems;
+    displayLimit = dueItems.length;
+    currentMode = 'quiz';
+    updateUIMode('quiz');
+    renderQuestions();
+    showToast('🔁 ' + dueItems.length + 'টি revision প্রশ্ন শুরু!');
+}
+
+function srUpdateHomeCard() {
+    try {
+        var due = srGetDueCount();
+        var card = document.getElementById('sr-revision-card');
+        var countEl = document.getElementById('sr-due-count');
+        var labelEl = document.getElementById('sr-due-label');
+        if (!card) return;
+        if (due > 0) {
+            card.style.display = 'block';
+            if (countEl) countEl.textContent = due;
+            if (labelEl) labelEl.textContent = due + 'টি প্রশ্ন review বাকি আছে';
+        } else {
+            card.style.display = 'none';
+        }
+    } catch(e) {}
+}
+
+
+// ============================================================
+// 📊 FULL PROGRESS REPORT — Phase 2 upgrade + Social Signals
+// ============================================================
+
+function showProgressReport() {
+    var container = document.getElementById('main-view');
+    var subjData  = JSON.parse(localStorage.getItem('subj_stats') || '{}');
+    var correctH  = JSON.parse(localStorage.getItem('correct_history') || '[]');
+    var wrongH    = JSON.parse(localStorage.getItem('wrong_history') || '{}');
+    var srData    = typeof srGetData === 'function' ? srGetData() : {};
+    var streak    = typeof getStreakInfo === 'function' ? getStreakInfo() : {streak:0};
+    var todayGoal = typeof getDailyGoal  === 'function' ? getDailyGoal()  : {done:0,goal:20};
+    var xpInfo    = typeof getXPInfo     === 'function' ? getXPInfo()     : {xp:0,level:1,levelName:'নতুন'};
+
+    var totalC = correctH.length;
+    var totalW = Object.values(wrongH).reduce(function(a,b){return a+b;},0);
+    var totalQ = totalC + totalW;
+    var acc    = totalQ > 0 ? Math.round(totalC/totalQ*100) : 0;
+    var srMastered = Object.values(srData).filter(function(c){return c.reps>=3;}).length;
+    var srDue  = typeof srGetDueCount === 'function' ? srGetDueCount() : 0;
+
+    // Grade helper
+    function grade(pct){ return pct>=90?'A+':pct>=80?'A':pct>=70?'B':pct>=60?'C':pct>=50?'D':'F'; }
+    function gradeColor(pct){ return pct>=70?'#10b981':pct>=50?'#f59e0b':'#ef4444'; }
+    function gradeBg(pct){ return pct>=70?'#d1fae5':pct>=50?'#fef3c7':'#fee2e2'; }
+
+    var now = new Date();
+    var dateStr = now.getFullYear()+'/'+(now.getMonth()+1)+'/'+now.getDate();
+    var userName = (currentUser&&currentUser.name) ? currentUser.name : (typeof getUserName==='function'?getUserName():'শিক্ষার্থী');
+
+    // ── HTML BUILD ──
+    var h = '';
+
+    // Header
+    h += '<div style="background:linear-gradient(135deg,#1e1b4b,#4338ca);border-radius:20px;padding:20px;margin-bottom:12px;position:relative;">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;">';
+    h += '<div>';
+    h += '<div style="color:rgba(255,255,255,0.6);font-size:10px;font-weight:800;letter-spacing:1px;">SMART STUDY • অগ্রগতি রিপোর্ট</div>';
+    h += '<div style="color:white;font-size:18px;font-weight:900;margin-top:4px;">'+userName+'</div>';
+    h += '<div style="color:rgba(255,255,255,0.5);font-size:10px;font-weight:700;margin-top:2px;">'+dateStr+' পর্যন্ত</div>';
+    h += '</div>';
+    h += '<div style="text-align:right;">';
+    h += '<div style="background:rgba(255,255,255,0.15);border-radius:12px;padding:6px 12px;">';
+    h += '<div style="color:#fbbf24;font-size:16px;font-weight:900;">⭐ '+xpInfo.xp+' XP</div>';
+    h += '<div style="color:rgba(255,255,255,0.5);font-size:9px;font-weight:700;">Lv.'+xpInfo.level+' '+xpInfo.levelName+'</div>';
+    h += '</div></div></div>';
+
+    // Overall stats row
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-top:14px;">';
+    var stats4 = [
+        {v:totalC, l:'সঠিক', c:'#4ade80'},
+        {v:totalW, l:'ভুল', c:'#f87171'},
+        {v:acc+'%', l:'নির্ভুলতা', c:'#a78bfa'},
+        {v:streak.streak+'🔥', l:'Streak', c:'#fbbf24'}
+    ];
+    stats4.forEach(function(s){
+        h += '<div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:10px 6px;text-align:center;">';
+        h += '<div style="font-size:15px;font-weight:900;color:'+s.c+';">'+s.v+'</div>';
+        h += '<div style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.45);margin-top:2px;">'+s.l+'</div>';
+        h += '</div>';
+    });
+    h += '</div></div>';
+
+    // ── Subject breakdown ──
+    var subjKeys = Object.keys(subjData).filter(function(k){
+        return (subjData[k].correct||0)+(subjData[k].wrong||0)>0;
+    });
+    subjKeys.sort(function(a,b){
+        var pa=(subjData[a].correct||0)/Math.max(1,(subjData[a].correct||0)+(subjData[a].wrong||0));
+        var pb=(subjData[b].correct||0)/Math.max(1,(subjData[b].correct||0)+(subjData[b].wrong||0));
+        return pa-pb;
+    });
+
+    if(subjKeys.length > 0){
+        h += '<div style="background:white;border-radius:20px;padding:16px;margin-bottom:12px;border:1px solid #f1f5f9;">';
+        h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">';
+        h += '<div style="font-weight:900;color:#1e293b;font-size:13px;">📚 বিষয়ভিত্তিক ফলাফল</div>';
+        h += '<div style="font-size:9px;font-weight:700;color:#94a3b8;">'+subjKeys.length+' বিষয়</div>';
+        h += '</div>';
+
+        subjKeys.forEach(function(subj){
+            var c = subjData[subj].correct||0;
+            var w = subjData[subj].wrong||0;
+            var t = c+w;
+            var pct = t>0?Math.round(c/t*100):0;
+            var g = grade(pct);
+            var chapters = subjData[subj].chapters || {};
+            var chapKeys = Object.keys(chapters).filter(function(k){ return (chapters[k].correct||0)+(chapters[k].wrong||0)>0; });
+
+            // Subject row
+            h += '<div style="margin-bottom:14px;">';
+            h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">';
+            h += '<span style="flex:1;font-size:12px;font-weight:800;color:#334155;">'+subj+'</span>';
+            h += '<span style="font-size:10px;font-weight:900;padding:2px 8px;border-radius:8px;color:'+gradeColor(pct)+';background:'+gradeBg(pct)+';">'+g+'</span>';
+            h += '<span style="font-size:10px;font-weight:700;color:#94a3b8;">'+c+'/'+t+'</span>';
+            h += '</div>';
+            // Bar
+            h += '<div style="background:#f1f5f9;border-radius:6px;height:8px;overflow:hidden;">';
+            h += '<div style="width:'+pct+'%;background:'+(pct>=70?'#10b981':pct>=50?'#f59e0b':'#ef4444')+';height:100%;border-radius:6px;"></div>';
+            h += '</div>';
+
+            // Chapter breakdown
+            if(chapKeys.length > 0){
+                h += '<div style="margin-top:8px;padding-left:12px;border-left:2px solid #e2e8f0;">';
+                chapKeys.sort(function(a,b){
+                    var pa=(chapters[a].correct||0)/Math.max(1,(chapters[a].correct||0)+(chapters[a].wrong||0));
+                    var pb=(chapters[b].correct||0)/Math.max(1,(chapters[b].correct||0)+(chapters[b].wrong||0));
+                    return pa-pb;
+                }).slice(0,5).forEach(function(chap){
+                    var cc=chapters[chap].correct||0;
+                    var cw=chapters[chap].wrong||0;
+                    var ct=cc+cw;
+                    var cp=ct>0?Math.round(cc/ct*100):0;
+                    h += '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #f8fafc;">';
+                    h += '<span style="flex:1;font-size:10px;font-weight:700;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+chap+'</span>';
+                    h += '<div style="width:60px;background:#f1f5f9;border-radius:4px;height:5px;overflow:hidden;">';
+                    h += '<div style="width:'+cp+'%;background:'+(cp>=70?'#10b981':cp>=50?'#f59e0b':'#ef4444')+';height:100%;"></div>';
+                    h += '</div>';
+                    h += '<span style="font-size:9px;font-weight:800;color:'+gradeColor(cp)+';min-width:28px;text-align:right;">'+cp+'%</span>';
+                    h += '</div>';
+                });
+                h += '</div>';
+            }
+            h += '</div>';
+        });
+        h += '</div>';
+    } else {
+        h += '<div style="background:white;border-radius:20px;padding:24px;text-align:center;margin-bottom:12px;color:#94a3b8;font-weight:700;border:1px solid #f1f5f9;">📚 এখনো কোনো বিষয়ের data নেই<br><span style="font-size:11px;">Quiz বা QBank থেকে পড়া শুরু করো</span></div>';
+    }
+
+    // ── SR Summary ──
+    if(Object.keys(srData).length > 0){
+        h += '<div style="background:linear-gradient(135deg,#0f172a,#1e1b4b);border-radius:20px;padding:16px;margin-bottom:12px;">';
+        h += '<div style="font-weight:900;color:white;font-size:13px;margin-bottom:12px;">🧠 Smart Review (Spaced Repetition)</div>';
+        h += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">';
+        [{v:srMastered,l:'আয়ত্ত',c:'#4ade80'},{v:srDue,l:'বাকি',c:'#fbbf24'},{v:Object.keys(srData).length,l:'মোট Cards',c:'#a78bfa'}].forEach(function(s){
+            h += '<div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:10px;text-align:center;">';
+            h += '<div style="font-size:18px;font-weight:900;color:'+s.c+';">'+s.v+'</div>';
+            h += '<div style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.4);margin-top:2px;">'+s.l+'</div>';
+            h += '</div>';
+        });
+        h += '</div></div>';
+    }
+
+    // ── Social Signal: "X জন আজ পড়েছে" ──
+    h += '<div id="social-signal-card" style="background:linear-gradient(135deg,#ecfdf5,#d1fae5);border:1px solid #a7f3d0;border-radius:20px;padding:14px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">';
+    h += '<span style="font-size:24px;">👥</span>';
+    h += '<div style="flex:1;"><div style="font-weight:900;color:#065f46;font-size:12px;" id="social-active-count">লোড হচ্ছে...</div>';
+    h += '<div style="font-weight:700;color:#34d399;font-size:10px;margin-top:2px;">Smart Study community</div></div>';
+    h += '<div style="background:#10b981;color:white;border-radius:10px;padding:4px 10px;font-size:10px;font-weight:900;">LIVE</div>';
+    h += '</div>';
+
+    // ── Share button ──
+    h += '<div style="background:linear-gradient(135deg,#6366f1,#4338ca);border-radius:20px;padding:16px;margin-bottom:80px;">';
+    h += '<div style="font-weight:900;color:white;font-size:13px;margin-bottom:12px;">📤 রিপোর্ট শেয়ার করো</div>';
+    h += '<div style="display:flex;gap:10px;">';
+    h += '<button onclick="shareProgressText()" style="flex:1;background:rgba(255,255,255,0.15);border:none;border-radius:14px;padding:12px;color:white;font-weight:800;font-size:12px;">📋 Text Copy</button>';
+    h += '<button onclick="shareProgressImage()" style="flex:1;background:white;border:none;border-radius:14px;padding:12px;color:#4338ca;font-weight:900;font-size:12px;">🖼 Screenshot</button>';
+    h += '</div></div>';
+
+    container.innerHTML = h;
+    document.getElementById('back-and-ctrls').classList.remove('hidden');
+
+    // Load social signal from Firebase
+    loadSocialSignal();
+}
+
+function loadSocialSignal() {
+    try {
+        var FB = window._FB_URL;
+        if (!FB) { updateSocialUI(0); return; }
+        var today = new Date().toDateString().replace(/ /g,'_');
+        fetch(FB + '/DailyActive/' + today + '.json')
+            .then(function(r){ return r.json(); })
+            .then(function(data){
+                var count = data ? Object.keys(data).length : 0;
+                updateSocialUI(count);
+            }).catch(function(){ updateSocialUI(0); });
+    } catch(e){ updateSocialUI(0); }
+}
+
+function updateSocialUI(count) {
+    var el = document.getElementById('social-active-count');
+    if (!el) return;
+    if (count > 1) {
+        el.textContent = 'আজ ' + count + ' জন Smart Study-তে পড়েছে!';
+    } else {
+        el.textContent = 'আজই পড়া শুরু করো — community-তে যোগ দাও!';
+    }
+}
+
+function shareProgressText() {
+    var subjData = JSON.parse(localStorage.getItem('subj_stats') || '{}');
+    var correctH = JSON.parse(localStorage.getItem('correct_history') || '[]');
+    var wrongH   = JSON.parse(localStorage.getItem('wrong_history') || '{}');
+    var totalC   = correctH.length;
+    var totalW   = Object.values(wrongH).reduce(function(a,b){return a+b;},0);
+    var acc      = (totalC+totalW)>0 ? Math.round(totalC/(totalC+totalW)*100) : 0;
+    var streak   = typeof getStreakInfo==='function' ? getStreakInfo().streak : 0;
+    var xp       = typeof getXPInfo==='function' ? getXPInfo().xp : 0;
+    var name     = (currentUser&&currentUser.name) ? currentUser.name : 'আমি';
+    var date     = new Date().toLocaleDateString('bn-BD');
+
+    var lines = ['📊 Smart Study — অগ্রগতি রিপোর্ট', '👤 ' + name, '📅 ' + date, ''];
+    lines.push('✅ মোট সঠিক: ' + totalC);
+    lines.push('❌ মোট ভুল: ' + totalW);
+    lines.push('🎯 নির্ভুলতা: ' + acc + '%');
+    lines.push('🔥 Streak: ' + streak + ' দিন');
+    lines.push('⭐ XP: ' + xp);
+    lines.push('');
+
+    var subjKeys = Object.keys(subjData).filter(function(k){ return (subjData[k].correct||0)+(subjData[k].wrong||0)>0; });
+    if(subjKeys.length>0){
+        lines.push('📚 বিষয়ভিত্তিক:');
+        subjKeys.forEach(function(k){
+            var c=subjData[k].correct||0, w=subjData[k].wrong||0, t=c+w;
+            var pct=t>0?Math.round(c/t*100):0;
+            var g=pct>=90?'A+':pct>=80?'A':pct>=70?'B':pct>=60?'C':pct>=50?'D':'F';
+            lines.push('  • '+k+': '+pct+'% ('+g+')');
+        });
+        lines.push('');
+    }
+    lines.push('📱 Smart Study App দিয়ে পড়াশোনা করো!');
+
+    var text = lines.join('\n');
+    if(navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function(){ showToast('✅ রিপোর্ট copy হয়েছে! WhatsApp-এ paste করো।'); });
+    } else {
+        var ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+        showToast('✅ রিপোর্ট copy হয়েছে!');
+    }
+}
+
+function shareProgressImage() {
+    showToast('📸 Screenshot নিয়ে share করো!');
+    // Native screenshot hint for Android
+    if(window.AndroidBridge && window.AndroidBridge.takeScreenshot) {
+        window.AndroidBridge.takeScreenshot();
+    }
+}
+
+// Daily active tracking — app খুললে Firebase-এ mark করো
+function trackDailyActive() {
+    try {
+        var FB = window._FB_URL;
+        var uid = currentUser && currentUser.phone ? currentUser.phone : null;
+        if (!FB || !uid) return;
+        var today = new Date().toDateString().replace(/ /g,'_');
+        fetch(FB + '/DailyActive/' + today + '/' + uid + '.json', {
+            method: 'PUT',
+            body: JSON.stringify({ name: currentUser.name||'', time: Date.now() })
+        }).catch(function(){});
+    } catch(e){}
+}
+function srSyncToFirebase() {
+    try {
+        var uid = currentUser && currentUser.phone ? currentUser.phone : null;
+        if (!uid) return;
+        var dueCount = srGetDueCount();
+        var data = srGetData();
+        var totalCards = Object.keys(data).length;
+        var subjStats = JSON.parse(localStorage.getItem('subj_stats') || '{}');
+        var FB = window._FB_URL;
+        if (!FB) return;
+        fetch(FB + '/Users/' + uid + '/SR_Summary.json', {
+            method: 'PUT',
+            body: JSON.stringify({ dueCount: dueCount, totalCards: totalCards, lastSync: Date.now() })
+        }).catch(function(){});
+        // Subject stats sync
+        fetch(FB + '/Users/' + uid + '/SubjectStats.json', {
+            method: 'PUT',
+            body: JSON.stringify(subjStats)
+        }).catch(function(){});
+    } catch(e) {}
+}
+
 function saveQuizResultToFirebase(result) {
     if (!currentUser || !currentUser.phone || !FIREBASE_URL || FIREBASE_URL.length < 10) return;
     var phone = currentUser.phone.toString().trim().replace(/\s/g,'');
