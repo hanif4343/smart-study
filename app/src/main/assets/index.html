@@ -1461,40 +1461,7 @@
 
     <div id="toast-container"></div>
 
-    <!-- Admin View Switcher Bar -->
-    <div id="admin-view-bar" style="display:none;position:fixed;bottom:72px;left:50%;transform:translateX(-50%);z-index:7000;background:rgba(15,23,42,0.92);backdrop-filter:blur(12px);border-radius:20px;padding:8px 12px;box-shadow:0 4px 24px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);min-width:300px;max-width:90vw;">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <span style="color:rgba(255,255,255,0.5);font-size:10px;font-weight:800;white-space:nowrap;">👁 VIEW AS</span>
-            <select id="admin-view-type" onchange="adminViewTypeChanged()" style="background:rgba(255,255,255,0.1);color:white;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:4px 8px;font-size:11px;font-weight:800;outline:none;cursor:pointer;">
-                <option value="">🌐 সবাই (General)</option>
-                <option value="Student">🎓 Student</option>
-                <option value="Job">💼 Job</option>
-            </select>
-            <select id="admin-view-class" onchange="adminViewClassChanged()" style="display:none;background:rgba(255,255,255,0.1);color:white;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:4px 8px;font-size:11px;font-weight:800;outline:none;cursor:pointer;">
-                <option value="">-- শ্রেণি --</option>
-                <option value="Class 4">৪র্থ শ্রেণি</option>
-                <option value="Class 5">৫ম শ্রেণি</option>
-                <option value="Class 6">৬ষ্ঠ শ্রেণি</option>
-                <option value="Class 7">৭ম শ্রেণি</option>
-                <option value="Class 8">৮ম শ্রেণি</option>
-                <option value="Class 9">৯ম শ্রেণি</option>
-                <option value="Class 10">SSC / ১০ম</option>
-                <option value="HSC 1st">HSC ১ম বর্ষ</option>
-                <option value="HSC 2nd">HSC ২য় বর্ষ</option>
-                <option value="Degree 1st">ডিগ্রি ১ম বর্ষ</option>
-                <option value="Degree 2nd">ডিগ্রি ২য় বর্ষ</option>
-                <option value="Degree 3rd">ডিগ্রি ৩য় বর্ষ</option>
-                <option value="Masters 1st">মাস্টার্স ১ম বর্ষ</option>
-                <option value="Masters 2nd">মাস্টার্স ২য় বর্ষ</option>
-                <option value="Grade 16">১৬তম গ্রেড</option>
-                <option value="Grade 17">১৭তম গ্রেড</option>
-                <option value="Grade 18">১৮তম গ্রেড</option>
-                <option value="Grade 19">১৯তম গ্রেড</option>
-                <option value="Grade 20">২০তম গ্রেড</option>
-            </select>
-            <div id="admin-view-badge" style="display:none;background:rgba(99,102,241,0.3);border:1px solid rgba(99,102,241,0.5);border-radius:8px;padding:3px 8px;font-size:10px;color:#a5b4fc;font-weight:800;align-items:center;gap:4px;"></div>
-        </div>
-    </div>
+    <!-- Admin View Switcher Bar — removed from global overlay; now only inside menu -->
 
     <!-- ===== ONBOARDING OVERLAY ===== -->
     <div id="onboarding-overlay" class="hidden">
@@ -4377,20 +4344,23 @@ function renderView() {
         </div>` : ''}
         <div onclick="clearCache()" class="card text-red-500 mb-4">🔄 ডাটা রিসেট</div>
 
-        <!-- Admin: View As User -->
+        ${_roleAdm ? `        <!-- Admin: Switch To (admin only) -->
         <div class="card mb-4" style="background:linear-gradient(135deg,#0f172a,#1e1b4b);border-color:rgba(99,102,241,0.4);">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-                <span style="font-size:16px;">👁</span>
-                <span style="font-weight:900;color:white;font-size:13px;">User View হিসেবে দেখো</span>
-                ${_adminViewOverride ? `<span style="background:rgba(99,102,241,0.3);color:#a5b4fc;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;">ACTIVE</span>` : ''}
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                <div style="width:32px;height:32px;background:rgba(99,102,241,0.25);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;">🔀</div>
+                <div style="flex:1;">
+                    <div style="font-weight:900;color:white;font-size:13px;">Switch To</div>
+                    <div style="font-size:10px;color:rgba(255,255,255,0.45);font-weight:700;">অন্য user-এর view-এ preview করো</div>
+                </div>
+                ${_adminViewOverride ? `<span style="background:rgba(99,102,241,0.35);color:#a5b4fc;font-size:9px;font-weight:900;padding:3px 10px;border-radius:20px;border:1px solid rgba(99,102,241,0.5);">● ACTIVE</span>` : ''}
             </div>
-            <div style="display:flex;gap-8px;flex-wrap:wrap;gap:8px;">
-                <select id="menu-view-type" onchange="menuViewTypeChanged()" style="flex:1;min-width:120px;background:rgba(255,255,255,0.08);color:white;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:8px 10px;font-size:12px;font-weight:800;outline:none;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <select id="menu-view-type" onchange="menuViewTypeChanged()" style="flex:1;min-width:120px;background:rgba(255,255,255,0.08);color:white;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:8px 10px;font-size:12px;font-weight:800;outline:none;-webkit-appearance:none;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.4)'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 10px center;">
                     <option value="">🌐 সবাই (General)</option>
                     <option value="Student" ${_adminViewOverride && _adminViewOverride.userType==='Student' ? 'selected' : ''}>🎓 Student</option>
                     <option value="Job" ${_adminViewOverride && _adminViewOverride.userType==='Job' ? 'selected' : ''}>💼 Job</option>
                 </select>
-                <select id="menu-view-class" onchange="menuViewClassChanged()" style="flex:1;min-width:120px;display:${_adminViewOverride && _adminViewOverride.userType==='Student' ? 'block' : 'none'};background:rgba(255,255,255,0.08);color:white;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:8px 10px;font-size:12px;font-weight:800;outline:none;">
+                <select id="menu-view-class" onchange="menuViewClassChanged()" style="flex:1;min-width:120px;display:${_adminViewOverride && _adminViewOverride.userType==='Student' ? 'block' : 'none'};background:rgba(255,255,255,0.08);color:white;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:8px 10px;font-size:12px;font-weight:800;outline:none;-webkit-appearance:none;appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.4)'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 10px center;">
                     <option value="">-- শ্রেণি --</option>
                     <option value="Class 4" ${_adminViewOverride && _adminViewOverride.classLevel==='Class 4' ? 'selected' : ''}>৪র্থ শ্রেণি</option>
                     <option value="Class 5" ${_adminViewOverride && _adminViewOverride.classLevel==='Class 5' ? 'selected' : ''}>৫ম শ্রেণি</option>
@@ -4413,9 +4383,10 @@ function renderView() {
                     <option value="Grade 20" ${_adminViewOverride && _adminViewOverride.classLevel==='Grade 20' ? 'selected' : ''}>২০তম গ্রেড</option>
                 </select>
             </div>
-            ${_adminViewOverride ? `<button onclick="setAdminView(null);navigate('menu');" style="margin-top:10px;width:100%;background:rgba(239,68,68,0.2);color:#fca5a5;border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:8px;font-size:12px;font-weight:800;">✕ নিজের View-এ ফিরে যাও</button>` : ''}
+            ${_adminViewOverride ? `<button onclick="setAdminView(null);navigate('menu');" style="margin-top:10px;width:100%;background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:9px;font-size:12px;font-weight:900;">✕ নিজের View-এ ফিরে যাও</button>` : ''}
         </div>
-        <div onclick="doLogout()" class="card flex justify-between items-center mb-20" style="background:#fff5f5;border-color:#fecaca;">
+        ` : ''}
+                <div onclick="doLogout()" class="card flex justify-between items-center mb-20" style="background:#fff5f5;border-color:#fecaca;">
             <span class="font-black text-red-600">🚪 লগআউট</span>
             <span class="text-red-400 font-black text-lg">❯</span>
         </div>`;
@@ -6174,6 +6145,8 @@ function obFollowFacebook() {
         btn.disabled = true;
     }
     localStorage.setItem('fb_followed', '1');
+    // Auto-advance to next slide after short delay
+    setTimeout(function() { nextObSlide(); }, 1500);
 }
 
 function obShowSummary() {
@@ -7993,9 +7966,7 @@ function doLogout() {
 // ADMIN VIEW SWITCHER
 // ══════════════════════════════════════════════════════
 function initAdminViewBar() {
-    var bar = document.getElementById('admin-view-bar');
-    if (!bar) return;
-    bar.style.display = isAdmin() ? 'block' : 'none';
+    // Floating admin-view-bar removed — Switch To is now only inside the menu (admin-only)
 }
 
 function menuViewTypeChanged() {
