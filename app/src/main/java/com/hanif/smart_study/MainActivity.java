@@ -28,6 +28,13 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.firebase.messaging.FirebaseMessaging;
 
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.tasks.Task;
+
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
@@ -38,6 +45,10 @@ public class MainActivity extends AppCompatActivity {
     private WebView webView;
     private ValueCallback<Uri[]> filePathCallback;
     private static final int FILE_CHOOSER_REQUEST = 1001;
+
+    // Google Sign-in
+    private static final int RC_SIGN_IN = 9001;
+    private GoogleSignInClient mGoogleSignInClient;
 
     // Android 13+ এ Notification Permission চাওয়ার জন্য
     private ActivityResultLauncher<String> notificationPermissionLauncher;
@@ -189,6 +200,14 @@ public class MainActivity extends AppCompatActivity {
         createNotificationChannel();
         requestNotificationPermission();
         fetchFCMToken();
+
+        // Google Sign-in setup
+        GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(getString(R.string.default_web_client_id))
+            .requestEmail()
+            .requestProfile()
+            .build();
+        mGoogleSignInClient = GoogleSignIn.getClient(this, gso);
 
         webView.loadUrl("file:///android_asset/index.html");
     }
@@ -381,6 +400,26 @@ public class MainActivity extends AppCompatActivity {
                 });
             }
         }
+
+        /** Google Sign-in শুরু করো — JS থেকে: AndroidBridge.startGoogleSignIn() */
+        @JavascriptInterface
+        public void startGoogleSignIn() {
+            runOnUiThread(() -> {
+                // আগের session sign out করো, fresh picker দেখানোর জন্য
+                mGoogleSignInClient.signOut().addOnCompleteListener(task -> {
+                    Intent signInIntent = mGoogleSignInClient.getSignInIntent();
+                    startActivityForResult(signInIntent, RC_SIGN_IN);
+                });
+            });
+        }
+
+        /** Google Sign-out — JS থেকে: AndroidBridge.signOutGoogle() */
+        @JavascriptInterface
+        public void signOutGoogle() {
+            mGoogleSignInClient.signOut().addOnCompleteListener(task ->
+                Log.d(TAG, "Google Sign-out complete")
+            );
+        }
     }
 
     @Override
@@ -396,11 +435,39 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+
+        // File chooser
         if (requestCode == FILE_CHOOSER_REQUEST && filePathCallback != null) {
             Uri[] results = (resultCode == Activity.RESULT_OK && data != null)
                 ? new Uri[]{data.getData()} : null;
             filePathCallback.onReceiveValue(results);
             filePathCallback = null;
+        }
+
+        // Google Sign-in
+        if (requestCode == RC_SIGN_IN) {
+            Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
+            try {
+                GoogleSignInAccount account = task.getResult(ApiException.class);
+                String idToken   = account.getIdToken() != null ? account.getIdToken() : "";
+                String email     = account.getEmail() != null ? account.getEmail() : "";
+                String name      = account.getDisplayName() != null ? account.getDisplayName() : "";
+                String photoUrl  = account.getPhotoUrl() != null ? account.getPhotoUrl().toString() : "";
+
+                // Single quotes escape করো — JS string break না হওয়ার জন্য
+                name     = name.replace("'", "\\'");
+                email    = email.replace("'", "\\'");
+
+                final String js = "javascript:if(typeof onGoogleSignInResult === 'function') {"
+                    + "onGoogleSignInResult(true,'" + idToken + "','" + email + "','" + name + "','" + photoUrl + "');}";
+                webView.post(() -> webView.loadUrl(js));
+
+            } catch (ApiException e) {
+                Log.e(TAG, "Google Sign-in failed: " + e.getStatusCode());
+                webView.post(() -> webView.loadUrl(
+                    "javascript:if(typeof onGoogleSignInResult === 'function') {onGoogleSignInResult(false,'','','','');}"
+                ));
+            }
         }
     }
 
