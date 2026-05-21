@@ -81,11 +81,14 @@ jobs:
             -Pandroid.injected.signing.key.alias=smartstudy \
             -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
 
+      - name: Rename APK
+        run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/SmartStudy.apk
+
       - name: Upload Signed Release APK
         uses: actions/upload-artifact@v4
         with:
           name: Smart-Study-Release-SIGNED
-          path: app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/apk/release/SmartStudy.apk
           if-no-files-found: error
 
       # ── Auto GitHub Release ──────────────────────────────
@@ -107,7 +110,7 @@ jobs:
             ## 📚 Smart Study BD v${{ steps.version.outputs.version }}
 
             ### ডাউনলোড করো
-            নিচের **app-release.apk** ফাইলে ক্লিক করো।
+            নিচের **SmartStudy.apk** ফাইলে ক্লিক করো।
 
             ### ইনস্টল করার নিয়ম
             1. APK download করো
@@ -118,7 +121,7 @@ jobs:
             🔨 Build: #${{ steps.version.outputs.build }}
             📅 ${{ github.event.head_commit.timestamp }}
             💬 ${{ github.event.head_commit.message }}
-          files: app/build/outputs/apk/release/app-release.apk
+          files: app/build/outputs/apk/release/SmartStudy.apk
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
