@@ -32,4 +32,7 @@ dependencies {
     implementation platform('com.google.firebase:firebase-bom:32.7.4')
     implementation 'com.google.firebase:firebase-messaging'
     implementation 'com.google.firebase:firebase-analytics'
+
+    // Google Sign-in
+    implementation 'com.google.android.gms:play-services-auth:21.2.0'
 }
