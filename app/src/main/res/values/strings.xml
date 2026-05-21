@@ -2,5 +2,5 @@
 <resources>
     <string name="app_name">Smart-Study</string>
     <!-- Firebase Console → Project Settings → General → Web Client ID (OAuth 2.0) -->
-    <string name="default_web_client_id">YOUR_WEB_CLIENT_ID_HERE</string>
+    <string name="default_web_client_id">452271532689-kr0t5bim15s1ilbiaqsceo9du8lku4ob.apps.googleusercontent.com</string>
 </resources>
