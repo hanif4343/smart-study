@@ -5,14 +5,29 @@
     android:viewportWidth="24"
     android:viewportHeight="24">
 
-    <!-- Bell body -->
+    <!-- Head -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M12,2C11.17,2 10.5,2.67 10.5,3.5V4.08C7.92,4.56 6,6.84 6,9.5V15L4,17V18H20V17L18,15V9.5C18,6.84 16.08,4.56 13.5,4.08V3.5C13.5,2.67 12.83,2 12,2Z"/>
+        android:pathData="M12,2C10.34,2 9,3.34 9,5C9,6.66 10.34,8 12,8C13.66,8 15,6.66 15,5C15,3.34 13.66,2 12,2Z"/>
 
-    <!-- Bell clapper -->
+    <!-- Graduation cap -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M12,22C13.1,22 14,21.1 14,20H10C10,21.1 10.9,22 12,22Z"/>
+        android:pathData="M12,1L6,4L12,7L18,4ZM18,5.5V9L17,9.5V5.5Z"/>
+
+    <!-- Body holding book -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M9,9C7.34,9 6,10.34 6,12V17H18V12C18,10.34 16.66,9 15,9H9Z"/>
+
+    <!-- Open book -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M7,18H11.5V22H7V18ZM12.5,18H17V22H12.5V18ZM11.5,18.5H12.5V21.5H11.5V18.5Z"/>
+
+    <!-- Book stack base -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M6,22H18V23H6ZM5,23H19V24H5Z"/>
 
 </vector>
