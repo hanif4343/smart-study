@@ -50,7 +50,26 @@
     }
     @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
 
-    /* পেন্ডিং সংখ্যা badge */
+    /* ══ MathJax / LaTeX rendering ══ */
+    mjx-container {
+        overflow-x: auto;
+        max-width: 100%;
+        font-size: 1.05em !important;
+    }
+    mjx-container[display="true"] {
+        display: block;
+        text-align: center;
+        margin: 10px 0;
+        padding: 6px 0;
+    }
+    mjx-container svg {
+        max-width: 100%;
+    }
+    /* inline math — বাংলা text এর সাথে সুন্দর align */
+    .card mjx-container:not([display="true"]) {
+        vertical-align: middle;
+        display: inline-block;
+    }
     #pending-badge {
         display: none;
         position: fixed;
@@ -136,10 +155,17 @@
             tex: {
                 inlineMath: [['$', '$'], ['\\(', '\\)']],
                 displayMath: [['$$', '$$'], ['\\[', '\\]']],
-                processEscapes: true
+                processEscapes: true,
+                processEnvironments: true,
+                packages: {'[+]': ['base', 'ams', 'noerrors', 'noundefined']}
             },
             options: {
-                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+                ignoreHtmlClass: 'no-mathjax',
+                processHtmlClass: 'mathjax'
+            },
+            startup: {
+                typeset: false  // manual typeset — triggerMathJax() দিয়ে করবো
             }
         };
     </script>
@@ -2408,9 +2434,45 @@ function parseLinksToImages(text) {
         processed = processed.replace(item.placeholder, item.html);
     });
 
+    // ৬. LaTeX auto-wrap — \implies, \frac, \times ইত্যাদি delimiter ছাড়া থাকলে wrap করো
+    processed = autoWrapLatex(processed);
+
     return processed.replace(/\n/g, '<br>');
 }
 
+// LaTeX commands auto-detect করে $...$ দিয়ে wrap করে
+function autoWrapLatex(text) {
+    if (!text) return text;
+    // already $ বা \( delimiter আছে — MathJax নিজেই handle করবে
+    if (/\$|\\\(|\\\[/.test(text)) return text;
+
+    // কোনো LaTeX command আছে কিনা চেক করো
+    const hasLatex = /\\(?:implies|iff|frac|times|div|cdot|pm|leq|geq|neq|approx|sqrt|sum|int|prod|lim|alpha|beta|gamma|delta|epsilon|theta|lambda|mu|pi|sigma|phi|omega|infty|text|textrm|left|right|begin|end|overline|underline|vec|hat|bar|mathbb|mathbf|to|Rightarrow|Leftarrow|rightarrow|leftarrow|equiv|subset|supset|in|notin|cup|cap|forall|exists|partial|nabla|log|sin|cos|tan|not|quad|qquad)\b/.test(text);
+    if (!hasLatex) return text;
+
+    // প্রতিটি line আলাদাভাবে process করো
+    return text.split('\n').map(function(line) {
+        if (!/\\[a-zA-Z]/.test(line)) return line;
+        // already wrapped skip
+        if (/\$|\\\(/.test(line)) return line;
+
+        // line কে chunks এ ভাগ করো: বাংলা/সাধারণ text vs LaTeX expression
+        // LaTeX expression: \cmd থেকে শুরু হয়ে পরবর্তী বাংলা text বা sentence end পর্যন্ত
+        var result = '';
+        var remaining = line;
+
+        // Pattern: LaTeX segment = একটানা \cmd, {}, [], =, digits, spaces সহ
+        var latexSegment = /((?:\\[a-zA-Z]+(?:\{[^{}]*\}|\[[^\[\]]*\])*\s*)+(?:[=\+\-\×\÷\/\^\_\d\s\(\),.]*(?:\\[a-zA-Z]+(?:\{[^{}]*\}|\[[^\[\]]*\])*\s*)*)*)/g;
+
+        result = line.replace(latexSegment, function(match) {
+            var trimmed = match.trim();
+            if (!trimmed || !/\\[a-zA-Z]/.test(trimmed)) return match;
+            // = এর আশেপাশের expression সহ wrap করো
+            return '$' + trimmed + '$';
+        });
+        return result;
+    }).join('\n');
+}
 
 
 
@@ -5387,10 +5449,17 @@ function fallbackShare(text) {
             document.body.appendChild(modal);
         }
       
+var _mathJaxTimer = null;
 function triggerMathJax() {
-    if (window.MathJax && MathJax.typesetPromise) {
-        MathJax.typesetPromise();
-    }
+    // debounce — rapid call এ একবারই render করবে
+    if (_mathJaxTimer) clearTimeout(_mathJaxTimer);
+    _mathJaxTimer = setTimeout(function() {
+        if (window.MathJax && MathJax.typesetPromise) {
+            MathJax.typesetPromise().catch(function(e) {
+                console.warn('MathJax error:', e);
+            });
+        }
+    }, 80);
 }
 function openPdfModal(url) {
     const modal = document.getElementById('pdf-modal');
@@ -6235,10 +6304,11 @@ function _doDeepLink(url, questionId, qsheet) {
     questionId = (questionId || '').toString().trim();
     qsheet    = (qsheet || '').toString().trim();
 
-    if (url === 'qbank') { changeMode('qbank'); return; }
-    if (url === 'quiz')  { changeMode('quiz');  return; }
-    if (url === 'study') { changeMode('study'); return; }
-    if (url === 'home')  { changeMode('home');  return; }
+    if (url === 'qbank')    { changeMode('qbank');  return; }
+    if (url === 'quiz')     { changeMode('quiz');   return; }
+    if (url === 'study')    { changeMode('study');  return; }
+    if (url === 'home')     { changeMode('home');   return; }
+    if (url === 'signups')  { changeMode('signups');return; }
 
     if (url === 'report' && questionId) {
         var qNorm = questionId.replace(/^0+/, '').trim();
@@ -7891,6 +7961,13 @@ async function doLogin() {
             var fireXP  = user.xp || 0;
             localStorage.setItem(_xpKey, Math.max(localXP, fireXP));
             hideAuthScreen();
+            // Admin কে notify করো — fire and forget
+            try {
+                fetch(GAS_URL + '?action=adminNotify&event=login'
+                    + '&name=' + encodeURIComponent(user.name||"")
+                    + '&phone=' + encodeURIComponent(user.phone||"")
+                ).catch(function(){});
+            } catch(e2) {}
             // FCM token Firebase এ save করো + topic subscribe
             setTimeout(postLoginFCMSetup, 1000);
             try { initApp(); } catch(e) { console.error('initApp after login:', e); }
@@ -8013,6 +8090,15 @@ async function doSignup() {
         }
 
         // ✅ Success
+        // Admin কে notify করো — fire and forget
+        try {
+            fetch(GAS_URL + '?action=adminNotify&event=signup'
+                + '&name=' + encodeURIComponent(name)
+                + '&phone=' + encodeURIComponent(phone)
+                + '&userType=' + encodeURIComponent(userType)
+            ).catch(function(){});
+        } catch(e2) {}
+
         document.getElementById('signup-name').value  = '';
         document.getElementById('signup-phone').value = '';
         document.getElementById('signup-email').value = '';
@@ -8106,6 +8192,13 @@ function onGoogleSignInResult(success, idToken, email, name, photoUrl) {
                 localStorage.setItem('home_user_name', user.name);
                 if (user.picture) localStorage.setItem('home_user_pic', user.picture);
                 hideAuthScreen();
+                // Admin কে notify করো — fire and forget
+                try {
+                    fetch(GAS_URL + '?action=adminNotify&event=login'
+                        + '&name=' + encodeURIComponent(user.name||"")
+                        + '&phone=' + encodeURIComponent(user.phone||"")
+                    ).catch(function(){});
+                } catch(e2) {}
                 setTimeout(postLoginFCMSetup, 1000);
                 try { initApp(); } catch(e) {}
                 setTimeout(applyAdminVisibility, 200);
