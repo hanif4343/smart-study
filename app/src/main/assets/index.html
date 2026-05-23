@@ -19,10 +19,34 @@
 
     <style>
     /* ===== OFFLINE BANNER ===== */
-    #offline-banner { display: none !important; }
+    #offline-banner {
+        display: none !important;
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        z-index: 99998;
+        background: linear-gradient(90deg, #f59e0b, #d97706);
+        color: white;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 800;
+        padding: 6px 16px;
+        letter-spacing: 0.3px;
+        animation: bannerSlide 0.4s ease;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    #offline-banner.show { display: block; }
     @keyframes bannerSlide {
         from { transform: translateY(-100%); opacity: 0; }
         to   { transform: translateY(0);    opacity: 1; }
+    }
+    #offline-banner .sync-dot {
+        display: inline-block;
+        width: 8px; height: 8px;
+        background: white;
+        border-radius: 50%;
+        margin-right: 6px;
+        animation: blink 1.2s infinite;
+        vertical-align: middle;
     }
     @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
 
@@ -1397,7 +1421,11 @@
 <body class="max-w-md mx-auto min-h-screen">
 
     <!-- Offline Banner -->
-    <!-- offline-banner removed -->
+    <div id="offline-banner">
+        <span class="sync-dot"></span>
+        📡 অফলাইন মোড — ক্যাশ থেকে ডেটা দেখানো হচ্ছে
+        <span id="pending-count-text"></span>
+    </div>
 
     <!-- ===== MOTIVATION TOAST ===== -->
 
@@ -6172,116 +6200,72 @@ function onFCMTokenReceived(token) {
 }
 
 // FCM notification এলে app foreground এ থাকলে in-app banner দেখাও
-// ====================================================
-// 🔔 NOTIFICATION DEEP LINK HANDLER
-// ====================================================
+function onFCMNotification(title, body, url, questionId) {
+    // in-app banner বন্ধ — system notification যথেষ্ট
+}
 
-// notification এর url parse করে সঠিক screen এ নিয়ে যাও
-function handleNotificationDeepLink(url, questionId) {
+// Java থেকে call হয় — notification click এ deep link
+function navigateTo(url, questionId) {
+    var waited = 0;
+    function tryNav() {
+        var hasData = fullData && (fullData['QBank'] || fullData['Quiz'] || fullData['Study']);
+        if (hasData || waited >= 4000) {
+            _doDeepLink(url, questionId || '');
+        } else {
+            waited += 300;
+            setTimeout(tryNav, 300);
+        }
+    }
+    tryNav();
+}
+
+function _doDeepLink(url, questionId) {
     if (!url) return;
     url = url.toString().trim();
     questionId = (questionId || '').toString().trim();
 
-    // QBank screen এ যাও
-    if (url === 'qbank') {
-        changeMode('qbank');
-        return;
-    }
+    if (url === 'qbank') { changeMode('qbank'); return; }
+    if (url === 'quiz')  { changeMode('quiz');  return; }
+    if (url === 'study') { changeMode('study'); return; }
+    if (url === 'home')  { changeMode('home');  return; }
 
-    // Quiz screen এ যাও
-    if (url === 'quiz') {
-        changeMode('quiz');
-        return;
-    }
-
-    // Study screen এ যাও
-    if (url === 'study') {
-        changeMode('study');
-        return;
-    }
-
-    // report_resolved — নির্দিষ্ট questionId এর প্রশ্নে যাও
     if (url === 'report' && questionId) {
-        // QBank, Quiz, Study সব এ খুঁজো
         var found = null, foundSheet = null;
-        ['QBank', 'Quiz', 'Study'].forEach(function(sh) {
+        ['QBank','Quiz','Study'].forEach(function(sh) {
             if (found) return;
-            var arr = fullData[sh] || [];
-            arr.forEach(function(it) {
+            (fullData[sh] || []).forEach(function(it) {
                 if (!found && String(getVal(it,'id') || getVal(it,'sl') || '') === questionId) {
                     found = it; foundSheet = sh;
                 }
             });
         });
+        if (!found) { changeMode('qbank'); showToast('প্রশ্নটি QBank এ খুঁজুন।'); return; }
 
-        if (found) {
-            var mode = foundSheet === 'Quiz' ? 'quiz' : (foundSheet === 'Study' ? 'study' : 'qbank');
-            var subject = getVal(found, 'subject') || '';
-            var subtopic = getVal(found, 'sub_topic') || '';
+        var mode = foundSheet === 'Quiz' ? 'quiz' : (foundSheet === 'Study' ? 'study' : 'qbank');
+        var subject  = getVal(found, 'subject') || '';
+        var subtopic = getVal(found, 'sub_topic') || '';
 
-            // changeMode path reset করে, তাই পরে manually সেট করতে হবে
-            currentMode = mode;
-            updateUIMode(mode);
-            stopTimer();
+        // path reset না করে directly সেট করো
+        currentMode = mode;
+        updateUIMode(mode);
+        stopTimer();
+        path = subject ? [subject] : [];
 
-            if (subject && subtopic) {
-                path = [subject];
-                // showQuestions path[0] দিয়ে filter করে — এখন correct
-                showQuestions(subtopic);
-                // সেই প্রশ্নে scroll + highlight
-                setTimeout(function() {
-                    var el = document.querySelector('[data-qid="' + questionId + '"]');
-                    if (el) {
-                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        el.style.outline = '3px solid #22c55e';
-                        el.style.borderRadius = '10px';
-                        setTimeout(function() {
-                            el.style.outline = '';
-                            el.style.borderRadius = '';
-                        }, 3000);
-                    }
-                }, 700);
-            } else if (subject) {
-                path = [subject];
-                renderView();
-            } else {
-                path = [];
-                renderView();
-            }
+        if (subject && subtopic) {
+            showQuestions(subtopic);
+            setTimeout(function() {
+                var el = document.querySelector('[data-qid="' + questionId + '"]');
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.style.outline = '3px solid #22c55e';
+                    el.style.borderRadius = '10px';
+                    setTimeout(function() { el.style.outline = ''; el.style.borderRadius = ''; }, 3000);
+                }
+            }, 800);
         } else {
-            // data load হয়নি বা প্রশ্ন নেই — QBank এ নিয়ে যাও
-            changeMode('qbank');
-            showToast('প্রশ্নটি QBank এ খুঁজুন।');
-        }
-        return;
-    }
-
-    // home
-    if (url === 'home') {
-        changeMode('home');
-        return;
-    }
-}
-
-// Java MainActivity থেকে call হয় — notification click এ
-function navigateTo(url, questionId) {
-    // data load হওয়া পর্যন্ত wait করো (max 3s)
-    var waited = 0;
-    function tryNavigate() {
-        var hasData = fullData && (fullData['QBank'] || fullData['Quiz'] || fullData['Study']);
-        if (hasData || waited >= 3000) {
-            handleNotificationDeepLink(url, questionId || '');
-        } else {
-            waited += 300;
-            setTimeout(tryNavigate, 300);
+            renderView();
         }
     }
-    tryNavigate();
-}
-
-function onFCMNotification(title, body, url, questionId) {
-    // foreground এ in-app banner দেখানো বন্ধ — system notification যথেষ্ট
-    // (background notification click করলে navigateTo call হবে)
 }
 
 // Firebase Users node এ FCM token save করো
