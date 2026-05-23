@@ -4837,7 +4837,7 @@ function renderQuestions() {
         // কন্ডিশনাল রেন্ডারিং
         if(currentMode === 'study') {
             const itemData = JSON.stringify(i).replace(/'/g, "&apos;").replace(/"/g, '&quot;');
-            html += `<div class="card copy-target cursor-default">
+            html += `<div class="card copy-target cursor-default" data-qid="${getVal(i,'id')}">
                         <div class="flex justify-between items-center mb-1">
                             <div class="flex items-center gap-2">
                                 <span class="text-[10px] font-black text-indigo-400 bg-indigo-50 px-2 py-0.5 rounded-full">#${idx+1}</span>
@@ -4880,7 +4880,7 @@ function renderQuestions() {
                     <button onclick="checkWrittenAnswer(this)" class="written-submit-btn">🔍 উত্তর মিলিয়ে দেখো</button>
                 </div>`;
             }
-            html += `<div class="card copy-target cursor-default" style="padding-top:0;overflow:visible;">
+            html += `<div class="card copy-target cursor-default" style="padding-top:0;overflow:visible;" data-qid="${getVal(i,'id')}">
                         <div class="sub-q-sticky-question">
                             <div class="q-badge-row">
                                 <span class="text-[10px] font-black text-indigo-400 bg-indigo-50 px-2 py-0.5 rounded-full">#${idx+1}</span>
@@ -4907,7 +4907,7 @@ function renderQuestions() {
         } else {
             let qId = getVal(i, 'id');
             const itemData = JSON.stringify(i).replace(/'/g, "&apos;").replace(/"/g, '&quot;');
-            html += `<div class="card copy-target cursor-default">
+            html += `<div class="card copy-target cursor-default" data-qid="${qId}">
                         <div class="flex justify-between items-center mb-1">
                             <div class="flex items-center gap-2">
                                 <span class="text-[10px] font-black text-indigo-400 bg-indigo-50 px-2 py-0.5 rounded-full">#${idx+1}</span>
@@ -5286,7 +5286,7 @@ function fallbackShare(text) {
                 btn.innerText = '⏳';
                 var reportData = {
                     type: 'report',
-                    Phone: currentUser ? currentUser.phone : USER_PHONE,
+                    Phone: (currentUser ? currentUser.phone : USER_PHONE).toString().replace(/^'+/, '').trim(),
                     Subject: getVal(item,'subject'),
                     Topic: getVal(item,'sub_topic'),
                     QuestionID: getVal(item, 'id'),
@@ -6200,13 +6200,119 @@ function onFCMTokenReceived(token) {
 }
 
 // FCM notification এলে app foreground এ থাকলে in-app banner দেখাও
-function onFCMNotification(title, body, url) {
+// ====================================================
+// 🔔 NOTIFICATION DEEP LINK HANDLER
+// ====================================================
+
+// notification এর url parse করে সঠিক screen এ নিয়ে যাও
+function handleNotificationDeepLink(url, questionId) {
+    if (!url) return;
+    url = url.toString().trim();
+    questionId = (questionId || '').toString().trim();
+
+    // QBank screen এ যাও
+    if (url === 'qbank') {
+        changeMode('qbank');
+        return;
+    }
+
+    // Quiz screen এ যাও
+    if (url === 'quiz') {
+        changeMode('quiz');
+        return;
+    }
+
+    // Study screen এ যাও
+    if (url === 'study') {
+        changeMode('study');
+        return;
+    }
+
+    // report_resolved — নির্দিষ্ট questionId এর প্রশ্নে যাও
+    if (url === 'report' && questionId) {
+        // QBank, Quiz, Study সব এ খুঁজো
+        var found = null, foundSheet = null;
+        ['QBank', 'Quiz', 'Study'].forEach(function(sh) {
+            if (found) return;
+            var arr = fullData[sh] || [];
+            arr.forEach(function(it) {
+                if (!found && String(getVal(it,'id') || getVal(it,'sl') || '') === questionId) {
+                    found = it; foundSheet = sh;
+                }
+            });
+        });
+
+        if (found) {
+            // sheet অনুযায়ী mode সেট করো
+            var mode = foundSheet === 'Quiz' ? 'quiz' : (foundSheet === 'Study' ? 'study' : 'qbank');
+            var subject = getVal(found, 'subject') || '';
+            var subtopic = getVal(found, 'sub_topic') || '';
+
+            changeMode(mode, false);
+            if (subject) {
+                path = [subject];
+                if (subtopic) {
+                    // subtopic level এ যাও, তারপর সেই প্রশ্নটা highlight করো
+                    showQuestions(subtopic);
+                    // প্রশ্নটায় scroll করো
+                    setTimeout(function() {
+                        var el = document.querySelector('[data-qid="' + questionId + '"]');
+                        if (el) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            el.style.outline = '2px solid #22c55e';
+                            setTimeout(function() { el.style.outline = ''; }, 3000);
+                        }
+                    }, 600);
+                } else {
+                    renderView();
+                }
+            } else {
+                renderView();
+            }
+        } else {
+            // data এখনও load হয়নি, QBank এ নিয়ে যাও
+            changeMode('qbank');
+            showToast('প্রশ্নটি QBank এ খুঁজুন।');
+        }
+        return;
+    }
+
+    // home
+    if (url === 'home') {
+        changeMode('home');
+        return;
+    }
+}
+
+// Java MainActivity থেকে call হয় — notification click এ
+function navigateTo(url, questionId) {
+    // data load হওয়া পর্যন্ত wait করো (max 3s)
+    var waited = 0;
+    function tryNavigate() {
+        var hasData = fullData && (fullData['QBank'] || fullData['Quiz'] || fullData['Study']);
+        if (hasData || waited >= 3000) {
+            handleNotificationDeepLink(url, questionId || '');
+        } else {
+            waited += 300;
+            setTimeout(tryNavigate, 300);
+        }
+    }
+    tryNavigate();
+}
+
+function onFCMNotification(title, body, url, questionId) {
+    // foreground এ banner দেখাও
     showInAppBanner(title || 'Smart Study', body || '', '🔔');
-    // url থাকলে navigate করো
-    if (url && url.length > 3) {
-        setTimeout(function() {
-            try { AndroidBridge.navigateTo && AndroidBridge.navigateTo(url); } catch(e) {}
-        }, 500);
+    // url থাকলে banner tap এ navigate করবে — এখন click handler যোগ করো
+    if (url && url.length > 1) {
+        var banner = document.getElementById('in-app-banner');
+        if (banner) {
+            banner.style.cursor = 'pointer';
+            banner.onclick = function() {
+                handleNotificationDeepLink(url, questionId || '');
+                banner.onclick = null;
+            };
+        }
     }
 }
 
@@ -7776,7 +7882,7 @@ async function doLogin() {
             }
             var user = {
                 name:       matched.Name       || matched.name       || '',
-                phone:      matched.Phone       || matched.phone       || phone,
+                phone:      (matched.Phone || matched.phone || phone).toString().replace(/^'+/, '').trim(),
                 email:      matched.Email       || matched.email       || '',
                 role:       matched.Role        || matched.role        || 'User',
                 status:     matched.Status      || matched.status      || 'Active',
