@@ -110,12 +110,15 @@ public class MainActivity extends AppCompatActivity {
                 // Notification এর মাধ্যমে app খুললে URL navigate করুন
                 String notifUrl = getIntent().getStringExtra("notification_url");
                 String notifQid = getIntent().getStringExtra("notification_qid");
+                String notifQsheet = getIntent().getStringExtra("notification_qsheet");
                 if (notifUrl != null && !notifUrl.isEmpty()) {
-                    String qidStr = (notifQid != null && !notifQid.isEmpty()) ? "'" + notifQid + "'" : "''";
-                    String js = "javascript:if(typeof navigateTo === 'function') { navigateTo('" + notifUrl + "'," + qidStr + "); }";
+                    String qidStr    = (notifQid    != null && !notifQid.isEmpty())    ? "'" + notifQid    + "'" : "''";
+                    String qsheetStr = (notifQsheet != null && !notifQsheet.isEmpty()) ? "'" + notifQsheet + "'" : "''";
+                    String js = "javascript:if(typeof navigateTo === 'function') { navigateTo('" + notifUrl + "'," + qidStr + "," + qsheetStr + "); }";
                     view.postDelayed(() -> view.loadUrl(js), 500);
                     getIntent().removeExtra("notification_url");
                     getIntent().removeExtra("notification_qid");
+                    getIntent().removeExtra("notification_qsheet");
                 }
             }
 
@@ -431,11 +434,13 @@ public class MainActivity extends AppCompatActivity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        String notifUrl = intent.getStringExtra("notification_url");
-        String notifQid = intent.getStringExtra("notification_qid");
+        String notifUrl    = intent.getStringExtra("notification_url");
+        String notifQid    = intent.getStringExtra("notification_qid");
+        String notifQsheet = intent.getStringExtra("notification_qsheet");
         if (notifUrl != null && !notifUrl.isEmpty() && webView != null) {
-            String qidStr = (notifQid != null && !notifQid.isEmpty()) ? "'" + notifQid + "'" : "''";
-            String js = "javascript:if(typeof navigateTo === 'function') { navigateTo('" + notifUrl + "'," + qidStr + "); }";
+            String qidStr    = (notifQid    != null && !notifQid.isEmpty())    ? "'" + notifQid    + "'" : "''";
+            String qsheetStr = (notifQsheet != null && !notifQsheet.isEmpty()) ? "'" + notifQsheet + "'" : "''";
+            String js = "javascript:if(typeof navigateTo === 'function') { navigateTo('" + notifUrl + "'," + qidStr + "," + qsheetStr + "); }";
             webView.post(() -> webView.loadUrl(js));
         }
     }
