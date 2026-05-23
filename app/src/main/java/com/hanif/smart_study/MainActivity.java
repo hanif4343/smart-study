@@ -41,6 +41,8 @@ public class MainActivity extends AppCompatActivity {
 
     // WebView instance - FCM service থেকে JS call করার জন্য static রাখা হয়েছে
     public static WebView webViewInstance = null;
+    // App foreground এ আছে কিনা — FCM double notification রোধ করতে
+    public static boolean isAppForeground = false;
 
     private WebView webView;
     private ValueCallback<Uri[]> filePathCallback;
@@ -107,10 +109,13 @@ public class MainActivity extends AppCompatActivity {
 
                 // Notification এর মাধ্যমে app খুললে URL navigate করুন
                 String notifUrl = getIntent().getStringExtra("notification_url");
+                String notifQid = getIntent().getStringExtra("notification_qid");
                 if (notifUrl != null && !notifUrl.isEmpty()) {
-                    String js = "javascript:if(typeof navigateTo === 'function') { navigateTo('" + notifUrl + "'); }";
-                    view.loadUrl(js);
+                    String qidStr = (notifQid != null && !notifQid.isEmpty()) ? "'" + notifQid + "'" : "''";
+                    String js = "javascript:if(typeof navigateTo === 'function') { navigateTo('" + notifUrl + "'," + qidStr + "); }";
+                    view.postDelayed(() -> view.loadUrl(js), 500);
                     getIntent().removeExtra("notification_url");
+                    getIntent().removeExtra("notification_qid");
                 }
             }
 
@@ -427,8 +432,11 @@ public class MainActivity extends AppCompatActivity {
         super.onNewIntent(intent);
         setIntent(intent);
         String notifUrl = intent.getStringExtra("notification_url");
+        String notifQid = intent.getStringExtra("notification_qid");
         if (notifUrl != null && !notifUrl.isEmpty() && webView != null) {
-            webView.loadUrl("javascript:if(typeof navigateTo === 'function') { navigateTo('" + notifUrl + "'); }");
+            String qidStr = (notifQid != null && !notifQid.isEmpty()) ? "'" + notifQid + "'" : "''";
+            String js = "javascript:if(typeof navigateTo === 'function') { navigateTo('" + notifUrl + "'," + qidStr + "); }";
+            webView.post(() -> webView.loadUrl(js));
         }
     }
 
@@ -480,6 +488,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        isAppForeground = true;
         webView.onResume();
         webViewInstance = webView;
     }
@@ -487,6 +496,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
+        isAppForeground = false;
         webView.onPause();
     }
 
