@@ -5280,29 +5280,39 @@ function fallbackShare(text) {
         function reportQuestion(idx, event) {
             var item = quizItems[idx];
             var btn  = event.target;
-            // Custom input dialog — no native prompt()
             showReportDialog(function(issue) {
                 if (!issue || !issue.trim()) return;
                 btn.innerText = '⏳';
+                // Sheet name — currentMode অনুযায়ী
+                var sheetMap = { qbank: 'QBank', quiz: 'Quiz', study: 'Study' };
+                var qSheet = sheetMap[currentMode] || 'QBank';
+                // Phone — leading quote ও leading/trailing space ছাড়া
+                var phone = (currentUser ? currentUser.phone : USER_PHONE)
+                    .toString().replace(/^'+/, '').trim();
                 var reportData = {
-                    type: 'report',
-                    Phone: (currentUser ? currentUser.phone : USER_PHONE).toString().replace(/^'+/, '').trim(),
-                    Subject: getVal(item,'subject'),
-                    Topic: getVal(item,'sub_topic'),
-                    QuestionID: getVal(item, 'id'),
-                    Question: getVal(item,'question'),
-                    Issue: issue.trim(),
-                    Timestamp: new Date().toLocaleString()
+                    type:       'report',
+                    Phone:      phone,
+                    QSheet:     qSheet,
+                    Subject:    getVal(item, 'subject')  || '',
+                    SubTopic:   getVal(item, 'sub_topic') || '',
+                    QuestionID: getVal(item, 'id')        || '',
+                    Question:   (getVal(item, 'question') || '').replace(/<[^>]+>/g, '').slice(0, 200),
+                    Issue:      issue.trim(),
+                    Timestamp:  new Date().toLocaleString('bn-BD')
                 };
                 if (!navigator.onLine) {
                     addToPendingQueue(reportData);
                     showToast('📦 অফলাইনে রিপোর্ট সেভ হয়েছে।');
                     btn.innerText = '🚩'; return;
                 }
-                fetch(GAS_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type':'application/json'}, body: JSON.stringify(reportData) })
-                    .then(function() { showToast('✅ রিপোর্ট পাঠানো হয়েছে। ধন্যবাদ!'); })
-                    .catch(function() { addToPendingQueue(reportData); showToast('📦 রিপোর্ট অফলাইনে সেভ হয়েছে।'); })
-                    .finally(function() { btn.innerText = '🚩'; });
+                fetch(GAS_URL, {
+                    method: 'POST', mode: 'no-cors',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify(reportData)
+                })
+                .then(function()  { showToast('✅ রিপোর্ট পাঠানো হয়েছে। ধন্যবাদ!'); })
+                .catch(function() { addToPendingQueue(reportData); showToast('📦 রিপোর্ট অফলাইনে সেভ হয়েছে।'); })
+                .finally(function() { btn.innerText = '🚩'; });
             });
         }
 
@@ -6205,12 +6215,12 @@ function onFCMNotification(title, body, url, questionId) {
 }
 
 // Java থেকে call হয় — notification click এ deep link
-function navigateTo(url, questionId) {
+function navigateTo(url, questionId, qsheet) {
     var waited = 0;
     function tryNav() {
         var hasData = fullData && (fullData['QBank'] || fullData['Quiz'] || fullData['Study']);
         if (hasData || waited >= 4000) {
-            _doDeepLink(url, questionId || '');
+            _doDeepLink(url, questionId || '', qsheet || '');
         } else {
             waited += 300;
             setTimeout(tryNav, 300);
@@ -6219,10 +6229,11 @@ function navigateTo(url, questionId) {
     tryNav();
 }
 
-function _doDeepLink(url, questionId) {
+function _doDeepLink(url, questionId, qsheet) {
     if (!url) return;
-    url = url.toString().trim();
+    url       = url.toString().trim();
     questionId = (questionId || '').toString().trim();
+    qsheet    = (qsheet || '').toString().trim();
 
     if (url === 'qbank') { changeMode('qbank'); return; }
     if (url === 'quiz')  { changeMode('quiz');  return; }
@@ -6230,22 +6241,37 @@ function _doDeepLink(url, questionId) {
     if (url === 'home')  { changeMode('home');  return; }
 
     if (url === 'report' && questionId) {
+        var qNorm = questionId.replace(/^0+/, '').trim();
         var found = null, foundSheet = null;
-        ['QBank','Quiz','Study'].forEach(function(sh) {
+
+        // QSheet থাকলে সরাসরি সেই sheet এ খোঁজো — ভুল হবে না
+        var sheetMap = { qbank: 'QBank', quiz: 'Quiz', study: 'Study' };
+        var targetSheet = sheetMap[qsheet.toLowerCase()] || qsheet;
+        var sheetsToSearch = targetSheet && fullData[targetSheet]
+            ? [targetSheet]
+            : ['QBank', 'Quiz', 'Study'];
+
+        sheetsToSearch.forEach(function(sh) {
             if (found) return;
             (fullData[sh] || []).forEach(function(it) {
-                if (!found && String(getVal(it,'id') || getVal(it,'sl') || '') === questionId) {
-                    found = it; foundSheet = sh;
-                }
+                if (found) return;
+                var itId = String(getVal(it,'id') || getVal(it,'sl') || getVal(it,'ID') || '').replace(/^0+/, '').trim();
+                if (itId && itId === qNorm) { found = it; foundSheet = sh; }
             });
         });
-        if (!found) { changeMode('qbank'); showToast('প্রশ্নটি QBank এ খুঁজুন।'); return; }
 
-        var mode = foundSheet === 'Quiz' ? 'quiz' : (foundSheet === 'Study' ? 'study' : 'qbank');
+        if (!found) {
+            changeMode(targetSheet ? sheetMap[targetSheet.toLowerCase()] || 'qbank' : 'qbank');
+            showToast('প্রশ্ন #' + questionId + ' খুঁজে পাওয়া যায়নি।');
+            return;
+        }
+
+        var modeMap = { Quiz: 'quiz', Study: 'study', QBank: 'qbank' };
+        var mode     = modeMap[foundSheet] || 'qbank';
         var subject  = getVal(found, 'subject') || '';
         var subtopic = getVal(found, 'sub_topic') || '';
+        var actualId = String(getVal(found,'id') || getVal(found,'sl') || questionId);
 
-        // path reset না করে directly সেট করো
         currentMode = mode;
         updateUIMode(mode);
         stopTimer();
@@ -6254,17 +6280,19 @@ function _doDeepLink(url, questionId) {
         if (subject && subtopic) {
             showQuestions(subtopic);
             setTimeout(function() {
-                var el = document.querySelector('[data-qid="' + questionId + '"]');
+                var el = document.querySelector('[data-qid="' + actualId + '"]')
+                      || document.querySelector('[data-qid="' + actualId.replace(/^0+/,'') + '"]');
                 if (el) {
                     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     el.style.outline = '3px solid #22c55e';
                     el.style.borderRadius = '10px';
                     setTimeout(function() { el.style.outline = ''; el.style.borderRadius = ''; }, 3000);
                 }
-            }, 800);
+            }, 900);
         } else {
             renderView();
         }
+        return;
     }
 }
 
