@@ -46,6 +46,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         String title = "Smart Study";
         String body = "";
         String clickUrl = null;
+        String questionId = null;
 
         if (remoteMessage.getNotification() != null) {
             RemoteMessage.Notification n = remoteMessage.getNotification();
@@ -57,17 +58,25 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             if (remoteMessage.getData().containsKey("title")) title = remoteMessage.getData().get("title");
             if (remoteMessage.getData().containsKey("body")) body = remoteMessage.getData().get("body");
             if (remoteMessage.getData().containsKey("url")) clickUrl = remoteMessage.getData().get("url");
+            if (remoteMessage.getData().containsKey("questionId")) questionId = remoteMessage.getData().get("questionId");
         }
 
-        showNotification(title, body, clickUrl);
-        notifyWebView(title, body, clickUrl);
+        // foreground এ থাকলে WebView banner দেখাবে (onFCMNotification) — double notification হবে না
+        // background এ থাকলে system notification দেখাবে
+        if (!MainActivity.isAppForeground) {
+            showNotification(title, body, clickUrl, questionId);
+        }
+        notifyWebView(title, body, clickUrl, questionId);
     }
 
-    private void showNotification(String title, String body, String clickUrl) {
+    private void showNotification(String title, String body, String clickUrl, String questionId) {
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         if (clickUrl != null && !clickUrl.isEmpty()) {
             intent.putExtra("notification_url", clickUrl);
+        }
+        if (questionId != null && !questionId.isEmpty()) {
+            intent.putExtra("notification_qid", questionId);
         }
 
         int flags = PendingIntent.FLAG_ONE_SHOT;
@@ -116,12 +125,13 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         Log.d(TAG, "Notification দেখানো হয়েছে: " + title);
     }
 
-    private void notifyWebView(String title, String body, String clickUrl) {
+    private void notifyWebView(String title, String body, String clickUrl, String questionId) {
         if (MainActivity.webViewInstance != null) {
             String url = clickUrl != null ? clickUrl : "";
+            String qid = questionId != null ? questionId : "";
             String jsCode = String.format(
-                "javascript:if(typeof onFCMNotification === 'function') { onFCMNotification(%s, %s, %s); }",
-                escapeJson(title), escapeJson(body), escapeJson(url)
+                "javascript:if(typeof onFCMNotification === 'function') { onFCMNotification(%s, %s, %s, %s); }",
+                escapeJson(title), escapeJson(body), escapeJson(url), escapeJson(qid)
             );
             MainActivity.webViewInstance.post(() ->
                 MainActivity.webViewInstance.loadUrl(jsCode)
