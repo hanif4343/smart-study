@@ -302,31 +302,55 @@ function doGet(e) {
     return json({result:"error",error:"User not found: "+phone});
   }
 
+  // ── adminNotify ── admin কে FCM notify করো (new signup / login)
+  if (action==="adminNotify") {
+    var cfg2=getProps();
+    var adminPhone=(cfg2.ADMIN_PHONE||"").toString().replace(/^'+/,'').trim();
+    if(!adminPhone) return json({result:"error",error:"ADMIN_PHONE not set in Script Properties"});
+    var evType=e.parameter.event||"login"; // "signup" or "login"
+    var uName=decodeURIComponent(e.parameter.name||"কেউ");
+    var uPhone=decodeURIComponent(e.parameter.phone||"");
+    var uType=decodeURIComponent(e.parameter.userType||"");
+    var title = evType==="signup"
+      ? "🆕 নতুন Signup!"
+      : "👤 User লগইন করেছে";
+    var body = evType==="signup"
+      ? uName+" ("+uPhone+") নতুন অ্যাকাউন্ট তৈরি করেছে।"+(uType?" ["+uType+"]":"")
+      : uName+" ("+uPhone+") লগইন করেছে।";
+    var fcmResult=sendFCMToPhone(adminPhone,title,body,{type:"admin_"+evType,url:"signups"});
+    return json({result:"success",fcm:fcmResult});
+  }
+
   // ── resolveReport ──
   if (action==="resolveReport") {
-    var phone=(e.parameter.phone||"").toString().trim();
+    var phone=(e.parameter.phone||"").toString().replace(/^'+/,'').trim();
     var subject=decodeURIComponent(e.parameter.subject||"প্রশ্নটি");
     var qid=e.parameter.questionId||"";
+    var qsheet=decodeURIComponent(e.parameter.qsheet||"");
     if(!phone) return json({result:"error",error:"phone missing"});
     var safePhone=phone.replace(/[.#$\[\]\s]/g,'_');
     var notifKey='notif_'+Date.now();
-    var payload={type:'report_resolved',title:'✅ আপনার রিপোর্ট সমাধান হয়েছে!',body:'"'+subject+'" সংশোধন করা হয়েছে।',questionId:qid,time:new Date().toLocaleString(),read:false};
+    var payload={type:'report_resolved',title:'✅ আপনার রিপোর্ট সমাধান হয়েছে!',body:'"'+subject+'" সংশোধন করা হয়েছে।',questionId:qid,qsheet:qsheet,time:new Date().toLocaleString(),read:false};
     UrlFetchApp.fetch(cfg.FIREBASE_URL+"Notifications/"+safePhone+"/"+notifKey+".json?auth="+cfg.SECRET_KEY,{method:"put",contentType:"application/json",payload:JSON.stringify(payload),muteHttpExceptions:true});
-    var fcmResult=sendFCMToPhone(phone,"✅ রিপোর্ট সমাধান হয়েছে!",'"'+subject+'" সংশোধন করা হয়েছে।',{type:"report_resolved",questionId:qid,url:"report"});
+    var fcmData={type:"report_resolved",questionId:qid,url:"report"};
+    if(qsheet) fcmData.qsheet=qsheet;
+    var fcmResult=sendFCMToPhone(phone,"✅ রিপোর্ট সমাধান হয়েছে!",'"'+subject+'" সংশোধন করা হয়েছে।',fcmData);
     return json({result:"success",fcm:fcmResult});
   }
 
   // ── personalNotify ── নির্দিষ্ট user কে FCM পাঠায়
   if (action==="personalNotify") {
-    var phone=(e.parameter.phone||"").toString().trim();
+    var phone=(e.parameter.phone||"").toString().replace(/^'+/,'').trim();
     var title=decodeURIComponent(e.parameter.title||"Smart Study");
     var body=decodeURIComponent(e.parameter.body||"");
     var notifUrl=decodeURIComponent(e.parameter.url||"");
     var notifQid=decodeURIComponent(e.parameter.questionId||"");
+    var notifQsheet=decodeURIComponent(e.parameter.qsheet||"");
     if(!phone) return json({result:"error",error:"phone missing"});
     var extraData={type:"personal_notification"};
     if(notifUrl) extraData.url=notifUrl;
     if(notifQid) extraData.questionId=notifQid;
+    if(notifQsheet) extraData.qsheet=notifQsheet;
     var fcmResult=sendFCMToPhone(phone,title,body,extraData);
     return json({result:"success",fcm:fcmResult});
   }
@@ -892,7 +916,22 @@ function doPost(e) {
     else if(tTab==="Study")rData=[finalId,params.subject,params.sub_topic,params.question||"",params.correct||"",params.explanation,params.technique,params.timestamp,params.audienceTags||"",params.visualUrl||""];
     else if(tTab==="Typing")rData=[finalId,params.title||"",params.language||"",params.level||"",params.content||""];
     else if(tTab==="Notice")rData=[params.timestamp?params.timestamp.split(',')[0]:"",params.n_title,params.n_msg,params.timestamp];
-    else if(tTab==="Reports")rData=[params.Phone||"",params.Subject||"",params.SubTopic||"",params.QuestionID||"",params.Question||"",params.Issue||"",params.timestamp||new Date().toLocaleString()];
+    else if(tTab==="Reports"){
+      // Column order: Phone | QSheet | Subject | SubTopic | QuestionID | Question | Issue | Timestamp
+      var phone = (params.Phone||"").toString().replace(/^'+/,'').trim();
+      // Sheets এ number format এড়াতে apostrophe prefix — leading 0 রক্ষা করে
+      var phoneForSheet = phone ? ("'" + phone) : "";
+      rData=[
+        phoneForSheet,
+        params.QSheet||"",
+        params.Subject||"",
+        params.SubTopic||params.Topic||"",
+        params.QuestionID||"",
+        params.Question||"",
+        params.Issue||"",
+        params.Timestamp||params.timestamp||new Date().toLocaleString('bn-BD')
+      ];
+    }
 
     if(rData.length===0)return json({result:"error",error:"Unknown tab"});
     if(rIdx!==-1)mSh.getRange(rIdx,1,1,rData.length).setValues([rData]);else mSh.appendRow(rData);
