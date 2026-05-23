@@ -19,7 +19,7 @@
 
     <style>
     /* ===== OFFLINE BANNER ===== */
-    #offline-banner {
+    #offline-banner { display: none !important; }
         display: none;
         position: fixed;
         top: 0; left: 0; right: 0;
@@ -1421,11 +1421,7 @@
 <body class="max-w-md mx-auto min-h-screen">
 
     <!-- Offline Banner -->
-    <div id="offline-banner">
-        <span class="sync-dot"></span>
-        📡 অফলাইন মোড — ক্যাশ থেকে ডেটা দেখানো হচ্ছে
-        <span id="pending-count-text"></span>
-    </div>
+    <!-- offline-banner removed -->
 
     <!-- ===== MOTIVATION TOAST ===== -->
 
@@ -6243,34 +6239,41 @@ function handleNotificationDeepLink(url, questionId) {
         });
 
         if (found) {
-            // sheet অনুযায়ী mode সেট করো
             var mode = foundSheet === 'Quiz' ? 'quiz' : (foundSheet === 'Study' ? 'study' : 'qbank');
             var subject = getVal(found, 'subject') || '';
             var subtopic = getVal(found, 'sub_topic') || '';
 
-            changeMode(mode, false);
-            if (subject) {
+            // changeMode path reset করে, তাই পরে manually সেট করতে হবে
+            currentMode = mode;
+            updateUIMode(mode);
+            stopTimer();
+
+            if (subject && subtopic) {
                 path = [subject];
-                if (subtopic) {
-                    // subtopic level এ যাও, তারপর সেই প্রশ্নটা highlight করো
-                    showQuestions(subtopic);
-                    // প্রশ্নটায় scroll করো
-                    setTimeout(function() {
-                        var el = document.querySelector('[data-qid="' + questionId + '"]');
-                        if (el) {
-                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            el.style.outline = '2px solid #22c55e';
-                            setTimeout(function() { el.style.outline = ''; }, 3000);
-                        }
-                    }, 600);
-                } else {
-                    renderView();
-                }
+                // showQuestions path[0] দিয়ে filter করে — এখন correct
+                showQuestions(subtopic);
+                // সেই প্রশ্নে scroll + highlight
+                setTimeout(function() {
+                    var el = document.querySelector('[data-qid="' + questionId + '"]');
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        el.style.outline = '3px solid #22c55e';
+                        el.style.borderRadius = '10px';
+                        setTimeout(function() {
+                            el.style.outline = '';
+                            el.style.borderRadius = '';
+                        }, 3000);
+                    }
+                }, 700);
+            } else if (subject) {
+                path = [subject];
+                renderView();
             } else {
+                path = [];
                 renderView();
             }
         } else {
-            // data এখনও load হয়নি, QBank এ নিয়ে যাও
+            // data load হয়নি বা প্রশ্ন নেই — QBank এ নিয়ে যাও
             changeMode('qbank');
             showToast('প্রশ্নটি QBank এ খুঁজুন।');
         }
@@ -6301,19 +6304,8 @@ function navigateTo(url, questionId) {
 }
 
 function onFCMNotification(title, body, url, questionId) {
-    // foreground এ banner দেখাও
-    showInAppBanner(title || 'Smart Study', body || '', '🔔');
-    // url থাকলে banner tap এ navigate করবে — এখন click handler যোগ করো
-    if (url && url.length > 1) {
-        var banner = document.getElementById('in-app-banner');
-        if (banner) {
-            banner.style.cursor = 'pointer';
-            banner.onclick = function() {
-                handleNotificationDeepLink(url, questionId || '');
-                banner.onclick = null;
-            };
-        }
-    }
+    // foreground এ in-app banner দেখানো বন্ধ — system notification যথেষ্ট
+    // (background notification click করলে navigateTo call হবে)
 }
 
 // Firebase Users node এ FCM token save করো
