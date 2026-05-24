@@ -4406,6 +4406,14 @@ function renderView() {
         </div>` : ''}
         <div onclick="clearCache()" class="card text-red-500 mb-4">🔄 ডাটা রিসেট</div>
 
+        ${_roleAdm ? `
+        <div onclick="openAdminReelsFC()" class="card flex justify-between items-center mb-2" style="background:linear-gradient(135deg,#0a0a1f,#1e1b4b);border-color:rgba(99,102,241,0.4);">
+            <div>
+                <span class="font-black" style="color:#a5b4fc;">🎬 Reels Flashcard</span>
+                <p class="text-[10px] font-bold mt-0.5" style="color:rgba(255,255,255,.4);">Facebook Reels এর জন্য MCQ রেকর্ড করো</p>
+            </div>
+            <span style="color:#6366f1;font-weight:900;font-size:18px;">❯</span>
+        </div>` : ''}
         ${_roleAdm ? `        <!-- Admin: Switch To (admin only) -->
         <div class="card mb-4" style="background:linear-gradient(135deg,#0f172a,#1e1b4b);border-color:rgba(99,102,241,0.4);">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
@@ -6577,6 +6585,7 @@ function scheduleStudyReminders() {
         if (goal.done < goal.goal) {
             sendNotification('🌙 রাতের Reminder', `এখনো ${goal.goal - goal.done} টি প্রশ্ন বাকি! Streak ধরে রাখো 🔥`);
         }
+        scheduleStudyReminders(); // ✅ পরের দিনের জন্য reschedule
     }, msN));
 }
 
@@ -6922,7 +6931,247 @@ function closeFlashcard() {
 }
 
 // ====================================================
-// 🎨 updateUIMode — theme-aware (single definition)
+// 🎬 ADMIN REELS FLASHCARD SYSTEM
+// ====================================================
+var _rfc = {
+  source: 'QBank',
+  timer: 7,
+  items: [],
+  index: 0,
+  timerInterval: null,
+  remaining: 7
+};
+
+function openAdminReelsFC() {
+  if (!isAdmin()) return;
+  // Subject dropdown populate
+  var src = _rfc.source;
+  var arr = toArr ? toArr(fullData[src]) : (fullData[src] ? Object.values(fullData[src]) : []);
+  var subjects = [...new Set(arr.map(q => getVal(q,'subject')).filter(Boolean))].sort();
+  var sel = document.getElementById('rfc-subject-sel');
+  if (sel) {
+    sel.innerHTML = '<option value="">সব Subject</option>' +
+      subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+  }
+  document.getElementById('reels-fc-modal').style.display = 'block';
+  document.getElementById('reels-setup').style.display = 'flex';
+  document.getElementById('reels-play').style.display = 'none';
+}
+
+function rfcSelectSource(src) {
+  _rfc.source = src;
+  document.querySelectorAll('.rfc-src-btn').forEach(b => {
+    var active = b.id === 'rfc-src-' + src;
+    b.style.border = active ? '1.5px solid #6366f1' : '1.5px solid rgba(255,255,255,.12)';
+    b.style.background = active ? 'rgba(99,102,241,.15)' : 'rgba(255,255,255,.04)';
+    b.style.color = active ? '#a5b4fc' : 'rgba(255,255,255,.5)';
+  });
+  // Refresh subjects
+  var arr = fullData[src] ? Object.values(fullData[src]) : [];
+  var subjects = [...new Set(arr.map(q => getVal(q,'subject')).filter(Boolean))].sort();
+  var sel = document.getElementById('rfc-subject-sel');
+  if (sel) sel.innerHTML = '<option value="">সব Subject</option>' + subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+}
+
+function rfcTimerAdj(d) {
+  var v = Math.min(10, Math.max(5, _rfc.timer + d));
+  _rfc.timer = v;
+  document.getElementById('rfc-timer-val').textContent = v;
+  document.getElementById('rfc-timer-range').value = v;
+}
+
+function rfcTimerRange(v) {
+  _rfc.timer = parseInt(v);
+  document.getElementById('rfc-timer-val').textContent = v;
+}
+
+function startReelsFC() {
+  var src = _rfc.source;
+  var subj = document.getElementById('rfc-subject-sel').value;
+  var arr = fullData[src] ? Object.values(fullData[src]) : [];
+  if (subj) arr = arr.filter(q => getVal(q,'subject') === subj);
+  arr = arr.filter(q => getVal(q,'question'));
+  if (arr.length === 0) { alert('কোনো প্রশ্ন পাওয়া যায়নি!'); return; }
+  // Shuffle
+  arr = arr.sort(() => Math.random() - .5);
+  _rfc.items = arr;
+  _rfc.index = 0;
+  document.getElementById('reels-setup').style.display = 'none';
+  document.getElementById('reels-play').style.display = 'block';
+  rfcShowQuestion();
+}
+
+function rfcShowQuestion() {
+  if (_rfc.index >= _rfc.items.length) {
+    alert('🎉 সব প্রশ্ন শেষ!');
+    closeReelsFC();
+    return;
+  }
+  var item = _rfc.items[_rfc.index];
+  var qType = (getVal(item,'question_type') || getVal(item,'QType') || getVal(item,'qtype') || 'mcq').toLowerCase();
+  var isMCQ = qType !== 'written' && qType !== 'study';
+  var opts = [
+    getVal(item,'opt1') || getVal(item,'Opt1') || getVal(item,'option1') || getVal(item,'Option1'),
+    getVal(item,'opt2') || getVal(item,'Opt2') || getVal(item,'option2') || getVal(item,'Option2'),
+    getVal(item,'opt3') || getVal(item,'Opt3') || getVal(item,'option3') || getVal(item,'Option3'),
+    getVal(item,'opt4') || getVal(item,'Opt4') || getVal(item,'option4') || getVal(item,'Option4')
+  ].filter(Boolean);
+  if (opts.length > 0) isMCQ = true;
+
+  // Show question phase
+  var phQ = document.getElementById('rfc-phase-q');
+  var phA = document.getElementById('rfc-phase-a');
+  phQ.style.display = 'flex';
+  phA.style.display = 'none';
+
+  // Counter
+  document.getElementById('rfc-counter').textContent = (_rfc.index + 1) + ' / ' + _rfc.items.length;
+  // Subject
+  document.getElementById('rfc-subj').textContent = getVal(item,'subject') || _rfc.source;
+  // Type badge
+  var badge = document.getElementById('rfc-qtype-badge');
+  badge.textContent = isMCQ ? '❓ MCQ' : '✍️ Written';
+  badge.style.background = isMCQ ? 'rgba(99,102,241,.15)' : 'rgba(139,92,246,.15)';
+  badge.style.color = isMCQ ? '#a5b4fc' : '#c4b5fd';
+  // Question
+  document.getElementById('rfc-question').textContent = getVal(item,'question');
+
+  // MCQ options
+  var optsEl = document.getElementById('rfc-opts');
+  if (isMCQ && opts.length > 0) {
+    var ltrs = ['ক','খ','গ','ঘ'];
+    optsEl.innerHTML = opts.map((o,i) => `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:13px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.03);animation:rfcOptIn .3s ease both ${i*.1}s;opacity:0;">
+        <span style="width:30px;height:30px;border-radius:9px;background:rgba(255,255,255,.07);font-family:system-ui;font-size:12px;font-weight:800;color:rgba(255,255,255,.45);display:flex;align-items:center;justify-content:center;flex-shrink:0;">${ltrs[i]}</span>
+        <span style="font-size:13.5px;color:rgba(255,255,255,.7);font-weight:500;">${o}</span>
+      </div>`).join('');
+    optsEl.style.display = 'flex';
+  } else {
+    optsEl.innerHTML = '';
+    optsEl.style.display = 'none';
+  }
+
+  // Timer
+  clearInterval(_rfc.timerInterval);
+  _rfc.remaining = _rfc.timer;
+  rfcUpdateRing(_rfc.remaining, _rfc.timer);
+  document.getElementById('rfc-timer-disp').textContent = _rfc.remaining;
+
+  _rfc.timerInterval = setInterval(() => {
+    _rfc.remaining--;
+    document.getElementById('rfc-timer-disp').textContent = Math.max(0, _rfc.remaining);
+    rfcUpdateRing(_rfc.remaining, _rfc.timer);
+    if (_rfc.remaining <= 0) {
+      clearInterval(_rfc.timerInterval);
+      rfcFlipToAnswer();
+    }
+  }, 1000);
+}
+
+function rfcUpdateRing(rem, total) {
+  var circ = 188.5;
+  var offset = circ - (circ * rem / total);
+  var ring = document.getElementById('rfc-ring');
+  if (ring) ring.style.strokeDashoffset = Math.max(0, offset);
+}
+
+function rfcFlipToAnswer() {
+  // Page flip effect
+  var overlay = document.getElementById('rfc-flip-overlay');
+  var page = document.getElementById('rfc-flip-page');
+  overlay.style.display = 'block';
+  page.style.transition = 'none';
+  page.style.transform = 'rotateY(0deg)';
+  page.getBoundingClientRect();
+  page.style.transition = 'transform .55s cubic-bezier(.4,0,.2,1)';
+  page.style.transform = 'rotateY(-180deg)';
+
+  setTimeout(() => {
+    overlay.style.display = 'none';
+    page.style.transform = 'rotateY(0deg)';
+    rfcShowAnswer();
+  }, 560);
+}
+
+function rfcShowAnswer() {
+  var item = _rfc.items[_rfc.index];
+  var opts = [
+    getVal(item,'opt1') || getVal(item,'Opt1') || getVal(item,'option1') || getVal(item,'Option1'),
+    getVal(item,'opt2') || getVal(item,'Opt2') || getVal(item,'option2') || getVal(item,'Option2'),
+    getVal(item,'opt3') || getVal(item,'Opt3') || getVal(item,'option3') || getVal(item,'Option3'),
+    getVal(item,'opt4') || getVal(item,'Opt4') || getVal(item,'option4') || getVal(item,'Option4')
+  ].filter(Boolean);
+  var correct = getVal(item,'correct') || getVal(item,'Correct') || '';
+  var explanation = getVal(item,'explanation') || getVal(item,'Explanation') || '';
+
+  var phQ = document.getElementById('rfc-phase-q');
+  var phA = document.getElementById('rfc-phase-a');
+  phQ.style.display = 'none';
+  phA.style.display = 'flex';
+
+  // Reset animations
+  var ansBox = document.getElementById('rfc-ans-box');
+  var expWrap = document.getElementById('rfc-exp-wrap');
+  ansBox.style.animation = 'none'; ansBox.style.opacity = '0';
+  ansBox.getBoundingClientRect();
+  ansBox.style.animation = 'rfcPop .4s cubic-bezier(.34,1.56,.64,1) both .1s';
+
+  // Correct answer text
+  document.getElementById('rfc-correct-text').textContent = correct;
+
+  // Explanation
+  if (explanation) {
+    expWrap.style.display = 'block';
+    expWrap.style.animation = 'none'; expWrap.style.opacity = '0';
+    expWrap.getBoundingClientRect();
+    expWrap.style.animation = 'rfcSlideUp .4s ease both .4s';
+    document.getElementById('rfc-exp-text').textContent = explanation;
+  } else {
+    expWrap.style.display = 'none';
+  }
+
+  // Answer options (MCQ)
+  var ansOpts = document.getElementById('rfc-ans-opts');
+  if (opts.length > 0) {
+    var ltrs = ['ক','খ','গ','ঘ'];
+    ansOpts.innerHTML = opts.map((o,i) => {
+      var isCorrect = correct && o.trim().toLowerCase() === correct.trim().toLowerCase();
+      var isWrong = !isCorrect;
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:13px;
+        border:1px solid ${isCorrect ? 'rgba(16,185,129,.4)' : 'rgba(255,255,255,.06)'};
+        background:${isCorrect ? 'rgba(16,185,129,.12)' : 'rgba(239,68,68,.05)'};
+        animation:rfcOptIn .3s ease both ${.3+i*.1}s;opacity:0;">
+        <span style="width:28px;height:28px;border-radius:8px;font-family:system-ui;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+          background:${isCorrect ? '#10b981' : 'rgba(239,68,68,.2)'};
+          color:${isCorrect ? '#fff' : 'rgba(239,68,68,.7)'};">${ltrs[i]}</span>
+        <span style="font-size:13px;font-weight:${isCorrect?'700':'500'};
+          color:${isCorrect ? '#d1fae5' : 'rgba(255,255,255,.35)'};">${o}${isCorrect?' ✓':''}</span>
+      </div>`;
+    }).join('');
+    ansOpts.style.display = 'flex';
+  } else {
+    ansOpts.innerHTML = '';
+    ansOpts.style.display = 'none';
+  }
+}
+
+function rfcNext() {
+  clearInterval(_rfc.timerInterval);
+  _rfc.index++;
+  rfcShowQuestion();
+}
+
+function closeReelsFC() {
+  clearInterval(_rfc.timerInterval);
+  document.getElementById('reels-fc-modal').style.display = 'none';
+}
+
+// ── Helper for toArr compatibility ──
+function toArr(obj) {
+  if (!obj) return [];
+  if (Array.isArray(obj)) return obj;
+  return Object.values(obj);
+}
 // ====================================================
 function updateUIMode(m) {
     const colors = window._themeColors || {
@@ -7073,6 +7322,7 @@ function scheduleInAppReminder() {
             showInAppBanner('রাতের Reminder', `${goal.goal-goal.done} টি প্রশ্ন বাকি! Streak ধরে রাখো 🔥`, '🌙');
             haptic('medium');
         }
+        scheduleInAppReminder(); // ✅ পরের দিনের জন্য reschedule
     }, msUntil(nightTime)));
 }
 
@@ -10037,6 +10287,183 @@ function vfcRestart() {
     _vfcRender();
 }
 </script>
+
+
+<!-- ══════════════════════════════════════════════════
+     🎬 ADMIN REELS FLASHCARD MODAL
+══════════════════════════════════════════════════ -->
+<div id="reels-fc-modal" style="display:none;position:fixed;inset:0;z-index:99999;background:#000;overflow:hidden;">
+
+  <!-- Setup Screen -->
+  <div id="reels-setup" style="height:100%;display:flex;flex-direction:column;background:linear-gradient(160deg,#0a0a1f,#0d1630);padding:env(safe-area-inset-top,0px) 0 0;">
+    <div style="padding:56px 24px 0;display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:38px;height:38px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 16px rgba(99,102,241,.4)">📚</div>
+        <div>
+          <div style="font-family:system-ui;font-weight:900;font-size:15px;color:#fff;">Smart Study</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.45);letter-spacing:1.5px;text-transform:uppercase;">Reels Flashcard</div>
+        </div>
+      </div>
+      <button onclick="closeReelsFC()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.6);width:34px;height:34px;border-radius:50%;font-size:16px;cursor:pointer;">✕</button>
+    </div>
+
+    <div style="flex:1;padding:32px 24px;display:flex;flex-direction:column;gap:16px;overflow-y:auto;">
+      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:20px;">
+        <div style="font-size:10px;font-weight:700;color:#6366f1;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">📋 Source</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button onclick="rfcSelectSource('QBank')" id="rfc-src-QBank" class="rfc-src-btn rfc-active" style="flex:1;min-width:80px;padding:10px 8px;border-radius:12px;border:1.5px solid #6366f1;background:rgba(99,102,241,.15);color:#a5b4fc;font-size:13px;font-weight:700;cursor:pointer;">📖 QBank</button>
+          <button onclick="rfcSelectSource('Quiz')" id="rfc-src-Quiz" class="rfc-src-btn" style="flex:1;min-width:80px;padding:10px 8px;border-radius:12px;border:1.5px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:rgba(255,255,255,.5);font-size:13px;font-weight:700;cursor:pointer;">🎯 Quiz</button>
+          <button onclick="rfcSelectSource('Study')" id="rfc-src-Study" class="rfc-src-btn" style="flex:1;min-width:80px;padding:10px 8px;border-radius:12px;border:1.5px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:rgba(255,255,255,.5);font-size:13px;font-weight:700;cursor:pointer;">📚 Study</button>
+        </div>
+      </div>
+
+      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:20px;">
+        <div style="font-size:10px;font-weight:700;color:#10b981;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">⏱️ Timer</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button onclick="rfcTimerAdj(-1)" style="width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#fff;font-size:20px;cursor:pointer;font-weight:700;">−</button>
+          <div style="flex:1;text-align:center;">
+            <div id="rfc-timer-val" style="font-family:system-ui;font-size:42px;font-weight:900;color:#fff;">7</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.4);font-weight:600;margin-top:-4px;">সেকেন্ড (৫–১০)</div>
+          </div>
+          <button onclick="rfcTimerAdj(1)" style="width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#fff;font-size:20px;cursor:pointer;font-weight:700;">+</button>
+        </div>
+        <input type="range" id="rfc-timer-range" min="5" max="10" value="7" oninput="rfcTimerRange(this.value)" style="width:100%;margin-top:12px;accent-color:#6366f1;">
+      </div>
+
+      <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:20px;">
+        <div style="font-size:10px;font-weight:700;color:#f59e0b;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">🎯 Subject (optional)</div>
+        <select id="rfc-subject-sel" style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:12px;padding:10px 14px;font-size:13px;font-weight:600;outline:none;appearance:none;">
+          <option value="">সব Subject</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="padding:20px 24px 40px;">
+      <button onclick="startReelsFC()" style="width:100%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:16px;font-weight:900;padding:16px;border-radius:16px;border:none;cursor:pointer;box-shadow:0 8px 24px rgba(99,102,241,.4);letter-spacing:.5px;">🎬 শুরু করো</button>
+    </div>
+  </div>
+
+  <!-- ══ Play Screen ══ -->
+  <div id="reels-play" style="display:none;height:100%;position:relative;overflow:hidden;">
+
+    <!-- Question Phase -->
+    <div id="rfc-phase-q" style="position:absolute;inset:0;display:flex;flex-direction:column;background:linear-gradient(160deg,#0a0a1f 0%,#0d1630 40%,#091020 100%);">
+      <!-- bg glow -->
+      <div style="position:absolute;top:-120px;left:50%;transform:translateX(-50%);width:500px;height:400px;background:radial-gradient(ellipse,rgba(99,102,241,.18) 0%,transparent 65%);pointer-events:none;"></div>
+
+      <!-- Header -->
+      <div style="padding:max(56px,env(safe-area-inset-top)) 24px 0;display:flex;align-items:center;justify-content:space-between;position:relative;z-index:2;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:36px;height:36px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;">📚</div>
+          <div>
+            <div style="font-family:system-ui;font-weight:900;font-size:13px;color:#fff;">Smart Study</div>
+            <div style="font-size:9px;color:rgba(255,255,255,.4);letter-spacing:1.5px;text-transform:uppercase;">Daily MCQ</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div id="rfc-counter" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.6);font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;">1/10</div>
+          <button onclick="closeReelsFC()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.5);width:30px;height:30px;border-radius:50%;font-size:14px;cursor:pointer;">✕</button>
+        </div>
+      </div>
+
+      <!-- Subject tag -->
+      <div style="position:relative;z-index:2;padding:16px 24px 0;display:flex;align-items:center;gap:8px;">
+        <span id="rfc-subj" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.7);font-size:11px;font-weight:600;padding:4px 14px;border-radius:20px;"></span>
+        <span id="rfc-qtype-badge" style="background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.3);color:#a5b4fc;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;"></span>
+      </div>
+
+      <!-- Timer Ring -->
+      <div style="position:relative;z-index:2;display:flex;align-items:center;justify-content:center;padding:18px 0 12px;">
+        <div style="width:72px;height:72px;position:relative;">
+          <svg width="72" height="72" style="transform:rotate(-90deg);" viewBox="0 0 72 72">
+            <defs><linearGradient id="tg1" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#6366f1"/><stop offset="100%" style="stop-color:#10b981"/></linearGradient></defs>
+            <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="4"/>
+            <circle id="rfc-ring" cx="36" cy="36" r="30" fill="none" stroke="url(#tg1)" stroke-width="4" stroke-linecap="round" stroke-dasharray="188.5" stroke-dashoffset="0"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:system-ui;font-size:22px;font-weight:900;color:#fff;" id="rfc-timer-disp">7</div>
+        </div>
+      </div>
+
+      <!-- Question Box -->
+      <div style="position:relative;z-index:2;flex:1;padding:0 22px;display:flex;align-items:center;">
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:22px 20px;width:100%;">
+          <div style="font-size:10px;font-weight:700;color:#6366f1;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:16px;height:2px;background:#6366f1;border-radius:2px;"></span>প্রশ্ন</div>
+          <div id="rfc-question" style="font-size:18px;font-weight:700;color:rgba(255,255,255,.95);line-height:1.65;"></div>
+        </div>
+      </div>
+
+      <!-- MCQ Options -->
+      <div id="rfc-opts" style="position:relative;z-index:2;padding:14px 22px;display:flex;flex-direction:column;gap:8px;"></div>
+
+      <!-- Footer CTA -->
+      <div style="position:relative;z-index:2;padding:0 22px 40px;">
+        <div style="background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.2);border-radius:14px;padding:11px 16px;display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-size:11px;color:rgba(255,255,255,.4);line-height:1.5;">এরকম হাজারো প্রশ্ন পড়ুন<br>Smart Study এপে</div>
+          <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:10px;font-weight:800;padding:8px 14px;border-radius:10px;white-space:nowrap;box-shadow:0 4px 14px rgba(99,102,241,.4);">📲 Install Now</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Page Flip Effect Overlay ══ -->
+    <div id="rfc-flip-overlay" style="display:none;position:absolute;inset:0;z-index:10;perspective:1200px;">
+      <div id="rfc-flip-page" style="position:absolute;inset:0;background:linear-gradient(160deg,#0a0a1f,#0d1630);transform-origin:center left;transform:rotateY(0deg);transition:transform .6s cubic-bezier(.4,0,.2,1);backface-visibility:hidden;border-radius:0;">
+        <div style="position:absolute;inset:0;background:linear-gradient(to right,rgba(0,0,0,.3) 0%,transparent 15%);pointer-events:none;border-radius:0;"></div>
+      </div>
+    </div>
+
+    <!-- ══ Answer Phase ══ -->
+    <div id="rfc-phase-a" style="display:none;position:absolute;inset:0;display:none;flex-direction:column;background:linear-gradient(160deg,#031a0e 0%,#052e16 40%,#021a0a 100%);">
+      <div style="position:absolute;top:-120px;left:50%;transform:translateX(-50%);width:500px;height:400px;background:radial-gradient(ellipse,rgba(16,185,129,.2) 0%,transparent 65%);pointer-events:none;"></div>
+
+      <!-- Header -->
+      <div style="padding:max(56px,env(safe-area-inset-top)) 24px 0;display:flex;align-items:center;justify-content:space-between;position:relative;z-index:2;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:36px;height:36px;background:linear-gradient(135deg,#10b981,#059669);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 4px 14px rgba(16,185,129,.4)">📚</div>
+          <div>
+            <div style="font-family:system-ui;font-weight:900;font-size:13px;color:#fff;">Smart Study</div>
+            <div style="font-size:9px;color:rgba(255,255,255,.4);letter-spacing:1.5px;text-transform:uppercase;">Daily MCQ</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="background:rgba(16,185,129,.2);border:1px solid rgba(16,185,129,.35);color:#6ee7b7;font-size:10px;font-weight:700;padding:4px 12px;border-radius:20px;letter-spacing:1px;">✅ সঠিক উত্তর</div>
+          <button onclick="rfcNext()" style="background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);color:#6ee7b7;width:30px;height:30px;border-radius:50%;font-size:14px;cursor:pointer;">→</button>
+        </div>
+      </div>
+
+      <!-- Correct Answer -->
+      <div style="position:relative;z-index:2;padding:20px 22px 0;">
+        <div id="rfc-ans-box" style="background:rgba(16,185,129,.12);border:1.5px solid rgba(16,185,129,.35);border-radius:20px;padding:20px;animation:rfcPop .4s cubic-bezier(.34,1.56,.64,1) both .1s;opacity:0;">
+          <div style="font-size:10px;font-weight:700;color:#10b981;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">✓ সঠিক উত্তর</div>
+          <div id="rfc-correct-text" style="font-size:20px;font-weight:700;color:#fff;line-height:1.55;"></div>
+        </div>
+      </div>
+
+      <!-- Explanation -->
+      <div id="rfc-exp-wrap" style="position:relative;z-index:2;margin:14px 22px 0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px 18px;animation:rfcSlideUp .4s ease both .4s;opacity:0;display:none;">
+        <div style="font-size:10px;font-weight:700;color:#6366f1;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">📖 ব্যাখ্যা</div>
+        <div id="rfc-exp-text" style="font-size:13px;color:rgba(255,255,255,.65);line-height:1.65;"></div>
+      </div>
+
+      <!-- Answer Options (MCQ only) -->
+      <div id="rfc-ans-opts" style="position:relative;z-index:2;padding:14px 22px 0;flex:1;display:flex;flex-direction:column;gap:7px;overflow:hidden;"></div>
+
+      <!-- Footer -->
+      <div style="position:relative;z-index:2;padding:0 22px 40px;margin-top:auto;">
+        <div style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);border-radius:14px;padding:11px 16px;display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-size:11px;color:rgba(255,255,255,.4);line-height:1.5;">এরকম হাজারো প্রশ্ন পড়ুন<br>Smart Study এপে</div>
+          <div style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:10px;font-weight:800;padding:8px 14px;border-radius:10px;white-space:nowrap;box-shadow:0 4px 14px rgba(16,185,129,.4);">📲 Install Now</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /reels-play -->
+</div><!-- /reels-fc-modal -->
+
+<style>
+@keyframes rfcPop{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+@keyframes rfcSlideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes rfcOptIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+</style>
 
 </body>
 </html>
