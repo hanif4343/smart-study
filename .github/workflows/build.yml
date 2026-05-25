@@ -1,4 +1,4 @@
-name: Build Smart-Study APK
+name: Build Smart Study APK
 
 on:
   push:
@@ -13,6 +13,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # ── Node.js (JS bundling) ──────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install JS build tools
+        run: npm install
+
+      # ── Java / Android ─────────────────────────────────────
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -30,46 +41,77 @@ jobs:
       - name: Accept Android licenses
         run: yes | sdkmanager --licenses || true
 
-      - name: Install build tools
+      - name: Install Android build tools
         run: sdkmanager "build-tools;34.0.0" "platforms;android-34" "platform-tools"
 
-      - name: Create google-services.json from secret
+      # ── Secrets ────────────────────────────────────────────
+      - name: Create google-services.json
         run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > app/google-services.json
 
-      - name: Decode Keystore from secret
+      - name: Decode Keystore
         run: echo '${{ secrets.KEYSTORE_BASE64 }}' | base64 -d > app/smartstudy.jks
 
-      # ── Auto increment versionCode using GitHub run number ──
+      # ── Version ────────────────────────────────────────────
       - name: Auto increment versionCode
         run: |
           RUN=${{ github.run_number }}
           sed -i "s/versionCode [0-9]*/versionCode $RUN/" app/build.gradle
-          echo "versionCode set to: $RUN"
+          echo "versionCode → $RUN"
 
-      - name: Inject API keys into index.html
+      # ── Inject API keys BEFORE bundling ────────────────────
+      - name: Inject API keys into JS files
         run: |
-          sed -i "s|%%FIREBASE_URL%%|${{ secrets.FIREBASE_URL }}|g" app/src/main/assets/index.html
-          sed -i "s|%%SECRET_KEY%%|${{ secrets.SECRET_KEY }}|g" app/src/main/assets/index.html
-          sed -i "s|%%GAS_URL%%|${{ secrets.GAS_URL }}|g" app/src/main/assets/index.html
-          sed -i "s|%%GEMINI_API_KEY%%|${{ secrets.GEMINI_API_KEY }}|g" app/src/main/assets/index.html
-          echo "API keys injected successfully"
+          JS="app/src/main/assets/js"
+          # config.js
+          sed -i "s|%%FIREBASE_URL%%|${{ secrets.FIREBASE_URL }}|g"     "$JS/config.js"
+          sed -i "s|%%SECRET_KEY%%|${{ secrets.SECRET_KEY }}|g"         "$JS/config.js"
+          sed -i "s|%%GAS_URL%%|${{ secrets.GAS_URL }}|g"               "$JS/config.js"
+          sed -i "s|%%ADMIN_PHONE%%|${{ secrets.ADMIN_PHONE }}|g"       "$JS/config.js"
+          # written.js (Gemini AI answer check)
+          sed -i "s|%%GEMINI_API_KEY%%|${{ secrets.GEMINI_API_KEY }}|g" "$JS/written.js"
+          echo "Keys injected ✅"
 
       - name: Verify keys injected
         run: |
-          if grep -q "%%" app/src/main/assets/index.html; then
-            echo "ERROR: Some placeholders not replaced!"
+          JS="app/src/main/assets/js"
+          FAIL=0
+          for f in "$JS/config.js" "$JS/written.js"; do
+            if grep -q "%%" "$f"; then
+              echo "ERROR: Placeholders not replaced in $f"
+              grep "%%" "$f"
+              FAIL=1
+            fi
+          done
+          [ $FAIL -eq 0 ] && echo "All keys OK ✅" || exit 1
+
+      # ── Bundle + Minify + Obfuscate ────────────────────────
+      - name: Bundle, Minify & Obfuscate JS
+        run: |
+          chmod +x scripts/build.sh
+          bash scripts/build.sh
+
+      - name: Verify obfuscated bundle
+        run: |
+          BUNDLE="app/src/main/assets/js/bundle.obf.js"
+          if [ ! -f "$BUNDLE" ]; then
+            echo "ERROR: $BUNDLE not found!"
             exit 1
-          else
-            echo "All keys injected OK"
+          fi
+          SIZE=$(wc -c < "$BUNDLE")
+          echo "bundle.obf.js → $SIZE bytes ✅"
+          # Make sure source JS files are gone
+          if ls app/src/main/assets/js/*.js 2>/dev/null | grep -v bundle.obf.js; then
+            echo "WARNING: Source JS files still present"
           fi
 
+      # ── Gradle Build ───────────────────────────────────────
       - name: Build Debug APK
         run: gradle assembleDebug
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: Smart-Study-Debug-APK
+          name: SmartStudy-Debug-b${{ github.run_number }}
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
@@ -82,43 +124,45 @@ jobs:
             -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
 
       - name: Rename APK
-        run: mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/SmartStudy.apk
+        run: mv app/build/outputs/apk/release/app-release.apk \
+                app/build/outputs/apk/release/SmartStudy.apk
 
       - name: Upload Signed Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: Smart-Study-Release-SIGNED
+          name: SmartStudy-Release-SIGNED-b${{ github.run_number }}
           path: app/build/outputs/apk/release/SmartStudy.apk
           if-no-files-found: error
 
-      # ── Auto GitHub Release ──────────────────────────────
+      # ── GitHub Release ─────────────────────────────────────
       - name: Get version info
         id: version
         run: |
-          VERSION=$(grep "versionName" app/build.gradle | sed 's/.*"\(.*\)".*/\1/' | tr -d '[:space:]')
+          VERSION=$(grep "versionName" app/build.gradle \
+            | sed 's/.*"\(.*\)".*/\1/' | tr -d '[:space:]')
           BUILD=${{ github.run_number }}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "build=$BUILD" >> $GITHUB_OUTPUT
-          echo "tag=v${VERSION}-build${BUILD}" >> $GITHUB_OUTPUT
+          echo "version=$VERSION"   >> $GITHUB_OUTPUT
+          echo "build=$BUILD"       >> $GITHUB_OUTPUT
+          echo "tag=v${VERSION}-b${BUILD}" >> $GITHUB_OUTPUT
 
-      - name: Create GitHub Release with APK
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
-          name: "Smart Study BD v${{ steps.version.outputs.version }} (Build ${{ steps.version.outputs.build }})"
+          name: "Smart Study v${{ steps.version.outputs.version }} (Build ${{ steps.version.outputs.build }})"
           body: |
-            ## 📚 Smart Study BD v${{ steps.version.outputs.version }}
+            ## 📚 Smart Study v${{ steps.version.outputs.version }}
 
-            ### ডাউনলোড করো
-            নিচের **SmartStudy.apk** ফাইলে ক্লিক করো।
+            ### ডাউনলোড
+            নিচের **SmartStudy.apk** তে ক্লিক করো।
 
-            ### ইনস্টল করার নিয়ম
+            ### ইনস্টল
             1. APK download করো
-            2. ফোনে **Unknown sources** চালু করো
-            3. APK install করো
+            2. **Unknown sources** চালু করো
+            3. Install করো
 
             ---
-            🔨 Build: #${{ steps.version.outputs.build }}
+            🔨 Build #${{ steps.version.outputs.build }}
             📅 ${{ github.event.head_commit.timestamp }}
             💬 ${{ github.event.head_commit.message }}
           files: app/build/outputs/apk/release/SmartStudy.apk
