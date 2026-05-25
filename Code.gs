@@ -198,14 +198,32 @@ function syncToFirebase(sheetName, folderName) {
     var fbData = fbSh.getDataRange().getValues();
     if (fbData.length < 2) return;
     var fbHdr = fbData[0];
-    var jsonData = [];
-    for (var i=1;i<fbData.length;i++) {
-      var rec={};
-      for (var j=0;j<fbHdr.length;j++) {
-        var k=fbHdr[j].toString().trim();
-        if (k) { var v=fbData[i][j]; rec[k]=(v instanceof Date)?Utilities.formatDate(v,"GMT+6","dd-MM-yyyy HH:mm:ss"):v; }
+
+    // Reports — keyed object দিয়ে save করো (row number key)
+    // এতে specific row delete করা যাবে
+    if (sheetName === "Reports") {
+      var keyedData = {};
+      for (var i=1;i<fbData.length;i++) {
+        var rec={};
+        for (var j=0;j<fbHdr.length;j++) {
+          var k=fbHdr[j].toString().trim();
+          if(k){ var v=fbData[i][j]; rec[k]=(v instanceof Date)?Utilities.formatDate(v,"GMT+6","dd-MM-yyyy HH:mm:ss"):v.toString(); }
+        }
+        // key = "row_X" — unique এবং row number track করে
+        keyedData["row_"+i] = rec;
       }
-      jsonData.push(rec);
+      UrlFetchApp.fetch(cfg.FIREBASE_URL+folderName+".json?auth="+cfg.SECRET_KEY, {method:"put",contentType:"application/json",payload:JSON.stringify(keyedData)});
+      return;
+    }
+
+    var jsonData = [];
+    for (var i2=1;i2<fbData.length;i2++) {
+      var rec2={};
+      for (var j2=0;j2<fbHdr.length;j2++) {
+        var k2=fbHdr[j2].toString().trim();
+        if (k2) { var v2=fbData[i2][j2]; rec2[k2]=(v2 instanceof Date)?Utilities.formatDate(v2,"GMT+6","dd-MM-yyyy HH:mm:ss"):v2; }
+      }
+      jsonData.push(rec2);
     }
     UrlFetchApp.fetch(cfg.FIREBASE_URL+folderName+".json?auth="+cfg.SECRET_KEY, { method:"put", contentType:"application/json", payload:JSON.stringify(jsonData) });
   } catch(e){ console.log("Firebase Error: "+e.toString()); }
@@ -300,6 +318,81 @@ function doGet(e) {
       }
     }
     return json({result:"error",error:"User not found: "+phone});
+  }
+
+  // ── deleteReport ── report solve হলে Firebase + Sheet থেকে মুছে দাও
+  if (action==="deleteReport") {
+    var cfg3=getProps();
+    var key=(e.parameter.key||"").toString().trim();
+    if(!key) return json({result:"error",error:"key missing"});
+
+    // 1. Firebase থেকে delete করো
+    try{
+      UrlFetchApp.fetch(cfg3.FIREBASE_URL+"Reports/"+key+".json?auth="+cfg3.SECRET_KEY,{method:"delete",muteHttpExceptions:true});
+    }catch(fe){Logger.log("FB delete error: "+fe);}
+
+    // 2. Sheet থেকে delete করো
+    var ss2=SpreadsheetApp.getActiveSpreadsheet();
+    var rs=ss2.getSheetByName("Reports");
+    if(rs){
+      // key format: "row_X" → row index X, or plain number
+      var rowNum = -1;
+      if(key.indexOf("row_")===0){
+        rowNum = parseInt(key.replace("row_",""),10);
+      } else if(!isNaN(parseInt(key,10))){
+        rowNum = parseInt(key,10);
+      }
+      if(rowNum>=1 && rowNum<rs.getLastRow()){
+        rs.deleteRow(rowNum+1); // +1 because header is row 1
+      }
+    }
+
+    // 3. Firebase Reports resync
+    try{syncToFirebase("Reports","Reports");}catch(_){}
+    return json({result:"success",key:key});
+  }
+
+  // ── renameField ── subject/topic rename across sheet
+  if (action==="renameField") {
+    var shName=e.parameter.sheet||"QBank";
+    var field=decodeURIComponent(e.parameter.field||"subject");
+    var oldV=decodeURIComponent(e.parameter.oldVal||"");
+    var newV=decodeURIComponent(e.parameter.newVal||"");
+    if(!oldV||!newV) return json({result:"error",error:"missing values"});
+    var ss3=SpreadsheetApp.getActiveSpreadsheet();
+    var sh3=ss3.getSheetByName(shName);
+    if(!sh3) return json({result:"error",error:"sheet not found"});
+    var d3=sh3.getDataRange().getValues();
+    var h3=d3[0];
+    var fIdx=h3.findIndex ? h3.findIndex(function(h){return h.toString().toLowerCase()===field.toLowerCase();}) : -1;
+    if(fIdx<0) return json({result:"error",error:"field not found"});
+    var count=0;
+    for(var i3=1;i3<d3.length;i3++){
+      if(d3[i3][fIdx].toString().trim()===oldV.trim()){
+        sh3.getRange(i3+1,fIdx+1).setValue(newV);
+        count++;
+      }
+    }
+    return json({result:"success",count:count});
+  }
+
+  // ── deleteByIds ── delete questions by id list
+  if (action==="deleteByIds") {
+    var shName2=e.parameter.sheet||"QBank";
+    var ids=(decodeURIComponent(e.parameter.ids||"")).split(",").map(function(x){return x.trim();}).filter(Boolean);
+    if(!ids.length) return json({result:"error",error:"no ids"});
+    var ss4=SpreadsheetApp.getActiveSpreadsheet();
+    var sh4=ss4.getSheetByName(shName2);
+    if(!sh4) return json({result:"error",error:"sheet not found"});
+    var d4=sh4.getDataRange().getValues();
+    var h4=d4[0];
+    var idIdx=h4.findIndex ? h4.findIndex(function(h){return h.toString().toLowerCase()==="id"||h.toString().toLowerCase()==="sl";}) : -1;
+    var deleted=0;
+    for(var i4=d4.length-1;i4>=1;i4--){
+      var rowId=idIdx>=0?d4[i4][idIdx].toString():"";
+      if(ids.indexOf(rowId)>=0){sh4.deleteRow(i4+1);deleted++;}
+    }
+    return json({result:"success",deleted:deleted});
   }
 
   // ── adminNotify ── admin কে FCM notify করো (new signup / login)
