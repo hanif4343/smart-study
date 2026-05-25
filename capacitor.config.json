@@ -1,0 +1,25 @@
+{
+  "appId": "com.hanif.smart_study",
+  "appName": "Smart Study",
+  "webDir": "app/src/main/assets",
+  "android": {
+    "minWebViewVersion": 60,
+    "backgroundColor": "#4f46e5",
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "server": {
+    "androidScheme": "file",
+    "cleartext": false
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_notification",
+      "iconColor": "#4f46e5"
+    }
+  }
+}
