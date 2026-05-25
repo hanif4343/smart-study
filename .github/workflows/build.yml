@@ -13,61 +13,63 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ── Node.js (JS bundling) ──────────────────────────────
+      # ── Node.js ────────────────────────────────────────────
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          # cache: npm  ← বন্ধ রাখো, package-lock দরকার হয়
 
       - name: Install JS build tools
-        run: npm install
+        run: npm install --no-audit --no-fund
 
-      # ── Java / Android ─────────────────────────────────────
+      # ── Java ───────────────────────────────────────────────
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: 'gradle'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.4'
+      # ── Gradle wrapper jar (repo তে নেই, download করো) ────
+      - name: Download Gradle wrapper jar
+        run: |
+          mkdir -p gradle/wrapper
+          curl -sL "https://github.com/gradle/gradle/raw/v8.4.0/gradle/wrapper/gradle-wrapper.jar"             -o gradle/wrapper/gradle-wrapper.jar             || wget -q "https://github.com/gradle/gradle/raw/v8.4.0/gradle/wrapper/gradle-wrapper.jar"             -O gradle/wrapper/gradle-wrapper.jar
+          echo "Wrapper jar: $(wc -c < gradle/wrapper/gradle-wrapper.jar) bytes"
 
+      # ── Android SDK ────────────────────────────────────────
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Accept Android licenses
-        run: yes | sdkmanager --licenses || true
-
-      - name: Install Android build tools
-        run: sdkmanager "build-tools;34.0.0" "platforms;android-34" "platform-tools"
+      - name: Accept licenses & install SDK
+        run: |
+          yes | sdkmanager --licenses 2>/dev/null || true
+          sdkmanager "build-tools;34.0.0" "platforms;android-34"
 
       # ── Secrets ────────────────────────────────────────────
       - name: Create google-services.json
         run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > app/google-services.json
 
       - name: Decode Keystore
-        run: echo '${{ secrets.KEYSTORE_BASE64 }}' | base64 -d > app/smartstudy.jks
+        run: |
+          echo '${{ secrets.KEYSTORE_BASE64 }}' | base64 --decode > app/smartstudy.jks
+          echo "Keystore size: $(wc -c < app/smartstudy.jks) bytes"
 
       # ── Version ────────────────────────────────────────────
-      - name: Auto increment versionCode
+      - name: Set versionCode
         run: |
-          RUN=${{ github.run_number }}
-          sed -i "s/versionCode [0-9]*/versionCode $RUN/" app/build.gradle
-          echo "versionCode → $RUN"
+          sed -i "s/versionCode [0-9]*/versionCode ${{ github.run_number }}/" app/build.gradle
+          echo "versionCode → ${{ github.run_number }}"
 
-      # ── Inject API keys BEFORE bundling ────────────────────
-      - name: Inject API keys into JS files
+      # ── Inject secrets BEFORE bundling ─────────────────────
+      - name: Inject API keys
         run: |
           JS="app/src/main/assets/js"
-          # config.js
           sed -i "s|%%FIREBASE_URL%%|${{ secrets.FIREBASE_URL }}|g"     "$JS/config.js"
           sed -i "s|%%SECRET_KEY%%|${{ secrets.SECRET_KEY }}|g"         "$JS/config.js"
           sed -i "s|%%GAS_URL%%|${{ secrets.GAS_URL }}|g"               "$JS/config.js"
           sed -i "s|%%ADMIN_PHONE%%|${{ secrets.ADMIN_PHONE }}|g"       "$JS/config.js"
-          # written.js (Gemini AI answer check)
           sed -i "s|%%GEMINI_API_KEY%%|${{ secrets.GEMINI_API_KEY }}|g" "$JS/written.js"
           echo "Keys injected ✅"
 
@@ -77,7 +79,7 @@ jobs:
           FAIL=0
           for f in "$JS/config.js" "$JS/written.js"; do
             if grep -q "%%" "$f"; then
-              echo "ERROR: Placeholders not replaced in $f"
+              echo "ERROR: unreplaced placeholders in $f"
               grep "%%" "$f"
               FAIL=1
             fi
@@ -86,27 +88,21 @@ jobs:
 
       # ── Bundle + Minify + Obfuscate ────────────────────────
       - name: Bundle, Minify & Obfuscate JS
-        run: |
-          chmod +x scripts/build.sh
-          bash scripts/build.sh
+        run: bash scripts/build.sh
 
-      - name: Verify obfuscated bundle
+      - name: Verify bundle
         run: |
           BUNDLE="app/src/main/assets/js/bundle.obf.js"
-          if [ ! -f "$BUNDLE" ]; then
-            echo "ERROR: $BUNDLE not found!"
-            exit 1
-          fi
-          SIZE=$(wc -c < "$BUNDLE")
-          echo "bundle.obf.js → $SIZE bytes ✅"
-          # Make sure source JS files are gone
-          if ls app/src/main/assets/js/*.js 2>/dev/null | grep -v bundle.obf.js; then
-            echo "WARNING: Source JS files still present"
-          fi
+          [ -f "$BUNDLE" ] || { echo "ERROR: bundle not found!"; exit 1; }
+          echo "bundle.obf.js → $(wc -c < $BUNDLE) bytes ✅"
 
-      # ── Gradle Build ───────────────────────────────────────
+      # ── Gradle permission ──────────────────────────────────
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      # ── Debug APK ──────────────────────────────────────────
       - name: Build Debug APK
-        run: gradle assembleDebug
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
@@ -115,56 +111,49 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
+      # ── Release APK ────────────────────────────────────────
       - name: Build Signed Release APK
         run: |
-          gradle assembleRelease \
+          ./gradlew assembleRelease --no-daemon --stacktrace \
             -Pandroid.injected.signing.store.file=${{ github.workspace }}/app/smartstudy.jks \
             -Pandroid.injected.signing.store.password=${{ secrets.STORE_PASSWORD }} \
             -Pandroid.injected.signing.key.alias=smartstudy \
             -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
 
       - name: Rename APK
-        run: mv app/build/outputs/apk/release/app-release.apk \
-                app/build/outputs/apk/release/SmartStudy.apk
+        run: |
+          mv app/build/outputs/apk/release/app-release.apk \
+             app/build/outputs/apk/release/SmartStudy.apk
 
-      - name: Upload Signed Release APK
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: SmartStudy-Release-SIGNED-b${{ github.run_number }}
+          name: SmartStudy-Release-b${{ github.run_number }}
           path: app/build/outputs/apk/release/SmartStudy.apk
           if-no-files-found: error
 
       # ── GitHub Release ─────────────────────────────────────
-      - name: Get version info
-        id: version
+      - name: Get version name
+        id: ver
         run: |
-          VERSION=$(grep "versionName" app/build.gradle \
-            | sed 's/.*"\(.*\)".*/\1/' | tr -d '[:space:]')
-          BUILD=${{ github.run_number }}
-          echo "version=$VERSION"   >> $GITHUB_OUTPUT
-          echo "build=$BUILD"       >> $GITHUB_OUTPUT
-          echo "tag=v${VERSION}-b${BUILD}" >> $GITHUB_OUTPUT
+          VER=$(grep versionName app/build.gradle | sed 's/.*"\(.*\)".*/\1/' | tr -d ' ')
+          echo "name=$VER" >> $GITHUB_OUTPUT
+          echo "tag=v${VER}-b${{ github.run_number }}" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: "Smart Study v${{ steps.version.outputs.version }} (Build ${{ steps.version.outputs.build }})"
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: "Smart Study v${{ steps.ver.outputs.name }} (Build ${{ github.run_number }})"
           body: |
-            ## 📚 Smart Study v${{ steps.version.outputs.version }}
+            ## 📚 Smart Study v${{ steps.ver.outputs.name }}
 
-            ### ডাউনলোড
-            নিচের **SmartStudy.apk** তে ক্লিক করো।
+            নিচের **SmartStudy.apk** ডাউনলোড করো।
 
-            ### ইনস্টল
-            1. APK download করো
-            2. **Unknown sources** চালু করো
-            3. Install করো
+            **ইনস্টল:** APK ডাউনলোড → Unknown sources চালু → Install
 
             ---
-            🔨 Build #${{ steps.version.outputs.build }}
-            📅 ${{ github.event.head_commit.timestamp }}
-            💬 ${{ github.event.head_commit.message }}
+            🔨 Build #${{ github.run_number }} | 💬 ${{ github.event.head_commit.message }}
           files: app/build/outputs/apk/release/SmartStudy.apk
           make_latest: true
         env:
