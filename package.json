@@ -1,0 +1,19 @@
+{
+  "name": "smart-study",
+  "version": "1.0.0",
+  "description": "Smart Study BD — Android WebView App",
+  "private": true,
+  "scripts": {
+    "build": "bash scripts/build.sh",
+    "build:watch": "nodemon --watch app/src/main/assets/js --ext js --exec 'bash scripts/build.sh'",
+    "lint": "eslint app/src/main/assets/js/ --ext .js",
+    "clean": "rm -f app/src/main/assets/js/bundle*.js"
+  },
+  "devDependencies": {
+    "terser": "^5.31.0",
+    "javascript-obfuscator": "^4.1.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
