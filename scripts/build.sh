@@ -1,7 +1,4 @@
 #!/bin/bash
-# Smart Study — JS Bundle + Minify + Obfuscate
-# Called from GitHub Actions after: npm install
-
 set -e
 
 ASSETS="app/src/main/assets"
@@ -10,18 +7,16 @@ BUNDLE="$JS_DIR/bundle.js"
 BUNDLE_MIN="$JS_DIR/bundle.min.js"
 BUNDLE_OBF="$JS_DIR/bundle.obf.js"
 
-# Use local node_modules if available, else global
-TERSER="$(npm bin)/terser"
-OBFUSCATOR="$(npm bin)/javascript-obfuscator"
-[ ! -f "$TERSER" ] && TERSER="terser"
-[ ! -f "$OBFUSCATOR" ] && OBFUSCATOR="javascript-obfuscator"
+# Local bin (after npm install)
+TERSER="./node_modules/.bin/terser"
+OBFUSCATOR="./node_modules/.bin/javascript-obfuscator"
 
 echo "==============================="
 echo " Smart Study JS Build Pipeline"
 echo "==============================="
 
 echo ""
-echo "📦 [1/5] Concatenating JS files..."
+echo "📦 [1/5] Concatenating JS..."
 cat \
   "$JS_DIR/config.js" \
   "$JS_DIR/firebase.js" \
@@ -45,12 +40,12 @@ cat \
   "$JS_DIR/review.js" \
   "$JS_DIR/visual_flashcard.js" \
   > "$BUNDLE"
-echo "  Raw: $(wc -c < $BUNDLE) bytes ($(wc -l < $BUNDLE) lines)"
+echo "  Raw: $(wc -c < $BUNDLE) bytes"
 
 echo ""
-echo "🗜️  [2/5] Minifying with Terser..."
+echo "🗜️  [2/5] Minifying..."
 $TERSER "$BUNDLE" \
-  --compress passes=3,drop_console=false,pure_getters=true,unsafe_math=false \
+  --compress passes=2,pure_getters=true \
   --mangle toplevel=false \
   --output "$BUNDLE_MIN"
 echo "  Minified: $(wc -c < $BUNDLE_MIN) bytes"
@@ -69,7 +64,6 @@ $OBFUSCATOR "$BUNDLE_MIN" \
   --string-array-threshold 0.75 \
   --rename-globals false \
   --self-defending true \
-  --disable-console-output false \
   --source-map false
 echo "  Obfuscated: $(wc -c < $BUNDLE_OBF) bytes"
 
@@ -78,7 +72,7 @@ echo "🔗 [4/5] Updating index.html..."
 python3 scripts/update_html.py
 
 echo ""
-echo "🧹 [5/5] Cleaning source files..."
+echo "🧹 [5/5] Cleaning source JS..."
 rm -f "$BUNDLE" "$BUNDLE_MIN"
 for f in config firebase home typing quiz media xp notification theme \
           flashcard utils written auth leaderboard spacedrep revision \
@@ -86,10 +80,8 @@ for f in config firebase home typing quiz media xp notification theme \
   rm -f "$JS_DIR/${f}.js"
 done
 
+OBF_SIZE=$(wc -c < "$BUNDLE_OBF")
 echo ""
 echo "==============================="
-echo " ✅ Build complete!"
-ORIG=$(cat $JS_DIR/../js/*.js 2>/dev/null | wc -c || echo 0)
-OBF=$(wc -c < "$BUNDLE_OBF")
-echo "   Output: bundle.obf.js ($OBF bytes)"
+echo " ✅ Done! bundle.obf.js = $OBF_SIZE bytes"
 echo "==============================="
