@@ -654,10 +654,10 @@ function showStatsPage() {
                 console.error('renderHome error:', e);
             }
 
-            // Background এ DB load
+            // Background এ DB load — 50ms (DOM paint হওয়ার জন্য)
             setTimeout(function() {
                 try { if(!isLoggedIn()){hideSplash();showAuthScreen('login');}else{initApp();} } catch(e){ console.error('initApp error:',e); }
-            }, 500);
+            }, 50);
         });
 
 // ====================================================
