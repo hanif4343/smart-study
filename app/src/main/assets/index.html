@@ -11,8 +11,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Smart Study</title>
+    <!-- Preconnect: CDN গুলো আগে থেকে connect করো -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Fonts: non-blocking load -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;700;800&display=swap" rel="stylesheet"></noscript>
+    <!-- Tailwind: defer করা যাবে না (inline styles লাগবে), কিন্তু cache করা হবে SW দিয়ে -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="icon" type="image/jpeg" href="https://i.postimg.cc/QMcM9t0b/icon.jpg?v=1">
     <link rel="apple-touch-icon" href="https://i.postimg.cc/QMcM9t0b/icon.jpg?v=1">
     <link rel="shortcut icon" href="https://i.postimg.cc/QMcM9t0b/icon.jpg?v=1">
@@ -175,7 +182,7 @@
             }
         };
     </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/core-js/3.37.0/minified.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/core-js/3.37.0/minified.min.js" defer></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
     <style>
@@ -422,7 +429,8 @@
         .wrong { background: #fee2e2 !important; border-color: #ef4444 !important; color: #991b1b !important; }
         
         .nav-container { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); display: flex; padding: 8px 10px; padding-bottom: max(env(safe-area-inset-bottom, 10px), 10px); border-top: 1px solid rgba(0,0,0,0.05); z-index: 1000; justify-content: space-around; min-height: 60px; }
-        .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94a3b8; font-weight: 700; font-size: 14px; width: 22%; height: 55px; border-radius: 12px; transition: 0.3s; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; color: #94a3b8; font-weight: 700; font-size: 14px; width: 22%; height: 55px; border-radius: 12px; transition: background 0.2s, color 0.2s, transform 0.1s; cursor: pointer; }
+        .nav-item:active { transform: scale(0.88); }
         .nav-item span:first-child { font-size: 22px; margin-bottom: 2px; }
 
         .active-study { background: #eef2ff !important; color: #4f46e5 !important; }
