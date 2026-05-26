@@ -70,13 +70,14 @@ jobs:
           sed -i "s|%%GAS_URL%%|${{ secrets.GAS_URL }}|g"               "$JS/config.js"
           sed -i "s|%%ADMIN_PHONE%%|${{ secrets.ADMIN_PHONE }}|g"       "$JS/config.js"
           sed -i "s|%%GEMINI_API_KEY%%|${{ secrets.GEMINI_API_KEY }}|g" "$JS/written.js"
+          sed -i "s|%%IMGBB_KEY%%|${{ secrets.IMGBB_KEY }}|g"               "$JS/home.js"
           echo "Keys injected ✅"
 
       - name: Verify keys injected
         run: |
           JS="app/src/main/assets/js"
           FAIL=0
-          for f in "$JS/config.js" "$JS/written.js"; do
+          for f in "$JS/config.js" "$JS/written.js" "$JS/home.js"; do
             if grep -q "%%" "$f"; then
               echo "ERROR: unreplaced placeholders in $f"
               grep "%%" "$f"
