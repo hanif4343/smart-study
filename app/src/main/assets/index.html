@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
+    <!-- Performance hints -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="dns-prefetch" href="https://firebaseio.com">
+    <link rel="dns-prefetch" href="https://script.google.com">
+    <link rel="preconnect" href="https://firebaseio.com">
+    <meta http-equiv="x-dns-prefetch-control" content="on">
     <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -2418,6 +2424,39 @@
 @keyframes rfcPop{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
 @keyframes rfcSlideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes rfcOptIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+
+        /* ── Performance: GPU acceleration ─────────────────── */
+        * { -webkit-tap-highlight-color: transparent; }
+        
+        button, [onclick], .card {
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+            will-change: opacity;
+            cursor: pointer;
+        }
+        
+        /* Instant touch response */
+        button:active, [onclick]:active {
+            opacity: 0.7 !important;
+            transition: opacity 0.05s;
+        }
+        
+        /* Smooth scrolling */
+        #main-view, .overflow-y-auto, .overflow-auto {
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+        }
+        
+        /* Prevent layout shift on load */
+        #main-view {
+            min-height: 100vh;
+            contain: layout style;
+        }
+        
+        /* Image lazy loading */
+        img {
+            content-visibility: auto;
+        }
 </style>
 
 </body>
