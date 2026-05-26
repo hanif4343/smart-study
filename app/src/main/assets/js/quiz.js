@@ -250,8 +250,8 @@ function renderView() {
              var stItems = filtered.filter(function(f){ return getVal(f,'sub_topic') === st; });
              var stProg = getSubTopicProgress(path[0], st, currentMode);
              var stColor = stProg.pct >= 80 ? '#10b981' : stProg.pct >= 50 ? '#6366f1' : stProg.pct >= 20 ? '#f59e0b' : '#e2e8f0';
-             var safeSt = st.replace(/'/g, "\\'");
-             return '<div onclick="showQuestions(\'' + safeSt + '\')" class="card">'
+             var safeSt = encodeURIComponent(st);
+             return '<div onclick="showQuestions(decodeURIComponent(this.dataset.st))" data-st="' + safeSt + '" class="card">'
                  + '<div class="flex justify-between items-center">'
                  + '<span class="font-bold text-sm">' + st + '</span>'
                  + '<div class="flex items-center gap-2">'
@@ -266,11 +266,11 @@ function renderView() {
             const stList = [...new Set(filtered.map(i => getVal(i, 'sub_topic')))].filter(x => x);
             container.innerHTML = '<div class="space-y-3">' + stList.map(function(st) {
                 var stItems = filtered.filter(function(f){ return getVal(f,'sub_topic') === st; });
-                var safeSt = st.replace(/'/g, "\\'");
+                var safeSt = encodeURIComponent(st);
                 var qCount = stItems.length;
                 if(currentMode === 'study') {
                     // Study: সিম্পল কার্ড, progress bar নেই
-                    return '<div onclick="showQuestions(\'' + safeSt + '\')" class="card flex justify-between items-center">'
+                    return '<div onclick="showQuestions(decodeURIComponent(this.dataset.st))" data-st="' + safeSt + '" class="card flex justify-between items-center">'
                         + '<span class="font-bold text-sm">' + st + '</span>'
                         + '<span class="text-[10px] bg-gray-100 px-2 py-1 rounded text-gray-400">' + qCount + '</span>'
                         + '</div>';
@@ -278,7 +278,7 @@ function renderView() {
                 // Quiz/QBank: progress bar সহ
                 var stProg = getSubTopicProgress(path[0], st, currentMode);
                 var stColor = stProg.pct >= 80 ? '#10b981' : stProg.pct >= 50 ? '#6366f1' : stProg.pct >= 20 ? '#f59e0b' : '#e2e8f0';
-                return '<div onclick="showQuestions(\'' + safeSt + '\')" class="card">'
+                return '<div onclick="showQuestions(decodeURIComponent(this.dataset.st))" data-st="' + safeSt + '" class="card">'
                     + '<div class="flex justify-between items-center">'
                     + '<span class="font-bold text-sm">' + st + '</span>'
                     + '<div class="flex items-center gap-2">'
