@@ -18,7 +18,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          # cache: npm  ← বন্ধ রাখো, package-lock দরকার হয়
 
       - name: Install JS build tools
         run: npm install --no-audit --no-fund
@@ -31,11 +30,11 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      # ── Gradle wrapper jar (repo তে নেই, download করো) ────
+      # ── Gradle wrapper jar ─────────────────────────────────
       - name: Download Gradle wrapper jar
         run: |
           mkdir -p gradle/wrapper
-          curl -sL "https://github.com/gradle/gradle/raw/v8.4.0/gradle/wrapper/gradle-wrapper.jar"             -o gradle/wrapper/gradle-wrapper.jar             || wget -q "https://github.com/gradle/gradle/raw/v8.4.0/gradle/wrapper/gradle-wrapper.jar"             -O gradle/wrapper/gradle-wrapper.jar
+          curl -sL "https://github.com/gradle/gradle/raw/v8.4.0/gradle/wrapper/gradle-wrapper.jar" -o gradle/wrapper/gradle-wrapper.jar
           echo "Wrapper jar: $(wc -c < gradle/wrapper/gradle-wrapper.jar) bytes"
 
       # ── Android SDK ────────────────────────────────────────
@@ -86,28 +85,15 @@ jobs:
           done
           [ $FAIL -eq 0 ] && echo "All keys OK ✅" || exit 1
 
-      # ── Tailwind: CDN replace with local purged CSS ──────────
+      # ── Tailwind: CDN replace with local purged CSS ─────────
       - name: Build local Tailwind CSS
         run: |
-          # Tailwind standalone CLI download
           curl -sLo tailwindcss https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64
           chmod +x tailwindcss
-
-          # Minimal tailwind config for purging
-          cat > tailwind.config.js << 'TWEOF'
-          module.exports = {
-            content: ['app/src/main/assets/index.html'],
-            theme: { extend: {} },
-            plugins: [],
-          }
-TWEOF
-
-          # Generate purged CSS
-          ./tailwindcss -c tailwind.config.js             -o app/src/main/assets/tailwind.css             --minify
+          printf 'module.exports={content:["app/src/main/assets/index.html"],theme:{extend:{}},plugins:[]}\n' > tailwind.config.js
+          ./tailwindcss -c tailwind.config.js -o app/src/main/assets/tailwind.css --minify
           echo "Tailwind CSS: $(wc -c < app/src/main/assets/tailwind.css) bytes"
-
-          # Update index.html: replace CDN with local
-          sed -i 's|<script src="https://cdn.tailwindcss.com"></script>|<link rel="stylesheet" href="tailwind.css">|'             app/src/main/assets/index.html
+          sed -i 's|<script src="https://cdn.tailwindcss.com"></script>|<link rel="stylesheet" href="tailwind.css">|' app/src/main/assets/index.html
           echo "Tailwind CDN replaced with local ✅"
 
       # ── Bundle + Minify + Obfuscate ────────────────────────
@@ -171,11 +157,8 @@ TWEOF
           name: "Smart Study v${{ steps.ver.outputs.name }} (Build ${{ github.run_number }})"
           body: |
             ## 📚 Smart Study v${{ steps.ver.outputs.name }}
-
             নিচের **SmartStudy.apk** ডাউনলোড করো।
-
             **ইনস্টল:** APK ডাউনলোড → Unknown sources চালু → Install
-
             ---
             🔨 Build #${{ github.run_number }} | 💬 ${{ github.event.head_commit.message }}
           files: app/build/outputs/apk/release/SmartStudy.apk
