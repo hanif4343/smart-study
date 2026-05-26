@@ -143,6 +143,18 @@ jobs:
           path: app/build/outputs/apk/release/SmartStudy.apk
           if-no-files-found: error
 
+      # ── AAB (Play Store) ──────────────────────────────────
+      - name: Build Release AAB (Play Store)
+        run: |
+          ./gradlew bundleRelease --no-daemon             -Pandroid.injected.signing.store.file=${{ github.workspace }}/app/smartstudy.jks             -Pandroid.injected.signing.store.password=${{ secrets.STORE_PASSWORD }}             -Pandroid.injected.signing.key.alias=smartstudy             -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: SmartStudy-PlayStore-AAB-b${{ github.run_number }}
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: warn
+
       # ── GitHub Release ─────────────────────────────────────
       - name: Get version name
         id: ver
