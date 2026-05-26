@@ -10,7 +10,24 @@ function updateUIMode(m) {
     };
     document.getElementById('main-header').style.backgroundColor = colors[m] || '#6366f1';
     const names = {home:'Smart Study', study:'স্টাডি জোন', quiz:'কুইজ জোন', qbank:'প্রশ্ন ব্যাংক', menu:'প্রোফাইল'};
-    document.getElementById('zone-title').innerText = names[m] || 'Smart Study';
+
+    // Breadcrumb: path থাকলে subject/subtopic header এ দেখাও
+    var titleEl = document.getElementById('zone-title');
+    var subtitleEl = document.querySelector('#header-static p');
+    if (typeof path !== 'undefined' && path.length > 0) {
+        if (path.length === 1) {
+            titleEl.textContent = path[0];
+            if (subtitleEl) subtitleEl.textContent = names[m] || m;
+        } else if (path.length >= 2) {
+            var st = path[path.length - 1];
+            titleEl.textContent = st.length > 22 ? st.substring(0, 20) + '\u2026' : st;
+            if (subtitleEl) subtitleEl.textContent = path[0];
+        }
+    } else {
+        titleEl.textContent = names[m] || 'Smart Study';
+        if (subtitleEl) subtitleEl.textContent = 'Smart Study';
+    }
+
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active-home','active-study','active-quiz','active-qbank','active-menu'));
     if(document.getElementById('nav-'+m)) document.getElementById('nav-'+m).classList.add('active-'+m);
 }
