@@ -65,7 +65,7 @@ function homePickPhoto() {
                     showToast('⏳ ছবি upload হচ্ছে...');
 
                     // Upload to ImgBB — API key সরাসরি ব্যবহার
-                    var IMGBB_KEY = '3f23d9fd6bdfdb694285773f40569906';
+                    var IMGBB_KEY = '%%IMGBB_KEY%%';
                     var fd = new FormData();
                     fd.append('image', b64only);
                     fetch('https://api.imgbb.com/1/upload?key=' + IMGBB_KEY, { method: 'POST', body: fd })
@@ -109,7 +109,29 @@ function homePickPhoto() {
     }
 }
 
+// ── renderHome memoize cache ──────────────────────────────
+var _homeRenderKey = '';
+var _allQForReviewCache = null;
+var _allQForReviewDataLen = 0;
+
 function renderHome(container) {
+    // Memoize: same data → skip full re-render, only update dynamic parts
+    var _newKey = [
+        localStorage.getItem('home_user_name')||'',
+        localStorage.getItem('user_xp_'+(currentUser&&currentUser.phone||''))||'0',
+        (fullData['QBank']||[]).length,
+        (fullData['Study']||[]).length,
+        (fullData['Quiz']||[]).length,
+    ].join('|');
+
+    var _existingHome = container && container.querySelector && container.querySelector('.home-render-root');
+    if (_existingHome && _newKey === _homeRenderKey) {
+        // শুধু dynamic parts update করো — full re-render না
+        _updateHomeDynamic();
+        return;
+    }
+    _homeRenderKey = _newKey;
+
     let xpInfo = {xp:0, currentLevel:{level:1,name:'নতুন শিক্ষার্থী',emoji:'🌱',minXP:0}, nextLevel:{level:2,name:'অনুসন্ধানী',minXP:100}};
     let streak = {streak:0};
     try { if(typeof getXPInfo==='function') xpInfo=getXPInfo()||xpInfo; } catch(e){}
@@ -188,10 +210,16 @@ function renderHome(container) {
     // ── Recent wrong questions ──
     const wrongHistory = JSON.parse(localStorage.getItem('wrong_history')||'{}');
     const wrongQIds    = JSON.parse(localStorage.getItem('wrong_q_ids')||'[]');
-    const allQForReview = [...(fullData['QBank']||[]),...(fullData['Quiz']||[]),...(fullData['Study']||[])].filter(function(i){
-        var t = (i.AudienceTags||i.audiencetags||'').toString();
-        return isQuestionRelevant(t);
-    });
+    // Cache allQForReview — data change না হলে recalculate না
+    var _curDataLen = (fullData['QBank']||[]).length + (fullData['Study']||[]).length + (fullData['Quiz']||[]).length;
+    if (!_allQForReviewCache || _curDataLen !== _allQForReviewDataLen) {
+        _allQForReviewCache = [...(fullData['QBank']||[]),...(fullData['Quiz']||[]),...(fullData['Study']||[])].filter(function(i){
+            var t = (i.AudienceTags||i.audiencetags||'').toString();
+            return isQuestionRelevant(t);
+        });
+        _allQForReviewDataLen = _curDataLen;
+    }
+    const allQForReview = _allQForReviewCache;
     // Recalculate weakTopics based on actual uncorrected wrong question IDs
     const topicWrongCount = {};
     wrongQIds.forEach(function(qid) {
@@ -383,7 +411,7 @@ function renderHome(container) {
     const chalDone = parseInt(localStorage.getItem('challenge_done_'+today2)||'0');
     const chalPct  = Math.min(100, chalDone/5*100);
 
-    container.innerHTML = `<div style="padding-bottom:85px;">
+    container.innerHTML = `<div class="home-render-root" style="padding-bottom:85px;">
 
     <!-- HERO -->
     <div class="home-hero">
@@ -514,3 +542,16 @@ function renderHome(container) {
 // ⌨️  TYPING TEST — Full Overlay System
 // ═══════════════════════════════════════════
 
+
+// ── Home dynamic-only update (memoize) ──────────────────────
+function _updateHomeDynamic() {
+    // Countdown timer update
+    try {
+        var cd = document.getElementById('home-countdown-text');
+        if (cd && localStorage.getItem('exam_date')) {
+            var diff = new Date(localStorage.getItem('exam_date')) - new Date();
+            var days = Math.max(0, Math.ceil(diff / 86400000));
+            cd.textContent = days + ' দিন বাকি';
+        }
+    } catch(e) {}
+}
