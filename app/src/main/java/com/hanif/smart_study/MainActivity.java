@@ -145,6 +145,12 @@ public class MainActivity extends AppCompatActivity {
         settings.setDisplayZoomControls(false);
         settings.setGeolocationEnabled(false);
         settings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);
+        settings.setRenderPriority(WebSettings.RenderPriority.HIGH);
+        settings.setEnableSmoothTransition(true);
+        // Text rendering
+        settings.setTextZoom(100);
+        settings.setDefaultFontSize(16);
+        settings.setMinimumFontSize(10);
 
         // Security: file:// URLs — only what's needed for assets
         settings.setAllowFileAccess(true);
