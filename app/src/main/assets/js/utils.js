@@ -327,3 +327,52 @@ window.addEventListener('load', () => {
  * Strategy: delimiter গুলো খুঁজি, তারপর তাদের মাঝের অংশ text হিসেবে নিই।
  * Delimiter = লাইনের শুরুতে বা whitespace/newline এর পর আসা ক) খ) / a. b. / ১. ২. ইত্যাদি
  */
+
+// ── renderView debounce ────────────────────────────────────
+// Rapid click এ একবারই render হবে — jank বন্ধ
+var _renderViewTimer = null;
+var _renderViewOriginal = null;
+function _setupRenderDebounce() {
+    if (typeof renderView !== 'function' || _renderViewOriginal) return;
+    _renderViewOriginal = renderView;
+    window.renderView = function() {
+        if (_renderViewTimer) cancelAnimationFrame(_renderViewTimer);
+        _renderViewTimer = requestAnimationFrame(function() {
+            _renderViewOriginal();
+        });
+    };
+}
+
+// ── Instant touch feedback ─────────────────────────────────
+function _setupTouchFeedback() {
+    // Button press এ তাৎক্ষণিক visual feedback
+    document.addEventListener('touchstart', function(e) {
+        var btn = e.target.closest('button, [onclick], .card, a[href]');
+        if (btn) btn.style.opacity = '0.7';
+    }, { passive: true });
+
+    document.addEventListener('touchend', function(e) {
+        var btn = e.target.closest('button, [onclick], .card, a[href]');
+        if (btn) setTimeout(function() { btn.style.opacity = ''; }, 120);
+    }, { passive: true });
+
+    document.addEventListener('touchcancel', function(e) {
+        var btn = e.target.closest('button, [onclick], .card, a[href]');
+        if (btn) btn.style.opacity = '';
+    }, { passive: true });
+}
+
+// ── Passive scroll listeners ───────────────────────────────
+function _setupPassiveScroll() {
+    // Scroll smooth করতে passive listeners
+    window.addEventListener('scroll', function(){}, { passive: true });
+    document.addEventListener('touchmove', function(){}, { passive: true });
+}
+
+// ── Init all performance fixes ─────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    _setupTouchFeedback();
+    _setupPassiveScroll();
+    // renderView debounce: initApp এর পরে setup হবে
+    setTimeout(_setupRenderDebounce, 500);
+});
