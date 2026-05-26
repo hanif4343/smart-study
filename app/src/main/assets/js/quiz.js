@@ -574,6 +574,10 @@ function renderQuestions() {
     answeredCount = 0; 
     updateScore();
 
+    // ── Performance: once-per-render caches ──────────────────
+    const wrongHistory = JSON.parse(localStorage.getItem('wrong_history') || '{}');
+    const _savedQsSet  = new Set(savedQs.map(s => getVal(s, 'question')));
+
     let html = `<div class="space-y-4">`;
     quizItems.slice(0, displayLimit).forEach((i, idx) => {
         const qRaw = getVal(i, 'question'), 
@@ -590,9 +594,8 @@ function renderQuestions() {
               tech = parseLinksToImages(techRaw),
               correctVal = parseLinksToImages(corRaw);
 
-        const isSaved = savedQs.some(s => getVal(s, 'question') === qRaw);
+        const isSaved = _savedQsSet.has(qRaw);
         // Spaced repetition: check if this question was wrong before
-        const wrongHistory = JSON.parse(localStorage.getItem('wrong_history') || '{}');
         const subTopicKey = getVal(i,'sub_topic') || getVal(i,'subject') || '';
         const isWeakQ = wrongHistory[subTopicKey] && wrongHistory[subTopicKey] >= 2;
         
