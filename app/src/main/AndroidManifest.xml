@@ -59,7 +59,7 @@
         <!-- Default FCM Notification Channel -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="smart_study_v2"/>
+            android:value="smart_study_channel"/>
 
         <!-- Default Notification Icon -->
         <meta-data
