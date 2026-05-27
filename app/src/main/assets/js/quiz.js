@@ -4,10 +4,10 @@ var _filteredDataCache = {};
 var _filteredDataKey   = '';
 
 function _getFilteredData(sheet) {
-    // user + data change না হলে same cache দাও
     var phone = (currentUser && currentUser.phone) ? currentUser.phone : 'guest';
     var key = sheet + '|' + phone + '|' + (fullData[sheet]||[]).length;
-    if (_filteredDataKey === key && _filteredDataCache[sheet]) {
+    // per-sheet cache key
+    if (_filteredDataCache[sheet] && _filteredDataCache[sheet+'_key'] === key) {
         return _filteredDataCache[sheet];
     }
     // Once-per-change: isStrictAudienceUser + getUserAudienceTags compute করো
@@ -21,10 +21,92 @@ function _getFilteredData(sheet) {
         if (qTags.indexOf('general') !== -1) return !strict;
         return qTags.some(function(qt){ return userTags.indexOf(qt) !== -1; });
     });
-    _filteredDataKey = key;
+    _filteredDataCache[sheet+'_key'] = key;
     return _filteredDataCache[sheet];
 }
 
+
+// ── Subject list HTML pre-build cache ─────────────────────
+var _subjectListCache = {};  // mode → {html, dataLen}
+
+function _invalidateSubjectCache() {
+    _subjectListCache = {};
+}
+
+function _getSubjectListHTML(mode, data) {
+    var dataLen = data.length;
+    var cached = _subjectListCache[mode];
+    if (cached && cached.dataLen === dataLen && cached.chVersion === (localStorage.getItem('ch_version')||'0')) {
+        return cached.html;
+    }
+
+    // Build subject map O(n)
+    var subjectMap = {};
+    data.forEach(function(i) {
+        var s = getVal(i,'subject'); if(!s) return;
+        if(!subjectMap[s]) subjectMap[s] = {items:[], subTopics: new Set()};
+        subjectMap[s].items.push(i);
+        var st = getVal(i,'sub_topic'); if(st) subjectMap[s].subTopics.add(st);
+    });
+    var list = Object.keys(subjectMap);
+    var gridClass = mode === 'qbank' ? 'qbank-grid' : 'space-y-3';
+    var html = '<div class="' + gridClass + '">';
+
+    html += list.map(function(s) {
+        var sData = subjectMap[s];
+        var safeSub = encodeURIComponent(s);
+        if(mode === 'qbank') {
+            var count = sData.subTopics.size;
+            var qbProg = getSubjectProgress(s, 'qbank');
+            var pct = qbProg.pct || 0;
+            var color = pct >= 80 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#6366f1';
+            return '<div onclick="pushPath(decodeURIComponent(this.dataset.s))" data-s="'+safeSub+'" class="card">'
+                + '<div class="flex justify-between items-center mb-1">'
+                + '<span class="font-black text-sm text-gray-800">'+s+'</span>'
+                + '<span class="text-[10px] font-black" style="color:'+color+'">'+qbProg.done+'/'+qbProg.total+'</span>'
+                + '</div>'
+                + '<div class="flex justify-between items-center">'
+                + '<span class="text-xs text-gray-400">'+count+' টি অধ্যায়</span>'
+                + '<div style="width:60px;height:5px;background:#e5e7eb;border-radius:3px;">'
+                + '<div style="width:'+pct+'%;height:100%;background:'+color+';border-radius:3px;transition:width 0.3s"></div>'
+                + '</div></div></div>';
+        } else if(mode === 'study') {
+            var subjectItems = sData.items;
+            var subjProg = getSubjectProgress(s, mode);
+            var pct = subjProg.pct || 0;
+            var color = pct >= 80 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#6366f1';
+            return '<div onclick="pushPath(decodeURIComponent(this.dataset.s))" data-s="'+safeSub+'" class="card flex justify-between items-center">'
+                + '<div>'
+                + '<div class="font-black text-sm text-gray-800">'+s+'</div>'
+                + '<div class="text-xs text-gray-400 mt-0.5">'+subjectItems.length+' টি প্রশ্ন</div>'
+                + '</div>'
+                + '<div class="text-right">'
+                + '<div class="text-sm font-black" style="color:'+color+'">'+pct+'%</div>'
+                + '<div class="text-[10px] text-gray-400">'+subjProg.done+'/'+subjProg.total+'</div>'
+                + '</div></div>';
+        } else {
+            // quiz
+            var subjectItems = sData.items;
+            var subjProg = getSubjectProgress(s, mode);
+            var pct = subjProg.pct || 0;
+            var color = pct >= 80 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#6366f1';
+            return '<div onclick="pushPath(decodeURIComponent(this.dataset.s))" data-s="'+safeSub+'" class="card">'
+                + '<div class="flex justify-between items-center mb-1">'
+                + '<span class="font-black text-sm">'+s+'</span>'
+                + '<span class="text-[10px] font-black" style="color:'+color+'">'+subjProg.done+'/'+subjProg.total+'</span>'
+                + '</div>'
+                + '<div style="height:5px;background:#e5e7eb;border-radius:3px;">'
+                + '<div style="width:'+pct+'%;height:100%;background:'+color+';border-radius:3px;transition:width 0.3s"></div>'
+                + '</div>'
+                + '<div class="text-xs text-gray-400 mt-1">'+subjectItems.length+' টি প্রশ্ন</div>'
+                + '</div>';
+        }
+    }).join('');
+    html += '</div>';
+
+    _subjectListCache[mode] = { html: html, dataLen: dataLen, chVersion: localStorage.getItem('ch_version')||'0' };
+    return html;
+}
 function renderView() {
     const container = document.getElementById('main-view');
     container.innerHTML = '';
@@ -216,59 +298,9 @@ function renderView() {
     }
 
     if(path.length === 0) {
-        // ── Group by subject একবারে — O(n) not O(n²) ──
-        var _subjectMap = {};
-        data.forEach(function(i) {
-            var s = getVal(i,'subject'); if(!s) return;
-            if(!_subjectMap[s]) _subjectMap[s] = {items:[], subTopics: new Set()};
-            _subjectMap[s].items.push(i);
-            var st = getVal(i,'sub_topic'); if(st) _subjectMap[s].subTopics.add(st);
-        });
-        const list = Object.keys(_subjectMap);
-        const gridClass = currentMode === 'qbank' ? 'qbank-grid' : 'space-y-3';
-        let html = `<div class="${gridClass}">`;
-                html += list.map(s => {
-            let count;
-            var _sData = _subjectMap[s];
-            if(currentMode === 'qbank') {
-                count = _sData.subTopics.size;
-                const qbProg = getSubjectProgress(s, 'qbank');
-                return `<div onclick="pushPath('${s}')" class="qbank-main-card relative flex-col" style="padding-bottom:12px;">
-                            <span>${s}</span>
-                            <span class="text-[10px] opacity-80 font-normal mt-1">(${count} টি প্রশ্নপত্র)</span>
-                            <div style="width:90%;margin-top:8px;background:rgba(255,255,255,0.25);border-radius:4px;height:5px;overflow:hidden;">
-                                <div style="width:${qbProg.pct}%;height:100%;background:white;border-radius:4px;transition:width 0.6s;"></div>
-                            </div>
-                        </div>`;
-            } else {
-                count = _sData.items.length;
-                if(currentMode === 'study') {
-                    return `<div onclick="pushPath('${s}')" class="card flex justify-between items-center px-5 py-4">
-                                <span class="text-[16px] font-bold">${s}</span>
-                                <span class="text-gray-300">❯</span>
-                            </div>`;
-                }
-                const subjectItems = _sData.items;
-                const subjProg = getSubjectProgress(s, currentMode);
-                const progColor = subjProg.pct >= 80 ? '#10b981' : subjProg.pct >= 50 ? '#6366f1' : subjProg.pct >= 20 ? '#f59e0b' : '#e2e8f0';
-                return `<div onclick="pushPath('${s}')" class="card px-5 py-4">
-                            <div class="flex justify-between items-center">
-                                <span class="text-[16px] font-bold">${s}</span>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-[10px] font-black text-gray-400">${subjProg.done}/${count}</span>
-                                    <span class="text-gray-300">❯</span>
-                                </div>
-                            </div>
-                            <div class="topic-progress-wrap mt-2">
-                                <div class="topic-progress-fill" style="width:${subjProg.pct}%; background:${progColor};"></div>
-                            </div>
-                        </div>`;
-            }
-        }).join('');
-
-        html += `</div>`;
-        container.innerHTML = html;
-        if(currentMode === 'quiz' || currentMode === 'qbank') container.insertAdjacentHTML('beforeend', `<div class="mt-6 border-t pt-4"><p class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">স্পেশাল জোন</p><button onclick="pushPath('MockZone')" class="bg-[#059669] text-white p-4 rounded-2xl w-full font-black shadow-lg border-b-4 border-green-900 active:scale-95 transition-all flex items-center justify-center gap-2">🏆 বিষয় ভিত্তিক মক টেস্ট</button></div>`);
+        // ── Pre-built cache থেকে subject list — instant ──
+        container.innerHTML = _getSubjectListHTML(currentMode, data);
+        container.style.display = '';
     } else if(path.length === 1) {
         if(path[0] === 'MockZone') { renderMockSelection(); return; }
         const filtered = data.filter(i => getVal(i, 'subject') === path[0]);
