@@ -1,20 +1,42 @@
 /* Smart Study — quiz.js */
+// ── renderView filtered data cache ────────────────────────
+var _filteredDataCache = {};
+var _filteredDataKey   = '';
+
+function _getFilteredData(sheet) {
+    // user + data change না হলে same cache দাও
+    var phone = (currentUser && currentUser.phone) ? currentUser.phone : 'guest';
+    var key = sheet + '|' + phone + '|' + (fullData[sheet]||[]).length;
+    if (_filteredDataKey === key && _filteredDataCache[sheet]) {
+        return _filteredDataCache[sheet];
+    }
+    // Once-per-change: isStrictAudienceUser + getUserAudienceTags compute করো
+    var strict   = isStrictAudienceUser();
+    var userTags = getUserAudienceTags().map(function(t){ return t.toLowerCase(); });
+
+    _filteredDataCache[sheet] = (fullData[sheet] || []).filter(function(row) {
+        var rawTags = getVal(row, 'AudienceTags') || getVal(row, 'audiencetags') || '';
+        if (!rawTags || rawTags.trim() === '') return !strict;
+        var qTags = rawTags.split(',').map(function(t){ return t.trim().toLowerCase(); });
+        if (qTags.indexOf('general') !== -1) return !strict;
+        return qTags.some(function(qt){ return userTags.indexOf(qt) !== -1; });
+    });
+    _filteredDataKey = key;
+    return _filteredDataCache[sheet];
+}
+
 function renderView() {
     const container = document.getElementById('main-view');
     container.innerHTML = '';
 
     if (currentMode === 'home') {
         renderHome(container);
-
         return;
     }
 
     let currentSheet = (currentMode === 'quiz' ? 'Quiz' : (currentMode === 'qbank' ? 'QBank' : 'Study'));
-    // Audience filter — user type অনুযায়ী relevant প্রশ্ন
-    const data = (fullData[currentSheet] || []).filter(function(row) {
-        var tags = getVal(row, 'AudienceTags') || getVal(row, 'audiencetags') || '';
-        return isQuestionRelevant(tags);
-    });
+    // Cache-first filtered data — isQuestionRelevant বারবার call হবে না
+    const data = _getFilteredData(currentSheet);
 
     if (currentMode === 'menu') {
         // Enhanced menu with streak + weak topics
@@ -194,15 +216,22 @@ function renderView() {
     }
 
     if(path.length === 0) {
-        const list = [...new Set(data.map(i => getVal(i, 'subject')))].filter(x => x);
+        // ── Group by subject একবারে — O(n) not O(n²) ──
+        var _subjectMap = {};
+        data.forEach(function(i) {
+            var s = getVal(i,'subject'); if(!s) return;
+            if(!_subjectMap[s]) _subjectMap[s] = {items:[], subTopics: new Set()};
+            _subjectMap[s].items.push(i);
+            var st = getVal(i,'sub_topic'); if(st) _subjectMap[s].subTopics.add(st);
+        });
+        const list = Object.keys(_subjectMap);
         const gridClass = currentMode === 'qbank' ? 'qbank-grid' : 'space-y-3';
         let html = `<div class="${gridClass}">`;
                 html += list.map(s => {
             let count;
+            var _sData = _subjectMap[s];
             if(currentMode === 'qbank') {
-                // সাবজেক্টের আন্ডারে কতগুলো ইউনিক সাবটপিক আছে তা গণনা করবে
-                const subTopics = [...new Set(data.filter(i => getVal(i, 'subject') === s).map(i => getVal(i, 'sub_topic')))].filter(x => x);
-                count = subTopics.length;
+                count = _sData.subTopics.size;
                 const qbProg = getSubjectProgress(s, 'qbank');
                 return `<div onclick="pushPath('${s}')" class="qbank-main-card relative flex-col" style="padding-bottom:12px;">
                             <span>${s}</span>
@@ -212,14 +241,14 @@ function renderView() {
                             </div>
                         </div>`;
             } else {
-                count = data.filter(i => getVal(i, 'subject') === s).length;
+                count = _sData.items.length;
                 if(currentMode === 'study') {
                     return `<div onclick="pushPath('${s}')" class="card flex justify-between items-center px-5 py-4">
                                 <span class="text-[16px] font-bold">${s}</span>
                                 <span class="text-gray-300">❯</span>
                             </div>`;
                 }
-                const subjectItems = data.filter(i => getVal(i, 'subject') === s);
+                const subjectItems = _sData.items;
                 const subjProg = getSubjectProgress(s, currentMode);
                 const progColor = subjProg.pct >= 80 ? '#10b981' : subjProg.pct >= 50 ? '#6366f1' : subjProg.pct >= 20 ? '#f59e0b' : '#e2e8f0';
                 return `<div onclick="pushPath('${s}')" class="card px-5 py-4">
@@ -243,15 +272,21 @@ function renderView() {
     } else if(path.length === 1) {
         if(path[0] === 'MockZone') { renderMockSelection(); return; }
         const filtered = data.filter(i => getVal(i, 'subject') === path[0]);
+        // ── Group by sub_topic একবারে ──
+        var _stMap = {};
+        filtered.forEach(function(i) {
+            var st = getVal(i,'sub_topic'); if(!st) return;
+            if(!_stMap[st]) _stMap[st] = [];
+            _stMap[st].push(i);
+        });
         if(currentMode === 'qbank') {
-            // শুধু Study অংশের মতো সরাসরি সাবটপিক দেখান
-         const stList = [...new Set(filtered.map(i => getVal(i, 'sub_topic')))].filter(x => x);
+         const stList = Object.keys(_stMap);
          container.innerHTML = '<div class="space-y-3">' + stList.map(function(st) {
-             var stItems = filtered.filter(function(f){ return getVal(f,'sub_topic') === st; });
+             var stItems = _stMap[st];
              var stProg = getSubTopicProgress(path[0], st, currentMode);
              var stColor = stProg.pct >= 80 ? '#10b981' : stProg.pct >= 50 ? '#6366f1' : stProg.pct >= 20 ? '#f59e0b' : '#e2e8f0';
-             var safeSt = st.replace(/'/g, "\\'");
-             return '<div onclick="showQuestions(\'' + safeSt + '\')" class="card">'
+             var safeSt = encodeURIComponent(st);
+             return '<div onclick="showQuestions(decodeURIComponent(this.dataset.st))" data-st="' + safeSt + '" class="card">'
                  + '<div class="flex justify-between items-center">'
                  + '<span class="font-bold text-sm">' + st + '</span>'
                  + '<div class="flex items-center gap-2">'
@@ -263,14 +298,14 @@ function renderView() {
                  + '</div></div>';
          }).join('') + '</div>';
         } else {
-            const stList = [...new Set(filtered.map(i => getVal(i, 'sub_topic')))].filter(x => x);
+            const stList = Object.keys(_stMap);
             container.innerHTML = '<div class="space-y-3">' + stList.map(function(st) {
-                var stItems = filtered.filter(function(f){ return getVal(f,'sub_topic') === st; });
-                var safeSt = st.replace(/'/g, "\\'");
+                var stItems = _stMap[st];
+                var safeSt = encodeURIComponent(st);
                 var qCount = stItems.length;
                 if(currentMode === 'study') {
                     // Study: সিম্পল কার্ড, progress bar নেই
-                    return '<div onclick="showQuestions(\'' + safeSt + '\')" class="card flex justify-between items-center">'
+                    return '<div onclick="showQuestions(decodeURIComponent(this.dataset.st))" data-st="' + safeSt + '" class="card flex justify-between items-center">'
                         + '<span class="font-bold text-sm">' + st + '</span>'
                         + '<span class="text-[10px] bg-gray-100 px-2 py-1 rounded text-gray-400">' + qCount + '</span>'
                         + '</div>';
@@ -278,7 +313,7 @@ function renderView() {
                 // Quiz/QBank: progress bar সহ
                 var stProg = getSubTopicProgress(path[0], st, currentMode);
                 var stColor = stProg.pct >= 80 ? '#10b981' : stProg.pct >= 50 ? '#6366f1' : stProg.pct >= 20 ? '#f59e0b' : '#e2e8f0';
-                return '<div onclick="showQuestions(\'' + safeSt + '\')" class="card">'
+                return '<div onclick="showQuestions(decodeURIComponent(this.dataset.st))" data-st="' + safeSt + '" class="card">'
                     + '<div class="flex justify-between items-center">'
                     + '<span class="font-bold text-sm">' + st + '</span>'
                     + '<div class="flex items-center gap-2">'
@@ -557,29 +592,10 @@ function adminEditBar(item, mode) {
     return html;
 }
 
-function renderQuestions() {
-    const container = document.getElementById('main-view');
-    
-    // কন্ট্রোল বার শো/হাইড লজিক আপডেট
-    const readingCtrls = document.getElementById('reading-controls');
-    
-    // শুধুমাত্র একদম শেষ লেভেলে (প্রশ্ন পড়ার সময়) বাটনগুলো দেখাবে
-    if (path.length >= 2 || path.includes('MockResult')) {
-        readingCtrls.classList.remove('hidden');
-        readingCtrls.classList.add('flex');
-    } else {
-        readingCtrls.classList.add('hidden');
-    }
 
-    answeredCount = 0; 
-    updateScore();
-
-    // ── Performance: once-per-render caches ──────────────────
-    const wrongHistory = JSON.parse(localStorage.getItem('wrong_history') || '{}');
-    const _savedQsSet  = new Set(savedQs.map(s => getVal(s, 'question')));
-
-    let html = `<div class="space-y-4">`;
-    quizItems.slice(0, displayLimit).forEach((i, idx) => {
+// ── Single question HTML builder (for lazy loading) ────────
+function _buildSingleQuestionHTML(i, idx, wrongHistory, _savedQsSet) {
+    let html = '';
         const qRaw = getVal(i, 'question'), 
               corRaw = getVal(i, 'correct'), 
               expRaw = getVal(i, 'explanation'), 
@@ -737,9 +753,84 @@ function renderQuestions() {
                         </div>
                      </div>`;
         }
+    return html;
+}
+function renderQuestions() {
+    const container = document.getElementById('main-view');
+    
+    // কন্ট্রোল বার শো/হাইড লজিক আপডেট
+    const readingCtrls = document.getElementById('reading-controls');
+    
+    // শুধুমাত্র একদম শেষ লেভেলে (প্রশ্ন পড়ার সময়) বাটনগুলো দেখাবে
+    if (path.length >= 2 || path.includes('MockResult')) {
+        readingCtrls.classList.remove('hidden');
+        readingCtrls.classList.add('flex');
+    } else {
+        readingCtrls.classList.add('hidden');
+    }
+
+    answeredCount = 0; 
+    updateScore();
+
+    // ── Performance: once-per-render caches ──────────────────
+    const wrongHistory = JSON.parse(localStorage.getItem('wrong_history') || '{}');
+    const _savedQsSet  = new Set(savedQs.map(s => getVal(s, 'question')));
+
+    const INITIAL_BATCH = 15; // প্রথমে এতগুলো দেখাও — instant
+    const _allItems = quizItems.slice(0, displayLimit);
+    
+    // প্রথম batch sync render করো
+    let html = `<div class="space-y-4" id="q-list-wrap">`;
+    _allItems.slice(0, INITIAL_BATCH).forEach((i, idx) => {
+        html += _buildSingleQuestionHTML(i, idx, wrongHistory, _savedQsSet);
     });
     html += `</div>`;
+    // Sentinel div — scroll করলে বাকি questions load হবে
+    if (_allItems.length > INITIAL_BATCH) {
+        html += `<div id="q-load-sentinel" style="height:60px;display:flex;align-items:center;justify-content:center;">
+            <span style="font-size:12px;color:#94a3b8;font-weight:700;">⬇️ আরো ${_allItems.length - INITIAL_BATCH} টি প্রশ্ন লোড হচ্ছে...</span>
+        </div>`;
+    }
     container.innerHTML = html;
+
+    // বাকি questions lazy load করো
+    if (_allItems.length > INITIAL_BATCH) {
+        var _remaining = _allItems.slice(INITIAL_BATCH);
+        var _qWrap = document.getElementById('q-list-wrap');
+        var _sentinel = document.getElementById('q-load-sentinel');
+        var _chunkSize = 20;
+        var _loadedIdx = 0;
+
+        function _loadNextChunk() {
+            if (_loadedIdx >= _remaining.length) {
+                if (_sentinel) _sentinel.remove();
+                return;
+            }
+            var chunk = _remaining.slice(_loadedIdx, _loadedIdx + _chunkSize);
+            var startIdx = INITIAL_BATCH + _loadedIdx;
+            var chunkHtml = '';
+            chunk.forEach(function(item, ci) {
+                chunkHtml += _buildSingleQuestionHTML(item, startIdx + ci, wrongHistory, _savedQsSet);
+            });
+            if (_qWrap) _qWrap.insertAdjacentHTML('beforeend', chunkHtml);
+            _loadedIdx += _chunkSize;
+            if (_loadedIdx >= _remaining.length && _sentinel) _sentinel.remove();
+        }
+
+        // IntersectionObserver — sentinel দেখা গেলে load করো
+        if ('IntersectionObserver' in window) {
+            var _obs = new IntersectionObserver(function(entries) {
+                if (entries[0].isIntersecting) {
+                    _loadNextChunk();
+                }
+            }, { rootMargin: '200px' });
+            _obs.observe(_sentinel);
+        } else {
+            // Fallback: setTimeout এ চাংক চাংক load করো
+            setTimeout(_loadNextChunk, 100);
+        }
+    }
+
     // Show reading progress bar + question counter badge
     document.getElementById('reading-progress-bar').classList.remove('hidden');
     document.getElementById('q-counter-badge').style.display = 'block';
@@ -820,6 +911,7 @@ function markAsCorrect(id) {
     if (!correctHistory.includes(sid)) {
         correctHistory.push(sid);
         localStorage.setItem('correct_history', JSON.stringify(correctHistory));
+        try { _invalidateCorrectHistoryCache(); } catch(e) {}
     }
     try { srMarkCorrect(sid); } catch(e) {}
     // Subject-wise tracking
