@@ -209,30 +209,41 @@ function updateReadingProgress() {
 }
 
 // ===== WEAK TOPICS =====
+// validTopics cache — getWeakTopics বারবার call হলেও isQuestionRelevant একবারই
+var _validTopicsCache = null;
+var _validTopicsDataLen = -1;
+
 function getWeakTopics() {
     const wrongHistory = JSON.parse(localStorage.getItem('wrong_history') || '{}');
     const result = [];
+    var totalLen = (fullData['Quiz']||[]).length + (fullData['QBank']||[]).length + (fullData['Study']||[]).length;
 
-    // Audience-filtered topics বের করো — user-এর content-এর বাইরের topic দেখাবে না
-    var validTopics = new Set();
-    try {
-        var allItems = [
-            ...(fullData['Quiz']  || []),
-            ...(fullData['QBank'] || []),
-            ...(fullData['Study'] || [])
-        ];
-        allItems.forEach(function(item) {
-            var t = (item.AudienceTags || item.audiencetags || '').toString();
-            if (isQuestionRelevant(t)) {
-                var topic = getVal(item, 'sub_topic') || getVal(item, 'subject') || '';
-                if (topic) validTopics.add(topic);
-            }
-        });
-    } catch(e) {}
+    if (!_validTopicsCache || _validTopicsDataLen !== totalLen) {
+        _validTopicsCache = new Set();
+        try {
+            var strict = isStrictAudienceUser();
+            var userTags = getUserAudienceTags().map(function(t){ return t.toLowerCase(); });
+            var allItems = (fullData['Quiz']||[]).concat(fullData['QBank']||[]).concat(fullData['Study']||[]);
+            allItems.forEach(function(item) {
+                var rawTags = (item.AudienceTags || item.audiencetags || '').toString();
+                var relevant = false;
+                if (!rawTags || rawTags.trim() === '') { relevant = !strict; }
+                else {
+                    var qTags = rawTags.split(',').map(function(t){ return t.trim().toLowerCase(); });
+                    if (qTags.indexOf('general') !== -1) { relevant = !strict; }
+                    else { relevant = qTags.some(function(qt){ return userTags.indexOf(qt) !== -1; }); }
+                }
+                if (relevant) {
+                    var topic = getVal(item, 'sub_topic') || getVal(item, 'subject') || '';
+                    if (topic) _validTopicsCache.add(topic);
+                }
+            });
+        } catch(e) {}
+        _validTopicsDataLen = totalLen;
+    }
 
     Object.entries(wrongHistory).forEach(([topic, count]) => {
-        // validTopics empty মানে data লোড হয়নি — তখন সব দেখাও
-        if (count >= 2 && (validTopics.size === 0 || validTopics.has(topic))) {
+        if (count >= 2 && (_validTopicsCache.size === 0 || _validTopicsCache.has(topic))) {
             result.push({ topic, wrongCount: count });
         }
     });
