@@ -236,8 +236,16 @@ function changeMode(m, shouldPush = true) {
             window.history.pushState({mode: m, path:[]}, '');
         }
     }
-    renderView();
-    if (m === 'menu' && localStorage.getItem('exam_date')) {
-        setTimeout(() => startCountdownTick(), 400);
+    // Instant visual feedback — nav press এ তাৎক্ষণিক response
+    var _mv = document.getElementById('main-view');
+    if (_mv && m !== 'home') {
+        _mv.style.opacity = '0.3';
     }
+    requestAnimationFrame(function() {
+        renderView();
+        if (_mv) _mv.style.opacity = '1';
+        if (m === 'menu' && localStorage.getItem('exam_date')) {
+            setTimeout(function() { startCountdownTick(); }, 200);
+        }
+    });
 }
