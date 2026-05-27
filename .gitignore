@@ -1,34 +1,10 @@
-# Android build outputs
-*.apk
-*.aab
-*.aar
-/app/build/
-/build/
-.gradle/
-local.properties
-
-# Secrets (never commit these)
-app/google-services.json
-app/smartstudy.jks
-*.jks
-*.keystore
-
-# JS build artifacts (generated in CI)
-app/src/main/assets/js/bundle.js
-app/src/main/assets/js/bundle.min.js
-app/src/main/assets/js/bundle.obf.js
-
-# Node
-node_modules/
-npm-debug.log*
-
-# IDE
-.idea/
 *.iml
+.gradle
+/local.properties
+/.idea
 .DS_Store
-*.swp
-
-# Capacitor
-.capacitor/
-.env
-*.bak
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
