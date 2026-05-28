@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Smart Study</string>
-    <!-- Firebase Console → Project Settings → General → Web Client ID (OAuth 2.0) -->
     <string name="default_web_client_id">452271532689-kr0t5bim15s1ilbiaqsceo9du8lku4ob.apps.googleusercontent.com</string>
+    <string name="no_entries">কোনো এন্ট্রি নেই</string>
+    <string name="search_hint">খুঁজুন...</string>
+    <string name="appbar_scrolling_view_behavior">com.google.android.material.appbar.AppBarLayout$ScrollingViewBehavior</string>
 </resources>
