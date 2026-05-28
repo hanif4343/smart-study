@@ -165,20 +165,23 @@
         }
 
         /* ── Question টি user-এর জন্য relevant কিনা ── */
-        function isQuestionRelevant(audienceTags) {
+        // ── Audience filter cache: প্রতি session এ একবার compute ──
+        var _audienceCache = null;
+        function _getAudienceCache() {
+            if (_audienceCache) return _audienceCache;
             var strict = isStrictAudienceUser();
             var userTags = getUserAudienceTags().map(function(t){ return t.toLowerCase(); });
+            _audienceCache = { strict: strict, userTags: userTags };
+            return _audienceCache;
+        }
+        function invalidateAudienceCache() { _audienceCache = null; }
 
-            // Tag নেই — strict user দেখবে না, সাধারণ user দেখবে
-            if (!audienceTags || audienceTags.trim() === '') return !strict;
-
+        function isQuestionRelevant(audienceTags) {
+            var ac = _getAudienceCache();
+            if (!audienceTags || audienceTags.trim() === '') return !ac.strict;
             var qTags = audienceTags.split(',').map(function(t){ return t.trim().toLowerCase(); });
-
-            // General tag — strict user দেখবে না
-            if (qTags.indexOf('general') !== -1) return !strict;
-
-            // user-এর tag match করলে দেখাবে
-            return qTags.some(function(qt){ return userTags.indexOf(qt) !== -1; });
+            if (qTags.indexOf('general') !== -1) return !ac.strict;
+            return qTags.some(function(qt){ return ac.userTags.indexOf(qt) !== -1; });
         }
         function saveCurrentUser(u) { currentUser = u; localStorage.setItem('ss_user', JSON.stringify(u)); }
         function clearCurrentUser() { currentUser = null; localStorage.removeItem('ss_user'); }
@@ -416,17 +419,32 @@
 
 
 
+        // getVal cache: same object + key এর জন্য বারবার Object.keys() করা লাগবে না
+        var _getValKeyCache = new WeakMap();
+        function _getKeyMap(obj) {
+            var cached = _getValKeyCache.get(obj);
+            if (cached) return cached;
+            var map = {};
+            Object.keys(obj).forEach(function(k) { map[k.toLowerCase().trim()] = k; });
+            _getValKeyCache.set(obj, map);
+            return map;
+        }
         function getVal(obj, key) { 
             if(!obj) return ''; 
-            const fKey = Object.keys(obj).find(k => k.toLowerCase().trim() === key.toLowerCase().trim()); 
-            return fKey ? obj[fKey].toString().trim() : ''; 
+            var map = _getKeyMap(obj);
+            var fKey = map[key.toLowerCase().trim()];
+            return fKey !== undefined ? (obj[fKey] === null || obj[fKey] === undefined ? '' : obj[fKey].toString().trim()) : ''; 
         }
 
+var _parsedCache = new Map();
 function parseLinksToImages(text) {
     if (!text) return '';
-    
-    // ১. ডাবল প্রসেসিং চেক
     if (text.includes('pdf-btn-style') || text.includes('openPdfModal')) return text;
+    // Cache: একই text বারবার parse করা লাগবে না
+    var cached = _parsedCache.get(text);
+    if (cached !== undefined) return cached;
+    // Cache 500 এর বেশি হলে পুরানো গুলো clear করো
+    if (_parsedCache.size > 500) _parsedCache.clear();
 
     let processed = text;
     let pdfHolders = [];
@@ -505,7 +523,9 @@ function parseLinksToImages(text) {
     // ৬. LaTeX auto-wrap — \implies, \frac, \times ইত্যাদি delimiter ছাড়া থাকলে wrap করো
     processed = autoWrapLatex(processed);
 
-    return processed.replace(/\n/g, '<br>');
+    var result = processed.replace(/\n/g, '<br>');
+    _parsedCache.set(text, result);
+    return result;
 }
 
 // LaTeX commands auto-detect করে $...$ দিয়ে wrap করে
