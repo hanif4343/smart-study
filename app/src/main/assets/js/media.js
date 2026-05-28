@@ -209,45 +209,44 @@ function updateReadingProgress() {
 }
 
 // ===== WEAK TOPICS =====
-// validTopics cache — getWeakTopics বারবার call হলেও isQuestionRelevant একবারই
-var _validTopicsCache = null;
-var _validTopicsDataLen = -1;
+var _weakTopicsCache = null;
+var _weakTopicsCacheTime = 0;
 
 function getWeakTopics() {
-    const wrongHistory = JSON.parse(localStorage.getItem('wrong_history') || '{}');
-    const result = [];
-    var totalLen = (fullData['Quiz']||[]).length + (fullData['QBank']||[]).length + (fullData['Study']||[]).length;
-
-    if (!_validTopicsCache || _validTopicsDataLen !== totalLen) {
-        _validTopicsCache = new Set();
-        try {
-            var strict = isStrictAudienceUser();
-            var userTags = getUserAudienceTags().map(function(t){ return t.toLowerCase(); });
-            var allItems = (fullData['Quiz']||[]).concat(fullData['QBank']||[]).concat(fullData['Study']||[]);
-            allItems.forEach(function(item) {
-                var rawTags = (item.AudienceTags || item.audiencetags || '').toString();
-                var relevant = false;
-                if (!rawTags || rawTags.trim() === '') { relevant = !strict; }
-                else {
-                    var qTags = rawTags.split(',').map(function(t){ return t.trim().toLowerCase(); });
-                    if (qTags.indexOf('general') !== -1) { relevant = !strict; }
-                    else { relevant = qTags.some(function(qt){ return userTags.indexOf(qt) !== -1; }); }
-                }
-                if (relevant) {
-                    var topic = getVal(item, 'sub_topic') || getVal(item, 'subject') || '';
-                    if (topic) _validTopicsCache.add(topic);
-                }
-            });
-        } catch(e) {}
-        _validTopicsDataLen = totalLen;
+    // 30 seconds cache — menu render এ বারবার heavy computation এড়াও
+    var now = Date.now();
+    if (_weakTopicsCache && (now - _weakTopicsCacheTime) < 30000) {
+        return _weakTopicsCache;
     }
 
+    const wrongHistory = JSON.parse(localStorage.getItem('wrong_history') || '{}');
+    const result = [];
+
+    var validTopics = new Set();
+    try {
+        var allItems = [
+            ...(fullData['Quiz']  || []),
+            ...(fullData['QBank'] || []),
+            ...(fullData['Study'] || [])
+        ];
+        allItems.forEach(function(item) {
+            var t = (item.AudienceTags || item.audiencetags || '').toString();
+            if (isQuestionRelevant(t)) {
+                var topic = getVal(item, 'sub_topic') || getVal(item, 'subject') || '';
+                if (topic) validTopics.add(topic);
+            }
+        });
+    } catch(e) {}
+
     Object.entries(wrongHistory).forEach(([topic, count]) => {
-        if (count >= 2 && (_validTopicsCache.size === 0 || _validTopicsCache.has(topic))) {
+        if (count >= 2 && (validTopics.size === 0 || validTopics.has(topic))) {
             result.push({ topic, wrongCount: count });
         }
     });
-    return result.sort((a,b) => b.wrongCount - a.wrongCount);
+    const sorted = result.sort((a,b) => b.wrongCount - a.wrongCount);
+    _weakTopicsCache = sorted;
+    _weakTopicsCacheTime = now;
+    return sorted;
 }
 
 function trackWrongAnswer(topic, qId) {
