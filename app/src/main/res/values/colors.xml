@@ -17,4 +17,6 @@
     <color name="divider">#E2E8F0</color>
     <color name="red_due">#EF4444</color>
     <color name="green_settled">#10b981</color>
+    <color name="cash_in_bg">#DCFCE7</color>
+    <color name="cash_out_bg">#FEE2E2</color>
 </resources>
