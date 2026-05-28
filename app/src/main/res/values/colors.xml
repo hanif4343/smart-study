@@ -4,13 +4,17 @@
     <color name="colorPrimaryDark">#4338ca</color>
     <color name="colorAccent">#10b981</color>
 
-    <!-- Missing colors referenced in values.xml -->
     <color name="primary">#4f46e5</color>
     <color name="primary_dark">#4338ca</color>
+    <color name="primary_light">#818cf8</color>
     <color name="accent">#10b981</color>
     <color name="white">#FFFFFF</color>
     <color name="surface">#FFFFFF</color>
     <color name="background">#F8FAFC</color>
     <color name="card_background">#FFFFFF</color>
+    <color name="text_primary">#1E293B</color>
     <color name="text_secondary">#64748B</color>
+    <color name="divider">#E2E8F0</color>
+    <color name="red_due">#EF4444</color>
+    <color name="green_settled">#10b981</color>
 </resources>
