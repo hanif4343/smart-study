@@ -1,115 +1,23 @@
 /* Smart Study — quiz.js */
-// ── renderView filtered data cache ────────────────────────
+// Filtered data cache — mode বদলালে বা data update হলে invalidate হবে
 var _filteredDataCache = {};
-var _filteredDataKey   = '';
-
-function _getFilteredData(sheet) {
-    var phone = (currentUser && currentUser.phone) ? currentUser.phone : 'guest';
-    var key = sheet + '|' + phone + '|' + (fullData[sheet]||[]).length;
-    // per-sheet cache key
-    if (_filteredDataCache[sheet] && _filteredDataCache[sheet+'_key'] === key) {
-        return _filteredDataCache[sheet];
-    }
-    // Once-per-change: isStrictAudienceUser + getUserAudienceTags compute করো
-    var strict   = isStrictAudienceUser();
-    var userTags = getUserAudienceTags().map(function(t){ return t.toLowerCase(); });
-
-    _filteredDataCache[sheet] = (fullData[sheet] || []).filter(function(row) {
-        var rawTags = getVal(row, 'AudienceTags') || getVal(row, 'audiencetags') || '';
-        if (!rawTags || rawTags.trim() === '') return !strict;
-        var qTags = rawTags.split(',').map(function(t){ return t.trim().toLowerCase(); });
-        if (qTags.indexOf('general') !== -1) return !strict;
-        return qTags.some(function(qt){ return userTags.indexOf(qt) !== -1; });
+var _filteredDataMode = '';
+function _getFilteredData(mode) {
+    if (_filteredDataCache[mode]) return _filteredDataCache[mode];
+    var sheet = mode === 'quiz' ? 'Quiz' : mode === 'qbank' ? 'QBank' : 'Study';
+    _filteredDataCache[mode] = (fullData[sheet] || []).filter(function(row) {
+        var tags = getVal(row, 'AudienceTags') || getVal(row, 'audiencetags') || '';
+        return isQuestionRelevant(tags);
     });
-    _filteredDataCache[sheet+'_key'] = key;
-    return _filteredDataCache[sheet];
+    return _filteredDataCache[mode];
 }
+function _invalidateFilteredCache() { _filteredDataCache = {}; }
 
-
-// ── Subject list HTML pre-build cache ─────────────────────
-var _subjectListCache = {};  // mode → {html, dataLen}
-
-function _invalidateSubjectCache() {
-    _subjectListCache = {};
-}
-
-function _getSubjectListHTML(mode, data) {
-    var dataLen = data.length;
-    var cached = _subjectListCache[mode];
-    if (cached && cached.dataLen === dataLen && cached.chVersion === (localStorage.getItem('ch_version')||'0')) {
-        return cached.html;
-    }
-
-    // Build subject map O(n)
-    var subjectMap = {};
-    data.forEach(function(i) {
-        var s = getVal(i,'subject'); if(!s) return;
-        if(!subjectMap[s]) subjectMap[s] = {items:[], subTopics: new Set()};
-        subjectMap[s].items.push(i);
-        var st = getVal(i,'sub_topic'); if(st) subjectMap[s].subTopics.add(st);
-    });
-    var list = Object.keys(subjectMap);
-    var gridClass = mode === 'qbank' ? 'qbank-grid' : 'space-y-3';
-    var html = '<div class="' + gridClass + '">';
-
-    html += list.map(function(s) {
-        var sData = subjectMap[s];
-        var safeSub = encodeURIComponent(s);
-        if(mode === 'qbank') {
-            var count = sData.subTopics.size;
-            var qbProg = getSubjectProgress(s, 'qbank');
-            var pct = qbProg.pct || 0;
-            var color = pct >= 80 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#6366f1';
-            return '<div onclick="pushPath(decodeURIComponent(this.dataset.s))" data-s="'+safeSub+'" class="card">'
-                + '<div class="flex justify-between items-center mb-1">'
-                + '<span class="font-black text-sm text-gray-800">'+s+'</span>'
-                + '<span class="text-[10px] font-black" style="color:'+color+'">'+qbProg.done+'/'+qbProg.total+'</span>'
-                + '</div>'
-                + '<div class="flex justify-between items-center">'
-                + '<span class="text-xs text-gray-400">'+count+' টি অধ্যায়</span>'
-                + '<div style="width:60px;height:5px;background:#e5e7eb;border-radius:3px;">'
-                + '<div style="width:'+pct+'%;height:100%;background:'+color+';border-radius:3px;transition:width 0.3s"></div>'
-                + '</div></div></div>';
-        } else if(mode === 'study') {
-            var subjectItems = sData.items;
-            var subjProg = getSubjectProgress(s, mode);
-            var pct = subjProg.pct || 0;
-            var color = pct >= 80 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#6366f1';
-            return '<div onclick="pushPath(decodeURIComponent(this.dataset.s))" data-s="'+safeSub+'" class="card flex justify-between items-center">'
-                + '<div>'
-                + '<div class="font-black text-sm text-gray-800">'+s+'</div>'
-                + '<div class="text-xs text-gray-400 mt-0.5">'+subjectItems.length+' টি প্রশ্ন</div>'
-                + '</div>'
-                + '<div class="text-right">'
-                + '<div class="text-sm font-black" style="color:'+color+'">'+pct+'%</div>'
-                + '<div class="text-[10px] text-gray-400">'+subjProg.done+'/'+subjProg.total+'</div>'
-                + '</div></div>';
-        } else {
-            // quiz
-            var subjectItems = sData.items;
-            var subjProg = getSubjectProgress(s, mode);
-            var pct = subjProg.pct || 0;
-            var color = pct >= 80 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#6366f1';
-            return '<div onclick="pushPath(decodeURIComponent(this.dataset.s))" data-s="'+safeSub+'" class="card">'
-                + '<div class="flex justify-between items-center mb-1">'
-                + '<span class="font-black text-sm">'+s+'</span>'
-                + '<span class="text-[10px] font-black" style="color:'+color+'">'+subjProg.done+'/'+subjProg.total+'</span>'
-                + '</div>'
-                + '<div style="height:5px;background:#e5e7eb;border-radius:3px;">'
-                + '<div style="width:'+pct+'%;height:100%;background:'+color+';border-radius:3px;transition:width 0.3s"></div>'
-                + '</div>'
-                + '<div class="text-xs text-gray-400 mt-1">'+subjectItems.length+' টি প্রশ্ন</div>'
-                + '</div>';
-        }
-    }).join('');
-    html += '</div>';
-
-    _subjectListCache[mode] = { html: html, dataLen: dataLen, chVersion: localStorage.getItem('ch_version')||'0' };
-    return html;
-}
 function renderView() {
     const container = document.getElementById('main-view');
     container.innerHTML = '';
+    // প্রতি render এ progress cache reset
+    if (typeof _invalidateProgressCache === 'function') _invalidateProgressCache();
 
     if (currentMode === 'home') {
         renderHome(container);
@@ -117,8 +25,8 @@ function renderView() {
     }
 
     let currentSheet = (currentMode === 'quiz' ? 'Quiz' : (currentMode === 'qbank' ? 'QBank' : 'Study'));
-    // Cache-first filtered data — isQuestionRelevant বারবার call হবে না
-    const data = _getFilteredData(currentSheet);
+    // Audience filter — cached
+    const data = _getFilteredData(currentMode);
 
     if (currentMode === 'menu') {
         // Enhanced menu with streak + weak topics
@@ -298,27 +206,64 @@ function renderView() {
     }
 
     if(path.length === 0) {
-        // ── Pre-built cache থেকে subject list — instant ──
-        container.innerHTML = _getSubjectListHTML(currentMode, data);
-        container.style.display = '';
+        const list = [...new Set(data.map(i => getVal(i, 'subject')))].filter(x => x);
+        const gridClass = currentMode === 'qbank' ? 'qbank-grid' : 'space-y-3';
+        let html = `<div class="${gridClass}">`;
+                html += list.map(s => {
+            let count;
+            if(currentMode === 'qbank') {
+                // সাবজেক্টের আন্ডারে কতগুলো ইউনিক সাবটপিক আছে তা গণনা করবে
+                const subTopics = [...new Set(data.filter(i => getVal(i, 'subject') === s).map(i => getVal(i, 'sub_topic')))].filter(x => x);
+                count = subTopics.length;
+                const qbProg = getSubjectProgress(s, 'qbank');
+                return `<div onclick="pushPath('${s}')" class="qbank-main-card relative flex-col" style="padding-bottom:12px;">
+                            <span>${s}</span>
+                            <span class="text-[10px] opacity-80 font-normal mt-1">(${count} টি প্রশ্নপত্র)</span>
+                            <div style="width:90%;margin-top:8px;background:rgba(255,255,255,0.25);border-radius:4px;height:5px;overflow:hidden;">
+                                <div style="width:${qbProg.pct}%;height:100%;background:white;border-radius:4px;transition:width 0.6s;"></div>
+                            </div>
+                        </div>`;
+            } else {
+                count = data.filter(i => getVal(i, 'subject') === s).length;
+                if(currentMode === 'study') {
+                    return `<div onclick="pushPath('${s}')" class="card flex justify-between items-center px-5 py-4">
+                                <span class="text-[16px] font-bold">${s}</span>
+                                <span class="text-gray-300">❯</span>
+                            </div>`;
+                }
+                const subjectItems = data.filter(i => getVal(i, 'subject') === s);
+                const subjProg = getSubjectProgress(s, currentMode);
+                const progColor = subjProg.pct >= 80 ? '#10b981' : subjProg.pct >= 50 ? '#6366f1' : subjProg.pct >= 20 ? '#f59e0b' : '#e2e8f0';
+                return `<div onclick="pushPath('${s}')" class="card px-5 py-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-[16px] font-bold">${s}</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[10px] font-black text-gray-400">${subjProg.done}/${count}</span>
+                                    <span class="text-gray-300">❯</span>
+                                </div>
+                            </div>
+                            <div class="topic-progress-wrap mt-2">
+                                <div class="topic-progress-fill" style="width:${subjProg.pct}%; background:${progColor};"></div>
+                            </div>
+                        </div>`;
+            }
+        }).join('');
+
+        html += `</div>`;
+        container.innerHTML = html;
+        if(currentMode === 'quiz' || currentMode === 'qbank') container.insertAdjacentHTML('beforeend', `<div class="mt-6 border-t pt-4"><p class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">স্পেশাল জোন</p><button onclick="pushPath('MockZone')" class="bg-[#059669] text-white p-4 rounded-2xl w-full font-black shadow-lg border-b-4 border-green-900 active:scale-95 transition-all flex items-center justify-center gap-2">🏆 বিষয় ভিত্তিক মক টেস্ট</button></div>`);
     } else if(path.length === 1) {
         if(path[0] === 'MockZone') { renderMockSelection(); return; }
         const filtered = data.filter(i => getVal(i, 'subject') === path[0]);
-        // ── Group by sub_topic একবারে ──
-        var _stMap = {};
-        filtered.forEach(function(i) {
-            var st = getVal(i,'sub_topic'); if(!st) return;
-            if(!_stMap[st]) _stMap[st] = [];
-            _stMap[st].push(i);
-        });
         if(currentMode === 'qbank') {
-         const stList = Object.keys(_stMap);
+            // শুধু Study অংশের মতো সরাসরি সাবটপিক দেখান
+         const stList = [...new Set(filtered.map(i => getVal(i, 'sub_topic')))].filter(x => x);
          container.innerHTML = '<div class="space-y-3">' + stList.map(function(st) {
-             var stItems = _stMap[st];
+             var stItems = filtered.filter(function(f){ return getVal(f,'sub_topic') === st; });
              var stProg = getSubTopicProgress(path[0], st, currentMode);
              var stColor = stProg.pct >= 80 ? '#10b981' : stProg.pct >= 50 ? '#6366f1' : stProg.pct >= 20 ? '#f59e0b' : '#e2e8f0';
-             var safeSt = encodeURIComponent(st);
-             return '<div onclick="showQuestions(decodeURIComponent(this.dataset.st))" data-st="' + safeSt + '" class="card">'
+             var safeSt = st.replace(/'/g, "\\'");
+             return '<div onclick="showQuestions(\'' + safeSt + '\')" class="card">'
                  + '<div class="flex justify-between items-center">'
                  + '<span class="font-bold text-sm">' + st + '</span>'
                  + '<div class="flex items-center gap-2">'
@@ -330,14 +275,14 @@ function renderView() {
                  + '</div></div>';
          }).join('') + '</div>';
         } else {
-            const stList = Object.keys(_stMap);
+            const stList = [...new Set(filtered.map(i => getVal(i, 'sub_topic')))].filter(x => x);
             container.innerHTML = '<div class="space-y-3">' + stList.map(function(st) {
-                var stItems = _stMap[st];
-                var safeSt = encodeURIComponent(st);
+                var stItems = filtered.filter(function(f){ return getVal(f,'sub_topic') === st; });
+                var safeSt = st.replace(/'/g, "\\'");
                 var qCount = stItems.length;
                 if(currentMode === 'study') {
                     // Study: সিম্পল কার্ড, progress bar নেই
-                    return '<div onclick="showQuestions(decodeURIComponent(this.dataset.st))" data-st="' + safeSt + '" class="card flex justify-between items-center">'
+                    return '<div onclick="showQuestions(\'' + safeSt + '\')" class="card flex justify-between items-center">'
                         + '<span class="font-bold text-sm">' + st + '</span>'
                         + '<span class="text-[10px] bg-gray-100 px-2 py-1 rounded text-gray-400">' + qCount + '</span>'
                         + '</div>';
@@ -345,7 +290,7 @@ function renderView() {
                 // Quiz/QBank: progress bar সহ
                 var stProg = getSubTopicProgress(path[0], st, currentMode);
                 var stColor = stProg.pct >= 80 ? '#10b981' : stProg.pct >= 50 ? '#6366f1' : stProg.pct >= 20 ? '#f59e0b' : '#e2e8f0';
-                return '<div onclick="showQuestions(decodeURIComponent(this.dataset.st))" data-st="' + safeSt + '" class="card">'
+                return '<div onclick="showQuestions(\'' + safeSt + '\')" class="card">'
                     + '<div class="flex justify-between items-center">'
                     + '<span class="font-bold text-sm">' + st + '</span>'
                     + '<div class="flex items-center gap-2">'
@@ -360,10 +305,7 @@ function renderView() {
    }
 }
         function renderMockSelection() {
-    const data = (fullData[currentMode==='quiz'?'Quiz':'QBank'] || []).filter(function(i){
-        var t = (i.AudienceTags||i.audiencetags||'').toString();
-        return isQuestionRelevant(t);
-    });
+    const data = _getFilteredData(currentMode);
     const container = document.getElementById('main-view');
     const subjects = [...new Set(data.map(i => getVal(i, 'subject')))].filter(x => x);
 
@@ -447,10 +389,7 @@ function renderView() {
 
 
 function calculateTotalQuestions() {
-    const data = (fullData[currentMode==='quiz'?'Quiz':'QBank'] || []).filter(function(i){
-        var t = (i.AudienceTags||i.audiencetags||'').toString();
-        return isQuestionRelevant(t);
-    });
+    const data = _getFilteredData(currentMode);
     const totalQ = data.filter(i => {
         const key = `${getVal(i, 'subject')}||${getVal(i, 'sub_topic')}`;
         return selectedSubTopics.includes(key);
@@ -493,11 +432,15 @@ function toggleAllInSubject(sub, masterCheckbox) {
 }
 
         function startMock() {
-            const limit = parseInt(document.getElementById('mock-q-limit').value) || 25, data = fullData[currentMode==='quiz'?'Quiz':'QBank'];
-            let filtered = data.filter(i => { const key = `${getVal(i, 'subject')}||${getVal(i, 'sub_topic')}`; return selectedSubTopics.includes(key) && isQuestionRelevant(getVal(i, 'AudienceTags') || getVal(i, 'audiencetags') || ''); });
+            const limit = parseInt(document.getElementById('mock-q-limit').value) || 25;
+            const data = _getFilteredData(currentMode);
+            const selectedSet = new Set(selectedSubTopics);
+            let filtered = data.filter(i => { const key = getVal(i,'subject')+'||'+getVal(i,'sub_topic'); return selectedSet.has(key); });
             
             // --- মক টেস্টের জন্য সর্টিং ---
-            let correctHistory = JSON.parse(localStorage.getItem('correct_history') || '[]');
+            const ch = typeof _getCorrectSet === 'function' ? _getCorrectSet() : new Set();
+            const modePrefix = currentMode === 'qbank' ? 'qbank' : 'quiz';
+            let correctHistory = [...ch];
             filtered.sort((a, b) => {
                 let aDone = correctHistory.includes(getVal(a, 'id')) ? 1 : 0;
                 let bDone = correctHistory.includes(getVal(b, 'id')) ? 1 : 0;
@@ -512,8 +455,8 @@ function toggleAllInSubject(sub, masterCheckbox) {
         }
 
        function showQuestions(st) {
-    const data = fullData[currentMode==='study'?'Study':(currentMode==='quiz'?'Quiz':'QBank')];
-    quizItems = data.filter(i => getVal(i, 'subject') === path[0] && getVal(i, 'sub_topic') === st && isQuestionRelevant(getVal(i, 'AudienceTags') || getVal(i, 'audiencetags') || '')); 
+    const data = _getFilteredData(currentMode);
+    quizItems = data.filter(i => getVal(i, 'subject') === path[0] && getVal(i, 'sub_topic') === st); 
     
     var correctHistory = JSON.parse(localStorage.getItem('correct_history') || '[]');
     var wrongQIds2     = JSON.parse(localStorage.getItem('wrong_q_ids')     || '[]');
@@ -624,10 +567,30 @@ function adminEditBar(item, mode) {
     return html;
 }
 
+function renderQuestions() {
+    const container = document.getElementById('main-view');
+    
+    // কন্ট্রোল বার শো/হাইড লজিক আপডেট
+    const readingCtrls = document.getElementById('reading-controls');
+    
+    // শুধুমাত্র একদম শেষ লেভেলে (প্রশ্ন পড়ার সময়) বাটনগুলো দেখাবে
+    if (path.length >= 2 || path.includes('MockResult')) {
+        readingCtrls.classList.remove('hidden');
+        readingCtrls.classList.add('flex');
+    } else {
+        readingCtrls.classList.add('hidden');
+    }
 
-// ── Single question HTML builder (for lazy loading) ────────
-function _buildSingleQuestionHTML(i, idx, wrongHistory, _savedQsSet) {
-    let html = '';
+    answeredCount = 0; 
+    updateScore();
+
+    // ── Performance: once-per-render caches ──────────────────
+    var wrongHistory;
+    try { wrongHistory = JSON.parse(localStorage.getItem('wrong_history') || '{}'); } catch(e) { wrongHistory = {}; }
+    const _savedQsSet  = new Set(savedQs.map(s => getVal(s, 'question')));
+
+    let html = `<div class="space-y-4">`;
+    quizItems.slice(0, displayLimit).forEach((i, idx) => {
         const qRaw = getVal(i, 'question'), 
               corRaw = getVal(i, 'correct'), 
               expRaw = getVal(i, 'explanation'), 
@@ -785,84 +748,9 @@ function _buildSingleQuestionHTML(i, idx, wrongHistory, _savedQsSet) {
                         </div>
                      </div>`;
         }
-    return html;
-}
-function renderQuestions() {
-    const container = document.getElementById('main-view');
-    
-    // কন্ট্রোল বার শো/হাইড লজিক আপডেট
-    const readingCtrls = document.getElementById('reading-controls');
-    
-    // শুধুমাত্র একদম শেষ লেভেলে (প্রশ্ন পড়ার সময়) বাটনগুলো দেখাবে
-    if (path.length >= 2 || path.includes('MockResult')) {
-        readingCtrls.classList.remove('hidden');
-        readingCtrls.classList.add('flex');
-    } else {
-        readingCtrls.classList.add('hidden');
-    }
-
-    answeredCount = 0; 
-    updateScore();
-
-    // ── Performance: once-per-render caches ──────────────────
-    const wrongHistory = JSON.parse(localStorage.getItem('wrong_history') || '{}');
-    const _savedQsSet  = new Set(savedQs.map(s => getVal(s, 'question')));
-
-    const INITIAL_BATCH = 15; // প্রথমে এতগুলো দেখাও — instant
-    const _allItems = quizItems.slice(0, displayLimit);
-    
-    // প্রথম batch sync render করো
-    let html = `<div class="space-y-4" id="q-list-wrap">`;
-    _allItems.slice(0, INITIAL_BATCH).forEach((i, idx) => {
-        html += _buildSingleQuestionHTML(i, idx, wrongHistory, _savedQsSet);
     });
     html += `</div>`;
-    // Sentinel div — scroll করলে বাকি questions load হবে
-    if (_allItems.length > INITIAL_BATCH) {
-        html += `<div id="q-load-sentinel" style="height:60px;display:flex;align-items:center;justify-content:center;">
-            <span style="font-size:12px;color:#94a3b8;font-weight:700;">⬇️ আরো ${_allItems.length - INITIAL_BATCH} টি প্রশ্ন লোড হচ্ছে...</span>
-        </div>`;
-    }
     container.innerHTML = html;
-
-    // বাকি questions lazy load করো
-    if (_allItems.length > INITIAL_BATCH) {
-        var _remaining = _allItems.slice(INITIAL_BATCH);
-        var _qWrap = document.getElementById('q-list-wrap');
-        var _sentinel = document.getElementById('q-load-sentinel');
-        var _chunkSize = 20;
-        var _loadedIdx = 0;
-
-        function _loadNextChunk() {
-            if (_loadedIdx >= _remaining.length) {
-                if (_sentinel) _sentinel.remove();
-                return;
-            }
-            var chunk = _remaining.slice(_loadedIdx, _loadedIdx + _chunkSize);
-            var startIdx = INITIAL_BATCH + _loadedIdx;
-            var chunkHtml = '';
-            chunk.forEach(function(item, ci) {
-                chunkHtml += _buildSingleQuestionHTML(item, startIdx + ci, wrongHistory, _savedQsSet);
-            });
-            if (_qWrap) _qWrap.insertAdjacentHTML('beforeend', chunkHtml);
-            _loadedIdx += _chunkSize;
-            if (_loadedIdx >= _remaining.length && _sentinel) _sentinel.remove();
-        }
-
-        // IntersectionObserver — sentinel দেখা গেলে load করো
-        if ('IntersectionObserver' in window) {
-            var _obs = new IntersectionObserver(function(entries) {
-                if (entries[0].isIntersecting) {
-                    _loadNextChunk();
-                }
-            }, { rootMargin: '200px' });
-            _obs.observe(_sentinel);
-        } else {
-            // Fallback: setTimeout এ চাংক চাংক load করো
-            setTimeout(_loadNextChunk, 100);
-        }
-    }
-
     // Show reading progress bar + question counter badge
     document.getElementById('reading-progress-bar').classList.remove('hidden');
     document.getElementById('q-counter-badge').style.display = 'block';
@@ -943,7 +831,8 @@ function markAsCorrect(id) {
     if (!correctHistory.includes(sid)) {
         correctHistory.push(sid);
         localStorage.setItem('correct_history', JSON.stringify(correctHistory));
-        try { _invalidateCorrectHistoryCache(); } catch(e) {}
+        // Memory cache invalidate করো — পরের render এ fresh data পাবে
+        if (typeof _invalidateProgressCache === 'function') _invalidateProgressCache();
     }
     try { srMarkCorrect(sid); } catch(e) {}
     // Subject-wise tracking
