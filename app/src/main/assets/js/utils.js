@@ -10,7 +10,24 @@ function updateUIMode(m) {
     };
     document.getElementById('main-header').style.backgroundColor = colors[m] || '#6366f1';
     const names = {home:'Smart Study', study:'স্টাডি জোন', quiz:'কুইজ জোন', qbank:'প্রশ্ন ব্যাংক', menu:'প্রোফাইল'};
-    document.getElementById('zone-title').innerText = names[m] || 'Smart Study';
+
+    // Breadcrumb: path থাকলে subject/subtopic header এ দেখাও
+    var titleEl = document.getElementById('zone-title');
+    var subtitleEl = document.querySelector('#header-static p');
+    if (typeof path !== 'undefined' && path.length > 0) {
+        if (path.length === 1) {
+            titleEl.textContent = path[0];
+            if (subtitleEl) subtitleEl.textContent = names[m] || m;
+        } else if (path.length >= 2) {
+            var st = path[path.length - 1];
+            titleEl.textContent = st.length > 22 ? st.substring(0, 20) + '\u2026' : st;
+            if (subtitleEl) subtitleEl.textContent = path[0];
+        }
+    } else {
+        titleEl.textContent = names[m] || 'Smart Study';
+        if (subtitleEl) subtitleEl.textContent = 'Smart Study';
+    }
+
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active-home','active-study','active-quiz','active-qbank','active-menu'));
     if(document.getElementById('nav-'+m)) document.getElementById('nav-'+m).classList.add('active-'+m);
 }
@@ -19,27 +36,22 @@ function updateUIMode(m) {
 // ====================================================
 // 📊 PROGRESS TRACKING — Subject & SubTopic
 // ====================================================
-// ── correctHistory cache — প্রতি render এ একবারই parse হবে ──
-var _correctHistoryCache = null;
-var _correctHistoryCacheSet = null;
-var _correctHistoryVersion = 0;
+// ── In-memory cache: প্রতি renderView এ একবার মাত্র localStorage read ──
+var _chCache = null;        // correct_history array
+var _chSet   = null;        // Set for O(1) lookup
+var _whCache = null;        // wrong_history object
 
-function _getCorrectHistorySet() {
-    var version = parseInt(localStorage.getItem('ch_version') || '0');
-    if (_correctHistoryCacheSet && version === _correctHistoryVersion) {
-        return _correctHistoryCacheSet;
-    }
-    _correctHistoryCache = JSON.parse(localStorage.getItem('correct_history') || '[]');
-    _correctHistoryCacheSet = new Set(_correctHistoryCache);
-    _correctHistoryVersion = version;
-    return _correctHistoryCacheSet;
+function _invalidateProgressCache() {
+    _chCache = null; _chSet = null; _whCache = null;
 }
 
-// correct answer mark করলে cache invalidate করো
-function _invalidateCorrectHistoryCache() {
-    _correctHistoryCacheSet = null;
-    var v = parseInt(localStorage.getItem('ch_version') || '0');
-    localStorage.setItem('ch_version', v + 1);
+function _getCorrectSet() {
+    if (_chSet) return _chSet;
+    try {
+        _chCache = JSON.parse(localStorage.getItem('correct_history') || '[]');
+    } catch(e) { _chCache = []; }
+    _chSet = new Set(_chCache);
+    return _chSet;
 }
 
 function getSubjectProgress(subject, mode) {
@@ -47,11 +59,11 @@ function getSubjectProgress(subject, mode) {
     const data = fullData[sheet] || [];
     const items = data.filter(i => getVal(i,'subject') === subject);
     if (!items.length) return { done:0, total:0, pct:0 };
-    const chSet = _getCorrectHistorySet();
+    const ch = _getCorrectSet();
     const modePrefix = mode === 'qbank' ? 'qbank' : 'quiz';
     const done = items.filter(i => {
         var rawId = String(getVal(i,'id') || '');
-        return chSet.has(modePrefix + ':' + rawId) || chSet.has(rawId);
+        return ch.has(modePrefix + ':' + rawId) || ch.has(rawId);
     }).length;
     return { done, total: items.length, pct: Math.round((done/items.length)*100) };
 }
@@ -61,11 +73,11 @@ function getSubTopicProgress(subject, subTopic, mode) {
     const data = fullData[sheet] || [];
     const items = data.filter(i => getVal(i,'subject') === subject && getVal(i,'sub_topic') === subTopic);
     if (!items.length) return { done:0, total:0, pct:0 };
-    const chSet = _getCorrectHistorySet();
+    const ch = _getCorrectSet();
     const modePrefix = mode === 'qbank' ? 'qbank' : 'quiz';
     const done = items.filter(i => {
         var rawId = String(getVal(i,'id') || '');
-        return chSet.has(modePrefix + ':' + rawId) || chSet.has(rawId);
+        return ch.has(modePrefix + ':' + rawId) || ch.has(rawId);
     }).length;
     return { done, total: items.length, pct: Math.round((done/items.length)*100) };
 }
