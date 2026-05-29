@@ -107,6 +107,18 @@ jobs:
           [ -f "$BUNDLE" ] || { echo "ERROR: bundle not found!"; exit 1; }
           echo "bundle.obf.js → $(wc -c < $BUNDLE) bytes ✅"
 
+      # ── Fix duplicate drawable ─────────────────────────────
+      - name: Remove duplicate ic_notification XML
+        run: |
+          rm -f app/src/main/res/drawable/ic_notification.xml
+          echo "Drawable check: $(ls app/src/main/res/drawable/)"
+
+      # ── Remove duplicate drawable (safety) ───────────────────
+      - name: Remove duplicate ic_notification XML if exists
+        run: |
+          rm -f app/src/main/res/drawable/ic_notification.xml
+          echo "Drawable cleanup done ✅"
+
       # ── Gradle permission ──────────────────────────────────
       - name: Make gradlew executable
         run: chmod +x gradlew
