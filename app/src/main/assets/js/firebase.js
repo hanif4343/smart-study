@@ -1,23 +1,11 @@
 /* Smart Study — firebase.js */
 
 // ── Offline cache helpers ──────────────────────────────────
-// ── Unified cache: config.js এর same key use করো ──
-var _CACHE_KEY = 'ss_offline_fulldata';
 function saveDataOffline(data) {
-    try {
-        localStorage.setItem(_CACHE_KEY, JSON.stringify(data));
-        localStorage.setItem(_CACHE_KEY + '_ts', new Date().toISOString());
-    } catch(e) {
-        // localStorage full হলে পুরানো daily_ keys সরাও
-        try {
-            Object.keys(localStorage).filter(k => k.startsWith('daily_')).slice(0, -5)
-                .forEach(k => localStorage.removeItem(k));
-            localStorage.setItem(_CACHE_KEY, JSON.stringify(data));
-        } catch(e2) {}
-    }
+    try { localStorage.setItem('ss_offline_cache', JSON.stringify(data)); } catch(e) {}
 }
 function loadDataOffline() {
-    try { return JSON.parse(localStorage.getItem(_CACHE_KEY) || 'null'); } catch(e) { return null; }
+    try { return JSON.parse(localStorage.getItem('ss_offline_cache') || 'null'); } catch(e) { return null; }
 }
 function updateOfflineBanner() {
     var b = document.getElementById('offline-banner');
@@ -62,6 +50,21 @@ function loadFirebaseData() {
 }
 
 function _applyFirebaseData(data, shouldCache) {
+    // সব render cache invalidate করো — fresh data এসেছে
+    try {
+        if (typeof _filteredDataCache !== 'undefined') {
+            _filteredDataCache = {};
+        }
+        if (typeof _subjectListCache !== 'undefined') {
+            _subjectListCache = {};
+        }
+        if (typeof _allQForReviewCache !== 'undefined') {
+            _allQForReviewCache = null;
+        }
+        if (typeof _validTopicsCache !== 'undefined') {
+            _validTopicsCache = null;
+        }
+    } catch(e) {}
     function fixData(folder) {
         if (!data[folder]) return [];
         return Array.isArray(data[folder])
@@ -159,8 +162,6 @@ function pushPath(p) {
     document.getElementById('reading-progress-bar').classList.add('hidden');
     var badge = document.getElementById('q-counter-badge');
     if (badge) badge.style.display = 'none';
-    // Header breadcrumb update করো
-    if (typeof updateUIMode === 'function') updateUIMode(currentMode);
     renderView();
 }
 
@@ -225,23 +226,6 @@ function copyForAI() {
     document.body.removeChild(tempInput);
 }
 
-function _showNavSkeleton(container, mode) {
-    // Data নেই — skeleton shimmer দেখাও যাতে blank না দেখায়
-    var skCount = mode === 'qbank' ? 6 : 5;
-    var skItems = '';
-    for (var i = 0; i < skCount; i++) {
-        skItems += '<div class="sk-card" style="height:62px;border-radius:14px;background:var(--card-bg,#fff);border:1px solid rgba(0,0,0,0.06);margin-bottom:10px;overflow:hidden;position:relative;">'
-            + '<div class="sk-shimmer" style="position:absolute;inset:0;background:linear-gradient(90deg,transparent 0%,rgba(0,0,0,0.04) 50%,transparent 100%);animation:skShimmer 1.2s infinite;"></div>'
-            + '<div style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;">'
-            + '<div style="width:' + (120 + i * 18) + 'px;height:14px;border-radius:6px;background:rgba(0,0,0,0.07);"></div>'
-            + '<div style="width:28px;height:14px;border-radius:6px;background:rgba(0,0,0,0.05);"></div>'
-            + '</div>'
-            + '</div>';
-    }
-    container.innerHTML = '<style>@keyframes skShimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}</style>'
-        + '<div style="padding-top:4px;">' + skItems + '</div>';
-}
-
 function changeMode(m, shouldPush = true) {
     if(currentMode === m && path.length === 0 && shouldPush && m !== 'home') return;
     window._reviewMode = false;
@@ -267,17 +251,16 @@ function changeMode(m, shouldPush = true) {
             window.history.pushState({mode: m, path:[]}, '');
         }
     }
-    // Data ready কিনা চেক — না থাকলে skeleton দেখাও, data এলে renderView নিজেই call হবে
-    var sheet = m === 'quiz' ? 'Quiz' : m === 'qbank' ? 'QBank' : 'Study';
-    var hasData = m === 'home' || m === 'menu' || (fullData[sheet] && fullData[sheet].length > 0);
-    if (!hasData) {
-        var container = document.getElementById('main-view');
-        if (container) _showNavSkeleton(container, m);
-        // Data load হলে _applyFirebaseData → renderView call হবে automatically
-    } else {
+    // Instant visual feedback — nav press এ তাৎক্ষণিক response
+    var _mv = document.getElementById('main-view');
+    if (_mv && m !== 'home') {
+        _mv.style.opacity = '0.3';
+    }
+    requestAnimationFrame(function() {
         renderView();
-    }
-    if (m === 'menu' && localStorage.getItem('exam_date')) {
-        setTimeout(() => startCountdownTick(), 400);
-    }
+        if (_mv) _mv.style.opacity = '1';
+        if (m === 'menu' && localStorage.getItem('exam_date')) {
+            setTimeout(function() { startCountdownTick(); }, 200);
+        }
+    });
 }
