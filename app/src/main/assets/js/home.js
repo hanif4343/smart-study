@@ -115,8 +115,6 @@ var _allQForReviewCache = null;
 var _allQForReviewDataLen = 0;
 
 function renderHome(container) {
-    // Progress cache invalidate — fresh render
-    if (typeof _invalidateProgressCache === 'function') _invalidateProgressCache();
     // Memoize: same data → skip full re-render, only update dynamic parts
     var _newKey = [
         localStorage.getItem('home_user_name')||'',
@@ -150,7 +148,7 @@ function renderHome(container) {
     try { _fbSummary = JSON.parse(localStorage.getItem('fb_summary_cache')||'{}'); } catch(e){}
     var correctCount = (_fbSummary.totalCorrect > 0)
         ? _fbSummary.totalCorrect
-        : (typeof _getCorrectSet === 'function' ? _getCorrectSet().size : 0);
+        : JSON.parse(localStorage.getItem('correct_history')||'[]').length;
 
     // XP bar
     const xpPct = xpInfo.nextLevel
@@ -209,9 +207,9 @@ function renderHome(container) {
         </div>`;
     }).join('');
 
-    // ── Recent wrong questions — একবার parse করো ──
-    var wrongHistory; try { wrongHistory = JSON.parse(localStorage.getItem('wrong_history')||'{}'); } catch(e){ wrongHistory={}; }
-    var wrongQIds;    try { wrongQIds    = JSON.parse(localStorage.getItem('wrong_q_ids')||'[]');    } catch(e){ wrongQIds=[]; }
+    // ── Recent wrong questions ──
+    const wrongHistory = JSON.parse(localStorage.getItem('wrong_history')||'{}');
+    const wrongQIds    = JSON.parse(localStorage.getItem('wrong_q_ids')||'[]');
     // Cache allQForReview — data change না হলে recalculate না
     var _curDataLen = (fullData['QBank']||[]).length + (fullData['Study']||[]).length + (fullData['Quiz']||[]).length;
     if (!_allQForReviewCache || _curDataLen !== _allQForReviewDataLen) {
@@ -237,27 +235,20 @@ function renderHome(container) {
     // weakTopics replaced by wrong_q_ids approach
 
     // ── Review Section: All wrong question IDs (format: "quiz:id" or "qbank:id") ──
-    var _wrongQIds  = wrongQIds; // উপরে একবার parse হয়েছে
+    var _wrongQIds  = JSON.parse(localStorage.getItem('wrong_q_ids') || '[]');
     // Count unique wrong questions (new format)
-    // ID → item Map: find() O(n) এর বদলে O(1) lookup
-    var _buildIdMap = function(arr) {
-        var m = {};
-        (arr||[]).forEach(function(i){ var id=String(getVal(i,'id')||''); if(id) m[id]=i; });
-        return m;
-    };
-    var _qbMap = _buildIdMap(fullData['QBank']);
-    var _qzMap = _buildIdMap(fullData['Quiz']);
     var _wrongItems = [];
     _wrongQIds.forEach(function(entry) {
         var parts = entry.indexOf(':') !== -1 ? [entry.split(':')[0], entry.split(':').slice(1).join(':')] : ['quiz', entry];
         var sheet = parts[0]; var qid = parts[1];
-        var found = sheet === 'qbank' ? _qbMap[qid] : _qzMap[qid];
-        if (found) { found._wrongEntry = entry; _wrongItems.push(found); }
+        var pool  = sheet === 'qbank' ? (fullData['QBank']||[]) : (fullData['Quiz']||[]);
+        var found = pool.find(function(i){ return String(getVal(i,'id')||'') === qid; });
+        if (found) _wrongItems.push(found);
     });
     var reviewHTML  = '';
     if (_wrongItems.length > 0) {
         // Get wrong count per question
-        var _wqCount; try { _wqCount = JSON.parse(localStorage.getItem('wrong_q_count') || '{}'); } catch(e){ _wqCount={}; }
+        var _wqCount = JSON.parse(localStorage.getItem('wrong_q_count') || '{}');
         var _previewItems = _wrongItems.slice(0, 2);
 
         // Build preview question cards
@@ -285,7 +276,7 @@ function renderHome(container) {
         }).join('');
 
         var _remaining = _wrongItems.length;
-        var _correctCount = correctCount;
+        var _correctCount = JSON.parse(localStorage.getItem('correct_history') || '[]').length;
 
         reviewHTML =
             '<div style="background:white;border-radius:16px;padding:14px;margin-bottom:10px;border:1.5px solid rgba(239,68,68,0.2);box-shadow:0 2px 12px rgba(239,68,68,0.08);">' +
@@ -478,11 +469,11 @@ function renderHome(container) {
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">
             <div style="background:rgba(255,255,255,0.08);border-radius:10px;padding:8px 4px;text-align:center;">
-                <div style="font-size:16px;font-weight:900;color:#4ade80;">${correctCount}</div>
+                <div style="font-size:16px;font-weight:900;color:#4ade80;">${JSON.parse(localStorage.getItem('correct_history')||'[]').length}</div>
                 <div style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.5);margin-top:2px;">সঠিক</div>
             </div>
             <div style="background:rgba(255,255,255,0.08);border-radius:10px;padding:8px 4px;text-align:center;">
-                <div style="font-size:16px;font-weight:900;color:#f87171;">${Object.values(wrongHistory).reduce(function(a,b){return a+b;},0)}</div>
+                <div style="font-size:16px;font-weight:900;color:#f87171;">${(function(){var w=JSON.parse(localStorage.getItem('wrong_history')||'{}');return Object.values(w).reduce(function(a,b){return a+b;},0);}())}</div>
                 <div style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.5);margin-top:2px;">ভুল</div>
             </div>
             <div style="background:rgba(255,255,255,0.08);border-radius:10px;padding:8px 4px;text-align:center;">
