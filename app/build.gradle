@@ -4,12 +4,14 @@ apply plugin: 'com.google.gms.google-services'
 android {
     namespace 'com.hanif.smart_study'
     compileSdk 34
+    buildToolsVersion "34.0.0"
     defaultConfig {
         applicationId "com.hanif.smart_study"
         minSdk 21
         targetSdk 34
         versionCode 1
         versionName "1.0"
+        vectorDrawables.useSupportLibrary = true
     }
     buildTypes {
         release {
