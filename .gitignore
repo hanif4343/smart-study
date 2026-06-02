@@ -1,34 +1,18 @@
-# Android build outputs
-*.apk
-*.aab
-*.aar
-/app/build/
-/build/
-.gradle/
-local.properties
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
 
-# Secrets (never commit these)
+# Secret files — কখনো commit করবে না!
 app/google-services.json
 app/smartstudy.jks
-*.jks
-*.keystore
+app/src/main/res/font/
 
-# JS build artifacts (generated in CI)
-app/src/main/assets/js/bundle.js
-app/src/main/assets/js/bundle.min.js
-app/src/main/assets/js/bundle.obf.js
-
-# Node
-node_modules/
-npm-debug.log*
-
-# IDE
-.idea/
-*.iml
-.DS_Store
-*.swp
-
-# Capacitor
-.capacitor/
-.env
-*.bak
+# APK/AAB
+*.apk
+*.aab
