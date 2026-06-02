@@ -88,12 +88,22 @@ jobs:
           done
           echo "Icons done"
 
+      # ── Remove duplicate files ──
+      - name: Remove duplicate files
+        run: |
+          rm -f app/src/main/java/com/hanif/smartstudy/ui/menu/sections/StatsScreen.kt
+          rm -f app/src/main/java/com/hanif/smartstudy/ui/menu/sections/ProfileScreen.kt
+          rm -f app/src/main/java/com/hanif/smartstudy/ui/menu/sections/MenuScreen.kt
+          echo "Cleaned duplicate files"
+
       # ── Inject secrets ──
       - name: Inject API keys
         run: |
           sed -i 's|%%GAS_URL%%|${{ secrets.GAS_URL }}|g'               app/build.gradle
           sed -i 's|%%FIREBASE_URL%%|${{ secrets.FIREBASE_URL }}|g'     app/build.gradle
           sed -i 's|%%GEMINI_API_KEY%%|${{ secrets.GEMINI_API_KEY }}|g' app/build.gradle
+          sed -i 's|%%IMGBB_API_KEY%%|${{ secrets.IMGBB_API_KEY }}|g'   app/build.gradle
+          sed -i 's|%%SECRET_KEY%%|${{ secrets.SECRET_KEY }}|g'         app/build.gradle
 
       # ── Auto versionCode ──
       - name: Set versionCode
